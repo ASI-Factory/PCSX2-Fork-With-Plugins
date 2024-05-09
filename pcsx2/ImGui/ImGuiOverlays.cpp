@@ -45,6 +45,8 @@
 #include <tuple>
 #include <unordered_map>
 
+extern "C" bool GetIsThrottlerTempDisabled();
+
 namespace ImGuiManager
 {
 	static void FormatProcessorStat(SmallStringBase& text, double usage, double time);
@@ -251,6 +253,9 @@ __ri void ImGuiManager::DrawPerformanceOverlay(float& position_y, float scale, f
 				else // Unlimited
 					DRAW_LINE(standard_font, ICON_FA_FORWARD, IM_COL32(255, 255, 255, 255));
 			}
+
+			if (GetIsThrottlerTempDisabled())
+				DRAW_LINE(standard_font, ICON_FA_FORWARD, IM_COL32(255, 0, 0, 255));
 		}
 
 		if (GSConfig.OsdShowFrameTimes)
@@ -1071,6 +1076,10 @@ void SaveStateSelectorUI::ShowSlotOSDMessage()
 		Host::OSD_QUICK_DURATION);
 }
 
+#ifdef _WIN32
+void DrawPluginsOverlay();
+#endif
+
 void ImGuiManager::RenderOverlays()
 {
 	const float scale = ImGuiManager::GetGlobalScale();
@@ -1082,6 +1091,75 @@ void ImGuiManager::RenderOverlays()
 	DrawPerformanceOverlay(position_y, scale, margin, spacing);
 	DrawSettingsOverlay(scale, margin, spacing);
 	DrawInputsOverlay(scale, margin, spacing);
+
+#ifdef _WIN32
+	DrawPluginsOverlay();
+#endif
+
 	if (SaveStateSelectorUI::s_open)
 		SaveStateSelectorUI::Draw();
 }
+
+#ifdef _WIN32
+#define NOMINMAX
+#include <Windows.h>
+
+void DrawPluginsOverlay()
+{
+#ifdef _WIN32
+	auto GetPCSX2PluginInjector = []() -> HMODULE {
+		constexpr auto dll = L"PCSX2PluginInjector.asi";
+		auto hm = GetModuleHandleW(dll);
+		return (hm ? hm : LoadLibraryW(dll));
+	};
+	auto GetOSDVectorSize = (size_t(*)())GetProcAddress(GetPCSX2PluginInjector(), "GetOSDVectorSize");
+	auto GetOSDVectorData = (const char* (*)(size_t index))GetProcAddress(GetPCSX2PluginInjector(), "GetOSDVectorData");
+	if (GetOSDVectorSize != NULL && GetOSDVectorData != NULL)
+	{
+		if (GetOSDVectorSize())
+		{
+			const float scale = ImGuiManager::GetGlobalScale();
+			const float shadow_offset = std::ceil(1.0f * scale);
+			const float margin = std::ceil(10.0f * scale);
+			const float spacing = std::ceil(5.0f * scale);
+			float position_y = margin;
+
+			ImDrawList* dl = ImGui::GetBackgroundDrawList();
+			std::string text;
+			ImVec2 text_size;
+			text.reserve(255);
+
+#define DRAW_LINE(font, text, color) \
+	do \
+	{ \
+		text_size = font->CalcTextSizeA(font->FontSize, std::numeric_limits<float>::max(), -1.0f, (text), nullptr, nullptr); \
+		dl->AddText(font, font->FontSize, \
+			ImVec2(margin + shadow_offset, position_y + shadow_offset), \
+			IM_COL32(0, 0, 0, 100), (text)); \
+		dl->AddText(font, font->FontSize, ImVec2(margin, position_y), color, (text)); \
+		position_y += text_size.y + spacing; \
+	} while (0)
+
+			const bool paused = (VMManager::GetState() == VMState::Paused);
+
+			if (!paused)
+			{
+				ImFont* const fixed_font = ImGuiManager::GetFixedFont();
+				for (size_t i = 0; i < GetOSDVectorSize(); i++)
+				{
+					std::string_view s(GetOSDVectorData(i), 255);
+					if (!s.empty() && s[0] != 0)
+					{
+						text.clear();
+						fmt::format_to(std::back_inserter(text), "{}", s);
+						DRAW_LINE(fixed_font, text.c_str(), IM_COL32(255, 255, 255, 255));
+					}
+				}
+			}
+#undef DRAW_LINE
+		}
+	}
+#endif
+}
+#undef NOMINMAX
+#endif

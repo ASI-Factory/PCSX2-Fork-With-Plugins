@@ -513,7 +513,7 @@ Pcsx2Config::CpuOptions::CpuOptions()
 	VU0FPCR = DEFAULT_VU_FP_CONTROL_REGISTER;
 	VU1FPCR = DEFAULT_VU_FP_CONTROL_REGISTER;
 	AffinityControlMode = 0;
-	ExtraMemory = false;
+	ExtraMemory = true; // Forced true for now.
 }
 
 void Pcsx2Config::CpuOptions::ApplySanityCheck()
@@ -546,6 +546,7 @@ void Pcsx2Config::CpuOptions::LoadSave(SettingsWrapper& wrap)
 
 	SettingsWrapEntry(AffinityControlMode);
 	SettingsWrapBitBool(ExtraMemory);
+	ExtraMemory = true; // Forced true for now.
 
 	Recompiler.LoadSave(wrap);
 }
