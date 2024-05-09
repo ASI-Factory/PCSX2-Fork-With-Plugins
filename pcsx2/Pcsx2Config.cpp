@@ -1162,6 +1162,7 @@ void Pcsx2Config::DEV9Options::LoadSave(SettingsWrapper& wrap)
 		SettingsWrapEntry(EthEnable);
 		SettingsWrapEnumEx(EthApi, "EthApi", NetApiNames);
 		SettingsWrapEntry(EthDevice);
+		SettingsWrapEntry(EthLogDHCP);
 		SettingsWrapEntry(EthLogDNS);
 
 		SettingsWrapEntry(InterceptDHCP);
@@ -1255,6 +1256,7 @@ bool Pcsx2Config::DEV9Options::operator==(const DEV9Options& right) const
 	return OpEqu(EthEnable) &&
 		   OpEqu(EthApi) &&
 		   OpEqu(EthDevice) &&
+		   OpEqu(EthLogDHCP) &&
 		   OpEqu(EthLogDNS) &&
 
 		   OpEqu(InterceptDHCP) &&
