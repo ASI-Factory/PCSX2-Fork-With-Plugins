@@ -273,11 +273,18 @@ extern "C"
 	const AspectRatioType AspectRatioSetting);
 	using ShutdownCB = void (*)();
 
+	DLLEXPORT void WriteBytes(uint32_t mem, const void* src, uint32_t size);
 	DLLEXPORT bool GetIsThrottlerTempDisabled();
 	DLLEXPORT void SetIsThrottlerTempDisabled(bool disable);
 	DLLEXPORT VMState GetVMState();
 	DLLEXPORT void AddOnGameElfInitCallback(InitCB callback);
 	DLLEXPORT void AddOnGameShutdownCallback(ShutdownCB callback);
+
+	void WriteBytes(uint32_t mem, const void* src, uint32_t size)
+	{
+		if (vtlb_memSafeCmpBytes(mem, src, size) != 0)
+			vtlb_memSafeWriteBytes(mem, src, size);
+	}
 
 	bool GetIsThrottlerTempDisabled()
 	{
