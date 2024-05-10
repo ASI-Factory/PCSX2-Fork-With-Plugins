@@ -126,7 +126,7 @@ jobs:
           )
 
       - name: Download Plugin Injector artifact
-        uses: robinraju/release-downloader@v1.6
+        uses: robinraju/release-downloader@v1.10
         with:
           repository: "ThirteenAG/PCSX2PluginInjector"
           tag: "latest"
@@ -144,13 +144,13 @@ jobs:
           exclusions: '*.bsc *.exp *.ilk *.iobj *.ipdb *.pdb *.lib'
       - name: Get release info
         id: release_info
-        uses: cardinalby/git-get-release-action@1.2.4
+        uses: cardinalby/git-get-release-action@master
         env:
          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag: latest
       - name: Upload Release
-        uses: ncipollo/release-action@v1.13.0
+        uses: ncipollo/release-action@v1.14.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
