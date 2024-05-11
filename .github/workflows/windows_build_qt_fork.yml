@@ -135,6 +135,7 @@ jobs:
         run: |
           7z x PCSX2PluginInjector.zip -obin/ -y
           del PCSX2PluginInjector.zip
+          del bin\version.dll
       - name: Pack binaries
         uses: TheDoctor0/zip-release@0.7.6
         with:
