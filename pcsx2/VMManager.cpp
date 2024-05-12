@@ -235,7 +235,7 @@ public:
 	{
 		static Event<const char*, const char*, const char*, const char*, const char*,
 			const uint32_t, const uint32_t, const uint32_t, uint8_t*, size_t, const void*,
-			const uint32_t, const uint32_t, const bool, const AspectRatioType> eventEntryPointCompilingOnCPUThread;
+			const uint32_t, const uint32_t, const bool, const uint8_t> eventEntryPointCompilingOnCPUThread;
 		return eventEntryPointCompilingOnCPUThread;
 	}
 	static auto& onGameShutdown()
@@ -270,7 +270,7 @@ extern "C"
 	const uint32_t WindowSizeX,
 	const uint32_t WindowSizeY,
 	const bool IsFullscreen,
-	const AspectRatioType AspectRatioSetting);
+	const uint8_t AspectRatioSetting);
 	using ShutdownCB = void (*)();
 
 	DLLEXPORT void WriteBytes(uint32_t mem, const void* src, uint32_t size);
@@ -2759,7 +2759,7 @@ void VMManager::Internal::EntryPointCompilingOnCPUThread()
 		s_elf_path.data(), s_disc_crc, s_current_crc, s_elf_entry_point,
 		&eeMem->Main[0], Ps2MemSize::ExposedRam, &g_gs_device->GetWindowInfo().window_handle,
 		g_gs_device->GetWindowInfo().surface_width, g_gs_device->GetWindowInfo().surface_height,
-		Host::IsFullscreen(), EmuConfig.GS.AspectRatio
+		Host::IsFullscreen(), static_cast<uint8_t>(GSConfig.AspectRatio)
 	);
 
 	Patch::ApplyLoadedPatches(Patch::PPT_ONCE_ON_LOAD);
