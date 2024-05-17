@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: LGPL-3.0+
 
 #include "IsoFileFormats.h"
-#include "AsyncFileReader.h"
 #include "CDVD/CDVD.h"
 
 #include "common/Assertions.h"
@@ -34,7 +33,7 @@ static bool ISOopen(std::string filename, Error* error)
 		return false;
 	}
 
-	if (!iso.Open(std::move(filename), error, false))
+	if (!iso.Open(std::move(filename), error))
 		return false;
 
 	switch (iso.GetType())

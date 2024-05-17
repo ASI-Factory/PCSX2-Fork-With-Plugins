@@ -713,16 +713,7 @@
     <ClCompile Include="Gif_Logger.cpp">
       <Filter>System\Ps2\GS</Filter>
     </ClCompile>
-    <ClCompile Include="windows\FlatFileReaderWindows.cpp">
-      <Filter>System\ISO</Filter>
-    </ClCompile>
-    <ClCompile Include="Darwin\DarwinFlatFileReader.cpp">
-      <Filter>System\ISO</Filter>
-    </ClCompile>
     <ClCompile Include="CDVD\InputIsoFile.cpp">
-      <Filter>System\ISO</Filter>
-    </ClCompile>
-    <ClCompile Include="MultipartFileReader.cpp">
       <Filter>System\ISO</Filter>
     </ClCompile>
     <ClCompile Include="CDVD\OutputIsoFile.cpp">
@@ -752,9 +743,6 @@
     <ClCompile Include="sif2.cpp">
       <Filter>System\Ps2\EmotionEngine\DMAC\Sif</Filter>
     </ClCompile>
-    <ClCompile Include="CDVD\CompressedFileReader.cpp">
-      <Filter>System\ISO</Filter>
-    </ClCompile>
     <ClCompile Include="DebugTools\MipsAssemblerTables.cpp">
       <Filter>System\Ps2\Debug</Filter>
     </ClCompile>
@@ -774,9 +762,6 @@
       <Filter>System\ISO</Filter>
     </ClCompile>
     <ClCompile Include="CDVD\GzippedFileReader.cpp">
-      <Filter>System\ISO</Filter>
-    </ClCompile>
-    <ClCompile Include="CDVD\ChunksCache.cpp">
       <Filter>System\ISO</Filter>
     </ClCompile>
     <ClCompile Include="IopGte.cpp">
@@ -1407,6 +1392,9 @@
     <ClCompile Include="Host\CubebAudioStream.cpp">
       <Filter>Misc\Host</Filter>
     </ClCompile>
+    <ClCompile Include="CDVD\FlatFileReader.cpp">
+      <Filter>System\ISO</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Patch.h">
@@ -1637,9 +1625,6 @@
     <ClInclude Include="x86\microVU_Profiler.h">
       <Filter>System\Ps2\EmotionEngine\VU\Dynarec\microVU</Filter>
     </ClInclude>
-    <ClInclude Include="AsyncFileReader.h">
-      <Filter>System\ISO</Filter>
-    </ClInclude>
     <ClInclude Include="DebugTools\SymbolMap.h">
       <Filter>System\Ps2\Debug</Filter>
     </ClInclude>
@@ -1682,16 +1667,7 @@
     <ClInclude Include="CDVD\CsoFileReader.h">
       <Filter>System\ISO</Filter>
     </ClInclude>
-    <ClInclude Include="CDVD\CompressedFileReader.h">
-      <Filter>System\ISO</Filter>
-    </ClInclude>
     <ClInclude Include="CDVD\GzippedFileReader.h">
-      <Filter>System\ISO</Filter>
-    </ClInclude>
-    <ClInclude Include="CDVD\ChunksCache.h">
-      <Filter>System\ISO</Filter>
-    </ClInclude>
-    <ClInclude Include="CDVD\CompressedFileReaderUtils.h">
       <Filter>System\ISO</Filter>
     </ClInclude>
     <ClInclude Include="x86\R5900_Profiler.h">
@@ -2320,6 +2296,12 @@
     </ClInclude>
     <ClInclude Include="Host\AudioStreamTypes.h">
       <Filter>Misc\Host</Filter>
+    </ClInclude>
+    <ClInclude Include="CDVD\BlockdumpFileReader.h">
+      <Filter>System\ISO</Filter>
+    </ClInclude>
+    <ClInclude Include="CDVD\FlatFileReader.h">
+      <Filter>System\ISO</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

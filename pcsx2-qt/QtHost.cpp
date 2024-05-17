@@ -24,6 +24,7 @@
 #include "pcsx2/Host.h"
 #include "pcsx2/INISettingsInterface.h"
 #include "pcsx2/ImGui/FullscreenUI.h"
+#include "pcsx2/ImGui/ImGuiFullscreen.h"
 #include "pcsx2/ImGui/ImGuiManager.h"
 #include "pcsx2/ImGui/ImGuiOverlays.h"
 #include "pcsx2/Input/InputManager.h"
@@ -46,6 +47,7 @@
 #include <QtCore/QTimer>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QMessageBox>
+#include <QtWidgets/QFileDialog>
 #include <QtGui/QClipboard>
 #include <QtGui/QInputMethod>
 
@@ -67,7 +69,7 @@ namespace QtHost
 {
 	static void InitializeEarlyConsole();
 	static void PrintCommandLineVersion();
-	static void PrintCommandLineHelp(const std::string_view& progname);
+	static void PrintCommandLineHelp(const std::string_view progname);
 	static std::shared_ptr<VMBootParameters>& AutoBoot(std::shared_ptr<VMBootParameters>& autoboot);
 	static bool ParseCommandLineOptions(const QStringList& args, std::shared_ptr<VMBootParameters>& autoboot);
 	static bool InitializeConfig();
@@ -677,14 +679,7 @@ void EmuThread::reloadInputSources()
 		return;
 	}
 
-	std::unique_lock<std::mutex> lock = Host::GetSettingsLock();
-	SettingsInterface* si = Host::GetSettingsInterface();
-	SettingsInterface* bindings_si = Host::GetSettingsInterfaceForBindings();
-	InputManager::ReloadSources(*si, lock);
-
-	// skip loading bindings if we're not running, since it'll get done on startup anyway
-	if (VMManager::HasValidVM())
-		InputManager::ReloadBindings(*si, *bindings_si);
+	VMManager::ReloadInputSources();
 }
 
 void EmuThread::reloadInputBindings()
@@ -695,14 +690,7 @@ void EmuThread::reloadInputBindings()
 		return;
 	}
 
-	// skip loading bindings if we're not running, since it'll get done on startup anyway
-	if (!VMManager::HasValidVM())
-		return;
-
-	auto lock = Host::GetSettingsLock();
-	SettingsInterface* si = Host::GetSettingsInterface();
-	SettingsInterface* bindings_si = Host::GetSettingsInterfaceForBindings();
-	InputManager::ReloadBindings(*si, *bindings_si);
+	VMManager::ReloadInputBindings();
 }
 
 void EmuThread::reloadInputDevices()
@@ -1083,17 +1071,17 @@ void Host::OnPerformanceMetricsUpdated()
 	g_emu_thread->updatePerformanceMetrics(false);
 }
 
-void Host::OnSaveStateLoading(const std::string_view& filename)
+void Host::OnSaveStateLoading(const std::string_view filename)
 {
 	emit g_emu_thread->onSaveStateLoading(QtUtils::StringViewToQString(filename));
 }
 
-void Host::OnSaveStateLoaded(const std::string_view& filename, bool was_successful)
+void Host::OnSaveStateLoaded(const std::string_view filename, bool was_successful)
 {
 	emit g_emu_thread->onSaveStateLoaded(QtUtils::StringViewToQString(filename), was_successful);
 }
 
-void Host::OnSaveStateSaved(const std::string_view& filename)
+void Host::OnSaveStateSaved(const std::string_view filename)
 {
 	emit g_emu_thread->onSaveStateSaved(QtUtils::StringViewToQString(filename));
 }
@@ -1105,7 +1093,14 @@ void Host::OnAchievementsLoginRequested(Achievements::LoginRequestReason reason)
 
 void Host::OnAchievementsLoginSuccess(const char* username, u32 points, u32 sc_points, u32 unread_messages)
 {
-	emit g_emu_thread->onAchievementsLoginSucceeded(QString::fromUtf8(username), points, sc_points, unread_messages);
+	const QString message =
+		qApp->translate("QtHost", "RA: Logged in as %1 (%2 pts, softcore: %3 pts). %4 unread messages.")
+			.arg(QString::fromUtf8(username))
+			.arg(points)
+			.arg(sc_points)
+			.arg(unread_messages);
+
+	emit g_emu_thread->statusMessage(message);
 }
 
 void Host::OnAchievementsRefreshed()
@@ -1150,6 +1145,59 @@ void Host::OnCoverDownloaderOpenRequested()
 void Host::OnCreateMemoryCardOpenRequested()
 {
 	emit g_emu_thread->onCreateMemoryCardOpenRequested();
+}
+
+bool Host::ShouldPreferHostFileSelector()
+{
+#ifdef __linux__
+	// If running inside a flatpak, we want to use native selectors/portals.
+	return (std::getenv("container") != nullptr);
+#else
+	return false;
+#endif
+}
+
+void Host::OpenHostFileSelectorAsync(std::string_view title, bool select_directory, FileSelectorCallback callback,
+	FileSelectorFilters filters, std::string_view initial_directory)
+{
+	const bool from_cpu_thread = g_emu_thread->isOnEmuThread();
+
+	QString filters_str;
+	if (!filters.empty())
+	{
+		filters_str.append(QStringLiteral("All File Types (%1)")
+							   .arg(QString::fromStdString(StringUtil::JoinString(filters.begin(), filters.end(), " "))));
+		for (const std::string& filter : filters)
+		{
+			filters_str.append(
+				QStringLiteral(";;%1 Files (%2)")
+					.arg(
+						QtUtils::StringViewToQString(std::string_view(filter).substr(filter.starts_with("*.") ? 2 : 0)).toUpper())
+					.arg(QString::fromStdString(filter)));
+		}
+	}
+
+	QtHost::RunOnUIThread([title = QtUtils::StringViewToQString(title), select_directory, callback = std::move(callback),
+							  filters_str = std::move(filters_str),
+							  initial_directory = QtUtils::StringViewToQString(initial_directory),
+							  from_cpu_thread]() mutable {
+		auto lock = g_main_window->pauseAndLockVM();
+
+		QString path;
+
+		if (select_directory)
+			path = QFileDialog::getExistingDirectory(lock.getDialogParent(), title, initial_directory);
+		else
+			path = QFileDialog::getOpenFileName(lock.getDialogParent(), title, initial_directory, filters_str);
+
+		if (!path.isEmpty())
+			path = QDir::toNativeSeparators(path);
+
+		if (from_cpu_thread)
+			Host::RunOnCPUThread([callback = std::move(callback), path = path.toStdString()]() { callback(path); });
+		else
+			callback(path.toStdString());
+	});
 }
 
 void Host::PumpMessagesOnCPUThread()
@@ -1255,9 +1303,9 @@ bool QtHost::InitializeConfig()
 		QMessageBox::critical(
 			nullptr, QStringLiteral("PCSX2"),
 			QStringLiteral("Failed to create data directory at path\n\n%1\n\n"
-				"The error was: %2\n"
-				"Please ensure this directory is writable. You can also try portable mode "
-				"by creating portable.txt in the same directory you installed PCSX2 into.")
+						   "The error was: %2\n"
+						   "Please ensure this directory is writable. You can also try portable mode "
+						   "by creating portable.txt in the same directory you installed PCSX2 into.")
 				.arg(QString::fromStdString(EmuFolders::DataRoot))
 				.arg(QString::fromStdString(error.GetDescription())));
 		return false;
@@ -1556,36 +1604,31 @@ bool QtHost::DownloadFile(QWidget* parent, const QString& title, std::string url
 	return true;
 }
 
-void Host::ReportErrorAsync(const std::string_view& title, const std::string_view& message)
+void Host::ReportErrorAsync(const std::string_view title, const std::string_view message)
 {
 	if (!title.empty() && !message.empty())
-	{
-		Console.Error(
-			"ReportErrorAsync: %.*s: %.*s", static_cast<int>(title.size()), title.data(), static_cast<int>(message.size()), message.data());
-	}
+		ERROR_LOG("ReportErrorAsync: {}: {}", title, message);
 	else if (!message.empty())
-	{
-		Console.Error("ReportErrorAsync: %.*s", static_cast<int>(message.size()), message.data());
-	}
+		ERROR_LOG("ReportErrorAsync: {}", message);
 
 	QMetaObject::invokeMethod(g_main_window, "reportError", Qt::QueuedConnection,
 		Q_ARG(const QString&, title.empty() ? QString() : QString::fromUtf8(title.data(), title.size())),
 		Q_ARG(const QString&, message.empty() ? QString() : QString::fromUtf8(message.data(), message.size())));
 }
 
-bool Host::ConfirmMessage(const std::string_view& title, const std::string_view& message)
+bool Host::ConfirmMessage(const std::string_view title, const std::string_view message)
 {
 	const QString qtitle(QString::fromUtf8(title.data(), title.size()));
 	const QString qmessage(QString::fromUtf8(message.data(), message.size()));
 	return g_emu_thread->confirmMessage(qtitle, qmessage);
 }
 
-void Host::OpenURL(const std::string_view& url)
+void Host::OpenURL(const std::string_view url)
 {
 	QtHost::RunOnUIThread([url = QtUtils::StringViewToQString(url)]() { QtUtils::OpenURL(g_main_window, QUrl(url)); });
 }
 
-bool Host::CopyTextToClipboard(const std::string_view& text)
+bool Host::CopyTextToClipboard(const std::string_view text)
 {
 	QtHost::RunOnUIThread([text = QtUtils::StringViewToQString(text)]() {
 		QClipboard* clipboard = QGuiApplication::clipboard();
@@ -1616,15 +1659,44 @@ std::optional<WindowInfo> Host::GetTopLevelWindowInfo()
 	return ret;
 }
 
-void Host::OnInputDeviceConnected(const std::string_view& identifier, const std::string_view& device_name)
+void Host::OnInputDeviceConnected(const std::string_view identifier, const std::string_view device_name)
 {
 	emit g_emu_thread->onInputDeviceConnected(identifier.empty() ? QString() : QString::fromUtf8(identifier.data(), identifier.size()),
 		device_name.empty() ? QString() : QString::fromUtf8(device_name.data(), device_name.size()));
+
+
+	if (VMManager::HasValidVM() || g_emu_thread->isRunningFullscreenUI())
+	{
+		Host::AddIconOSDMessage(fmt::format("controller_connected_{}", identifier), ICON_FA_GAMEPAD,
+			fmt::format(TRANSLATE_FS("QtHost", "Controller {} connected."), identifier),
+			Host::OSD_INFO_DURATION);
+	}
 }
 
-void Host::OnInputDeviceDisconnected(const std::string_view& identifier)
+void Host::OnInputDeviceDisconnected(const InputBindingKey key, const std::string_view identifier)
 {
 	emit g_emu_thread->onInputDeviceDisconnected(identifier.empty() ? QString() : QString::fromUtf8(identifier.data(), identifier.size()));
+
+	if (VMManager::GetState() == VMState::Running && Host::GetBoolSettingValue("UI", "PauseOnControllerDisconnection", false) &&
+		InputManager::HasAnyBindingsForSource(key))
+	{
+		std::string message =
+			fmt::format(TRANSLATE_FS("QtHost", "System paused because controller {} was disconnected."), identifier);
+		Host::RunOnCPUThread([message = QString::fromStdString(message)]() {
+			VMManager::SetPaused(true);
+
+			// has to be done after pause, otherwise pause message takes precedence
+			emit g_emu_thread->statusMessage(message);
+		});
+		Host::AddIconOSDMessage(fmt::format("controller_connected_{}", identifier), ICON_FA_GAMEPAD, std::move(message),
+			Host::OSD_WARNING_DURATION);
+	}
+	else if (VMManager::HasValidVM() || g_emu_thread->isRunningFullscreenUI())
+	{
+		Host::AddIconOSDMessage(fmt::format("controller_connected_{}", identifier), ICON_FA_GAMEPAD,
+			fmt::format(TRANSLATE_FS("QtHost", "Controller {} disconnected."), identifier),
+			Host::OSD_INFO_DURATION);
+	}
 }
 
 void Host::SetMouseMode(bool relative_mode, bool hide_cursor)
@@ -1710,7 +1782,7 @@ void QtHost::PrintCommandLineVersion()
 	std::fprintf(stderr, "\n");
 }
 
-void QtHost::PrintCommandLineHelp(const std::string_view& progname)
+void QtHost::PrintCommandLineHelp(const std::string_view progname)
 {
 	PrintCommandLineVersion();
 	fmt::print(stderr, "Usage: {} [parameters] [--] [boot filename]\n", progname);

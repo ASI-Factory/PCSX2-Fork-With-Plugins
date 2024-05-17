@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2002-2023 PCSX2 Dev Team
+// SPDX-FileCopyrightText: 2002-2024 PCSX2 Dev Team
 // SPDX-License-Identifier: LGPL-3.0+
 
 #include "pcsx2/Achievements.h"
@@ -6,6 +6,8 @@
 #include "pcsx2/GameList.h"
 #include "pcsx2/Host.h"
 #include "pcsx2/ImGui/FullscreenUI.h"
+#include "pcsx2/ImGui/ImGuiAnimated.h"
+#include "pcsx2/ImGui/ImGuiFullscreen.h"
 #include "pcsx2/ImGui/ImGuiManager.h"
 #include "pcsx2/Input/InputManager.h"
 #include "pcsx2/VMManager.h"
@@ -31,20 +33,20 @@ void Host::SetDefaultUISettings(SettingsInterface& si)
 {
 }
 
-void Host::ReportErrorAsync(const std::string_view& title, const std::string_view& message)
+void Host::ReportErrorAsync(const std::string_view title, const std::string_view message)
 {
 }
 
-bool Host::ConfirmMessage(const std::string_view& title, const std::string_view& message)
+bool Host::ConfirmMessage(const std::string_view title, const std::string_view message)
 {
 	return true;
 }
 
-void Host::OpenURL(const std::string_view& url)
+void Host::OpenURL(const std::string_view url)
 {
 }
 
-bool Host::CopyTextToClipboard(const std::string_view& text)
+bool Host::CopyTextToClipboard(const std::string_view text)
 {
 	return false;
 }
@@ -62,11 +64,11 @@ std::optional<WindowInfo> Host::GetTopLevelWindowInfo()
 	return std::nullopt;
 }
 
-void Host::OnInputDeviceConnected(const std::string_view& identifier, const std::string_view& device_name)
+void Host::OnInputDeviceConnected(const std::string_view identifier, const std::string_view device_name)
 {
 }
 
-void Host::OnInputDeviceDisconnected(const std::string_view& identifier)
+void Host::OnInputDeviceDisconnected(const InputBindingKey key, const std::string_view identifier)
 {
 }
 
@@ -120,15 +122,15 @@ void Host::OnPerformanceMetricsUpdated()
 {
 }
 
-void Host::OnSaveStateLoading(const std::string_view& filename)
+void Host::OnSaveStateLoading(const std::string_view filename)
 {
 }
 
-void Host::OnSaveStateLoaded(const std::string_view& filename, bool was_successful)
+void Host::OnSaveStateLoaded(const std::string_view filename, bool was_successful)
 {
 }
 
-void Host::OnSaveStateSaved(const std::string_view& filename)
+void Host::OnSaveStateSaved(const std::string_view filename)
 {
 }
 
@@ -178,7 +180,7 @@ void Host::PumpMessagesOnCPUThread()
 }
 
 s32 Host::Internal::GetTranslatedStringImpl(
-	const std::string_view& context, const std::string_view& msg, char* tbuf, size_t tbuf_space)
+	const std::string_view context, const std::string_view msg, char* tbuf, size_t tbuf_space)
 {
 	if (msg.size() > tbuf_space)
 		return -1;
@@ -187,6 +189,23 @@ s32 Host::Internal::GetTranslatedStringImpl(
 
 	std::memcpy(tbuf, msg.data(), msg.size());
 	return static_cast<s32>(msg.size());
+}
+
+std::string Host::TranslatePluralToString(const char* context, const char* msg, const char* disambiguation, int count)
+{
+	TinyString count_str = TinyString::from_format("{}", count);
+
+	std::string ret(msg);
+	for (;;)
+	{
+		std::string::size_type pos = ret.find("%n");
+		if (pos == std::string::npos)
+			break;
+
+		ret.replace(pos, pos + 2, count_str.view());
+	}
+
+	return ret;
 }
 
 void Host::OnAchievementsLoginRequested(Achievements::LoginRequestReason reason)
@@ -213,7 +232,18 @@ void Host::OnCreateMemoryCardOpenRequested()
 {
 }
 
-std::optional<u32> InputManager::ConvertHostKeyboardStringToCode(const std::string_view& str)
+bool Host::ShouldPreferHostFileSelector()
+{
+	return false;
+}
+
+void Host::OpenHostFileSelectorAsync(std::string_view title, bool select_directory, FileSelectorCallback callback,
+	FileSelectorFilters filters, std::string_view initial_directory)
+{
+	callback(std::string());
+}
+
+std::optional<u32> InputManager::ConvertHostKeyboardStringToCode(const std::string_view str)
 {
 	return std::nullopt;
 }

@@ -108,7 +108,7 @@ namespace Achievements
 		};
 	} // namespace
 
-	static void ReportError(const std::string_view& sv);
+	static void ReportError(const std::string_view sv);
 	template <typename... T>
 	static void ReportFmtError(fmt::format_string<T...> fmt, T&&... args);
 	template <typename... T>
@@ -168,7 +168,7 @@ namespace Achievements
 	static void UpdateRichPresence(std::unique_lock<std::recursive_mutex>& lock);
 
 	static std::string GetAchievementBadgePath(const rc_client_achievement_t* achievement, int state);
-	static std::string GetUserBadgePath(const std::string_view& username);
+	static std::string GetUserBadgePath(const std::string_view username);
 	static std::string GetLeaderboardUserBadgePath(const rc_client_leaderboard_entry_t* entry);
 
 	static void DrawAchievement(const rc_client_achievement_t* cheevo);
@@ -242,7 +242,7 @@ void Achievements::EndLoadingScreen(bool was_running_idle)
 	ImGuiFullscreen::CloseBackgroundProgressDialog("achievements_loading");
 }
 
-void Achievements::ReportError(const std::string_view& sv)
+void Achievements::ReportError(const std::string_view sv)
 {
 	std::string error = fmt::format("Achievements error: {}", sv);
 	Console.Error(error);
@@ -618,7 +618,7 @@ uint32_t Achievements::ClientReadMemory(uint32_t address, uint8_t* buffer, uint3
 	// Fast paths for known data sizes.
 	switch (num_bytes)
 	{
-		// clang-format off
+			// clang-format off
 		case 1: std::memcpy(buffer, ptr, 1); break;
 		case 2: std::memcpy(buffer, ptr, 2); break;
 		case 4: std::memcpy(buffer, ptr, 4); break;
@@ -1016,9 +1016,14 @@ void Achievements::DisplayAchievementSummary()
 		std::string summary;
 		if (s_game_summary.num_core_achievements > 0)
 		{
-			summary = fmt::format(TRANSLATE_FS("Achievements", "You have unlocked {0} of {1} achievements, and earned {2} of {3} points."),
-				s_game_summary.num_unlocked_achievements, s_game_summary.num_core_achievements, s_game_summary.points_unlocked,
-				s_game_summary.points_core);
+			summary = fmt::format(
+				TRANSLATE_FS("Achievements", "{0}, {1}."),
+				SmallString::from_format(TRANSLATE_PLURAL_FS("Achievements", "You have unlocked {} of %n achievements",
+											 "Achievement popup", s_game_summary.num_core_achievements),
+					s_game_summary.num_unlocked_achievements),
+				SmallString::from_format(TRANSLATE_PLURAL_FS("Achievements", "and earned {} of %n points", "Achievement popup",
+											 s_game_summary.points_core),
+					s_game_summary.points_unlocked));
 		}
 		else
 		{
@@ -1099,8 +1104,11 @@ void Achievements::HandleGameCompleteEvent(const rc_client_event_t* event)
 	if (EmuConfig.Achievements.Notifications)
 	{
 		std::string title = fmt::format(TRANSLATE_FS("Achievements", "Mastered {}"), s_game_title);
-		std::string message = fmt::format(TRANSLATE_FS("Achievements", "{0} achievements, {1} points"),
-			s_game_summary.num_unlocked_achievements, s_game_summary.points_unlocked);
+		std::string message = fmt::format(
+			TRANSLATE_FS("Achievements", "{0}, {1}"),
+			TRANSLATE_PLURAL_STR("Achievements", "%n achievements", "Mastery popup",
+				s_game_summary.num_unlocked_achievements),
+			TRANSLATE_PLURAL_STR("Achievements", "%n points", "Mastery popup", s_game_summary.num_unlocked_achievements));
 
 		MTGS::RunOnGSThread([title = std::move(title), message = std::move(message), icon = s_game_icon]() {
 			if (ImGuiManager::InitializeFullscreenUI())
@@ -1583,7 +1591,7 @@ std::string Achievements::GetAchievementBadgePath(const rc_client_achievement_t*
 	return path;
 }
 
-std::string Achievements::GetUserBadgePath(const std::string_view& username)
+std::string Achievements::GetUserBadgePath(const std::string_view username)
 {
 	// definitely want to sanitize usernames... :)
 	std::string path;
@@ -2163,7 +2171,7 @@ void Achievements::DrawAchievementsWindow()
 	const float heading_height = ImGuiFullscreen::LayoutScale(heading_height_unscaled);
 
 	if (ImGuiFullscreen::BeginFullscreenWindow(ImVec2(0.0f, 0.0f), ImVec2(display_size.x, heading_height), "achievements_heading",
-			heading_background, 0.0f, 0.0f, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse))
+			heading_background, 0.0f, ImVec2(), ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse))
 	{
 		ImRect bb;
 		bool visible, hovered;
@@ -2267,7 +2275,7 @@ void Achievements::DrawAchievementsWindow()
 	if (ImGuiFullscreen::BeginFullscreenWindow(
 			ImVec2(0.0f, heading_height),
 			ImVec2(display_size.x, display_size.y - heading_height - LayoutScale(ImGuiFullscreen::LAYOUT_FOOTER_HEIGHT)),
-			"achievements", background, 0.0f, 0.0f, 0))
+			"achievements", background, 0.0f, ImVec2(ImGuiFullscreen::LAYOUT_MENU_WINDOW_X_PADDING, 0.0f), 0))
 	{
 		static bool buckets_collapsed[NUM_RC_CLIENT_ACHIEVEMENT_BUCKETS] = {};
 		static const char* bucket_names[NUM_RC_CLIENT_ACHIEVEMENT_BUCKETS] = {
@@ -2339,7 +2347,7 @@ void Achievements::DrawAchievement(const rc_client_achievement_t* cheevo)
 									  LayoutScale(ImGuiFullscreen::LAYOUT_MENU_BUTTON_HEIGHT + 30.0f) - points_template_size.x);
 	const ImVec2 summary_text_size(g_medium_font->CalcTextSizeA(g_medium_font->FontSize, FLT_MAX, summary_wrap_width, cheevo->description,
 		cheevo->description + summary_length));
-	
+
 	// Messy, but need to undo LayoutScale in MenuButtonFrame()...
 	const float extra_summary_height = LayoutUnscale(std::max(summary_text_size.y - g_medium_font->FontSize, 0.0f));
 
@@ -2522,8 +2530,9 @@ void Achievements::DrawLeaderboardsWindow()
 		g_large_font->CalcTextSizeA(g_large_font->FontSize, std::numeric_limits<float>::max(), -1.0f, "WWWWWWWWWWW").x;
 	const float column_spacing = spacing * 2.0f;
 
-	if (ImGuiFullscreen::BeginFullscreenWindow(ImVec2(0.0f, 0.0f), ImVec2(display_size.x, heading_height), "leaderboards_heading",
-			heading_background, 0.0f, 0.0f, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse))
+	if (ImGuiFullscreen::BeginFullscreenWindow(ImVec2(), ImVec2(display_size.x, heading_height), "leaderboards_heading",
+			heading_background, 0.0f, ImVec2(),
+			ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse))
 	{
 		bool visible, hovered;
 		ImGuiFullscreen::MenuButtonFrame(
@@ -2697,7 +2706,7 @@ void Achievements::DrawLeaderboardsWindow()
 		if (ImGuiFullscreen::BeginFullscreenWindow(
 				ImVec2(0.0f, heading_height),
 				ImVec2(display_size.x, display_size.y - heading_height - LayoutScale(ImGuiFullscreen::LAYOUT_FOOTER_HEIGHT)),
-				"leaderboards", background, 0.0f, 0.0f, 0))
+				"leaderboards", background, 0.0f, ImVec2(ImGuiFullscreen::LAYOUT_MENU_WINDOW_X_PADDING, 0.0f), 0))
 		{
 			ImGuiFullscreen::BeginMenuButtons();
 
@@ -2717,7 +2726,7 @@ void Achievements::DrawLeaderboardsWindow()
 		if (ImGuiFullscreen::BeginFullscreenWindow(
 				ImVec2(0.0f, heading_height),
 				ImVec2(display_size.x, display_size.y - heading_height - LayoutScale(ImGuiFullscreen::LAYOUT_FOOTER_HEIGHT)),
-				"leaderboard", background, 0.0f, 0.0f, 0))
+				"leaderboard", background, 0.0f, ImVec2(ImGuiFullscreen::LAYOUT_MENU_WINDOW_X_PADDING, 0.0f), 0))
 		{
 			ImGuiFullscreen::BeginMenuButtons();
 

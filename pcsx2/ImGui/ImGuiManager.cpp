@@ -543,12 +543,12 @@ bool ImGuiManager::AddImGuiFonts(bool fullscreen_fonts)
 
 	if (fullscreen_fonts)
 	{
-		const float medium_font_size = std::ceil(ImGuiFullscreen::LayoutScale(ImGuiFullscreen::LAYOUT_MEDIUM_FONT_SIZE));
+		const float medium_font_size = ImGuiFullscreen::LayoutScale(ImGuiFullscreen::LAYOUT_MEDIUM_FONT_SIZE);
 		s_medium_font = AddTextFont(medium_font_size);
 		if (!s_medium_font || !AddIconFonts(medium_font_size))
 			return false;
 
-		const float large_font_size = std::ceil(ImGuiFullscreen::LayoutScale(ImGuiFullscreen::LAYOUT_LARGE_FONT_SIZE));
+		const float large_font_size = ImGuiFullscreen::LayoutScale(ImGuiFullscreen::LAYOUT_LARGE_FONT_SIZE);
 		s_large_font = AddTextFont(large_font_size);
 		if (!s_large_font || !AddIconFonts(large_font_size))
 			return false;
@@ -631,7 +631,7 @@ void Host::AddKeyedOSDMessage(std::string key, std::string message, float durati
 	s_osd_posted_messages.push_back(std::move(msg));
 }
 
-void Host::AddIconOSDMessage(std::string key, const char* icon, const std::string_view& message, float duration /* = 2.0f */)
+void Host::AddIconOSDMessage(std::string key, const char* icon, const std::string_view message, float duration /* = 2.0f */)
 {
 	if (!key.empty())
 		Console.WriteLn(Color_StrongGreen, fmt::format("OSD [{}]: {}", key, message));
@@ -1060,4 +1060,26 @@ void ImGuiManager::SetSoftwareCursorPosition(u32 index, float pos_x, float pos_y
 	SoftwareCursor& sc = s_software_cursors[index];
 	sc.pos.first = pos_x;
 	sc.pos.second = pos_y;
+}
+
+std::string ImGuiManager::StripIconCharacters(std::string_view str)
+{
+	std::string result;
+	result.reserve(str.length());
+
+	for (size_t offset = 0; offset < str.length();)
+	{
+		char32_t utf;
+		offset += StringUtil::DecodeUTF8(str, offset, &utf);
+
+		// icon if outside BMP/SMP/TIP, or inside private use area
+		if (utf > 0x32FFF || (utf >= 0xE000 && utf <= 0xF8FF))
+			continue;
+
+		StringUtil::EncodeAndAppendUTF8(result, utf);
+	}
+
+	StringUtil::StripWhitespace(&result);
+
+	return result;
 }

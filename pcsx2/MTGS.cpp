@@ -551,7 +551,7 @@ void MTGS::MainLoop()
 
 			uint newringpos = (s_ReadPos.load(std::memory_order_relaxed) + ringposinc) & RingBufferMask;
 
-			if (EmuConfig.GS.SynchronousMTGS)
+			if (IsDevBuild && EmuConfig.GS.SynchronousMTGS) [[unlikely]]
 			{
 				pxAssert(s_WritePos == newringpos);
 			}
@@ -675,7 +675,7 @@ void MTGS::SendDataPacket()
 
 	s_WritePos.store(s_packet_writepos, std::memory_order_release);
 
-	if (EmuConfig.GS.SynchronousMTGS)
+	if (IsDevBuild && EmuConfig.GS.SynchronousMTGS) [[unlikely]]
 	{
 		WaitGS();
 	}
@@ -815,7 +815,7 @@ __fi void MTGS::_FinishSimplePacket()
 	pxAssert(future_writepos != s_ReadPos.load(std::memory_order_acquire));
 	s_WritePos.store(future_writepos, std::memory_order_release);
 
-	if (EmuConfig.GS.SynchronousMTGS)
+	if (IsDevBuild && EmuConfig.GS.SynchronousMTGS) [[unlikely]]
 		WaitGS();
 	else
 		++s_CopyDataTally;
@@ -840,7 +840,7 @@ void MTGS::SendSimpleGSPacket(Command type, u32 offset, u32 size, GIF_PATH path)
 {
 	SendSimplePacket(type, (int)offset, (int)size, (int)path);
 
-	if (!EmuConfig.GS.SynchronousMTGS)
+	if (!IsDevBuild || !EmuConfig.GS.SynchronousMTGS) [[likely]]
 	{
 		s_CopyDataTally += size / 16;
 		if (s_CopyDataTally > 0x2000)
@@ -931,7 +931,7 @@ void MTGS::ApplySettings()
 
 	RunOnGSThread([opts = EmuConfig.GS]() {
 		GSUpdateConfig(opts);
-		GSSetVSyncMode(Host::GetEffectiveVSyncMode());
+		GSSetVSyncEnabled(Host::IsVsyncEffectivelyEnabled());
 	});
 
 	// We need to synchronize the thread when changing any settings when the download mode
@@ -970,19 +970,19 @@ void MTGS::UpdateDisplayWindow()
 	});
 }
 
-void MTGS::SetVSyncMode(VsyncMode mode)
+void MTGS::SetVSyncEnabled(bool enabled)
 {
 	pxAssertRel(IsOpen(), "MTGS is running");
 
-	RunOnGSThread([mode]() {
-		Console.WriteLn("Vsync is %s", mode == VsyncMode::Off ? "OFF" : (mode == VsyncMode::Adaptive ? "ADAPTIVE" : "ON"));
-		GSSetVSyncMode(mode);
+	RunOnGSThread([enabled]() {
+		INFO_LOG("Vsync is {}", enabled ? "ON" : "OFF");
+		GSSetVSyncEnabled(enabled);
 	});
 }
 
-void MTGS::UpdateVSyncMode()
+void MTGS::UpdateVSyncEnabled()
 {
-	SetVSyncMode(Host::GetEffectiveVSyncMode());
+	SetVSyncEnabled(Host::IsVsyncEffectivelyEnabled());
 }
 
 void MTGS::SetSoftwareRendering(bool software, GSInterlaceMode interlace, bool display_message /* = true */)

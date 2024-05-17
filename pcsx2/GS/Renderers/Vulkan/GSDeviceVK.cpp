@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2002-2023 PCSX2 Dev Team
+// SPDX-FileCopyrightText: 2002-2024 PCSX2 Dev Team
 // SPDX-License-Identifier: LGPL-3.0+
 
 #include "GS/GS.h"
@@ -14,6 +14,7 @@
 
 #include "common/Console.h"
 #include "common/BitUtils.h"
+#include "common/Error.h"
 #include "common/HostSys.h"
 #include "common/Path.h"
 #include "common/ScopedGuard.h"
@@ -373,8 +374,7 @@ bool GSDeviceVK::SelectDeviceExtensions(ExtensionList* extension_list, bool enab
 	m_optional_extensions.vk_ext_calibrated_timestamps =
 		SupportsExtension(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME, false);
 	m_optional_extensions.vk_ext_rasterization_order_attachment_access =
-		SupportsExtension(VK_EXT_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_EXTENSION_NAME, false) ||
-		SupportsExtension(VK_ARM_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_EXTENSION_NAME, false);
+		SupportsExtension(VK_EXT_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_EXTENSION_NAME, false);
 	m_optional_extensions.vk_ext_line_rasterization = SupportsExtension(VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME,
 		require_line_rasterization);
 	m_optional_extensions.vk_khr_driver_properties = SupportsExtension(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME, false);
@@ -2029,9 +2029,8 @@ void GSDeviceVK::GetAdaptersAndFullscreenModes(
 	}
 	else
 	{
-		if (Vulkan::LoadVulkanLibrary())
+		if (Vulkan::LoadVulkanLibrary(nullptr))
 		{
-			ScopedGuard lib_guard([]() { Vulkan::UnloadVulkanLibrary(); });
 			const VkInstance instance = CreateVulkanInstance(WindowInfo(), false, false);
 			if (instance != VK_NULL_HANDLE)
 			{
@@ -2040,6 +2039,8 @@ void GSDeviceVK::GetAdaptersAndFullscreenModes(
 
 				vkDestroyInstance(instance, nullptr);
 			}
+
+			Vulkan::UnloadVulkanLibrary();
 		}
 	}
 }
@@ -2221,7 +2222,7 @@ bool GSDeviceVK::UpdateWindow()
 		return false;
 	}
 
-	m_swap_chain = VKSwapChain::Create(m_window_info, surface, m_vsync_mode,
+	m_swap_chain = VKSwapChain::Create(m_window_info, surface, m_vsync_enabled,
 		Pcsx2Config::GSOptions::TriStateToOptionalBoolean(GSConfig.ExclusiveFullscreenControl));
 	if (!m_swap_chain)
 	{
@@ -2296,24 +2297,27 @@ std::string GSDeviceVK::GetDriverInfo() const
 	return ret;
 }
 
-void GSDeviceVK::SetVSync(VsyncMode mode)
+void GSDeviceVK::SetVSyncEnabled(bool enabled)
 {
-	if (!m_swap_chain || m_vsync_mode == mode)
+	if (!m_swap_chain || m_vsync_enabled == enabled)
+	{
+		m_vsync_enabled = enabled;
 		return;
+	}
 
 	// This swap chain should not be used by the current buffer, thus safe to destroy.
 	WaitForGPUIdle();
-	if (!m_swap_chain->SetVSync(mode))
+	if (!m_swap_chain->SetVSyncEnabled(enabled))
 	{
 		// Try switching back to the old mode..
-		if (!m_swap_chain->SetVSync(m_vsync_mode))
+		if (!m_swap_chain->SetVSyncEnabled(m_vsync_enabled))
 		{
 			pxFailRel("Failed to reset old vsync mode after failure");
 			m_swap_chain.reset();
 		}
 	}
 
-	m_vsync_mode = mode;
+	m_vsync_enabled = enabled;
 }
 
 GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
@@ -2497,9 +2501,11 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 	bool enable_debug_utils = GSConfig.UseDebugDevice;
 	bool enable_validation_layer = GSConfig.UseDebugDevice;
 
-	if (!Vulkan::LoadVulkanLibrary())
+	Error error;
+	if (!Vulkan::LoadVulkanLibrary(&error))
 	{
-		Host::ReportErrorAsync("Error", "Failed to load Vulkan library. Does your GPU and/or driver support Vulkan?");
+		Error::AddPrefix(&error, "Failed to load Vulkan library. Does your GPU and/or driver support Vulkan?\nThe error was:\n");
+		Host::ReportErrorAsync("Error", error.GetDescription());
 		return false;
 	}
 
@@ -2610,7 +2616,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 
 	if (surface != VK_NULL_HANDLE)
 	{
-		m_swap_chain = VKSwapChain::Create(m_window_info, surface, m_vsync_mode,
+		m_swap_chain = VKSwapChain::Create(m_window_info, surface, m_vsync_enabled,
 			Pcsx2Config::GSOptions::TriStateToOptionalBoolean(GSConfig.ExclusiveFullscreenControl));
 		if (!m_swap_chain)
 		{
