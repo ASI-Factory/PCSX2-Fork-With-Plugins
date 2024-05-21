@@ -29,6 +29,14 @@
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
+// MacOS does not have MAP_FIXED_NOREPLACE, which means our mappings are
+// vulnerable to races with the main/Qt threads. TODO: Investigate using
+// mach_vm_allocate()/mach_vm_map() instead of mmap(), but Apple's
+// documentation for these routines is non-existant...
+#if defined(__APPLE__) && !defined(MAP_FIXED_NOREPLACE)
+#define MAP_FIXED_NOREPLACE MAP_FIXED
+#endif
+
 #include <cerrno>
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -59,7 +67,7 @@ static struct sigaction s_old_sigsegv_action;
 [[maybe_unused]] static bool IsStoreInstruction(uptr ptr)
 {
 	u32 bits;
-	std::memcpy(&bits, reinterpret_cast<const void*>(pc), sizeof(bits));
+	std::memcpy(&bits, reinterpret_cast<const void*>(ptr), sizeof(bits));
 
 	// Based on vixl's disassembler Instruction::IsStore().
 	// if (Mask(LoadStoreAnyFMask) != LoadStoreAnyFixed)
@@ -241,7 +249,7 @@ void* HostSys::Mmap(void* base, size_t size, const PageProtectionMode& mode)
 
 	u32 flags = MAP_PRIVATE | MAP_ANONYMOUS;
 	if (base)
-		flags |= MAP_FIXED;
+		flags |= MAP_FIXED_NOREPLACE;
 
 #if defined(__APPLE__) && defined(_M_ARM64)
 	if (mode.CanExecute())
@@ -316,7 +324,7 @@ void* HostSys::MapSharedMemory(void* handle, size_t offset, void* baseaddr, size
 {
 	const uint lnxmode = LinuxProt(mode);
 
-	const int flags = (baseaddr != nullptr) ? (MAP_SHARED | MAP_FIXED) : MAP_SHARED;
+	const int flags = (baseaddr != nullptr) ? (MAP_SHARED | MAP_FIXED_NOREPLACE) : MAP_SHARED;
 	void* ptr = mmap(baseaddr, size, lnxmode, flags, static_cast<int>(reinterpret_cast<intptr_t>(handle)), static_cast<off_t>(offset));
 	if (ptr == MAP_FAILED)
 		return nullptr;
@@ -326,7 +334,7 @@ void* HostSys::MapSharedMemory(void* handle, size_t offset, void* baseaddr, size
 
 void HostSys::UnmapSharedMemory(void* baseaddr, size_t size)
 {
-	if (mmap(baseaddr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED)
+	if (munmap(baseaddr, size) != 0)
 		pxFailRel("Failed to unmap shared memory");
 }
 
@@ -370,6 +378,7 @@ u8* SharedMemoryMappingArea::Map(void* file_handle, size_t file_offset, void* ma
 {
 	pxAssert(static_cast<u8*>(map_base) >= m_base_ptr && static_cast<u8*>(map_base) < (m_base_ptr + m_size));
 
+	// MAP_FIXED is okay here, since we've reserved the entire region, and *want* to overwrite the mapping.
 	const uint lnxmode = LinuxProt(mode);
 	void* const ptr = mmap(map_base, map_size, lnxmode, MAP_SHARED | MAP_FIXED,
 		static_cast<int>(reinterpret_cast<intptr_t>(file_handle)), static_cast<off_t>(file_offset));
