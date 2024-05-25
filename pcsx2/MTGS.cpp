@@ -165,7 +165,8 @@ void MTGS::ThreadEntryPoint()
 
 		// try initializing.. this could fail
 		std::memcpy(RingBuffer.Regs, PS2MEM_GS, sizeof(PS2MEM_GS));
-		const bool opened = GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, RingBuffer.Regs);
+		const bool opened = GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, RingBuffer.Regs,
+			VMManager::GetEffectiveVSyncMode(), VMManager::ShouldAllowPresentThrottle());
 		s_open_flag.store(opened, std::memory_order_release);
 
 		// notify emu thread that we finished opening (or failed)
@@ -211,6 +212,11 @@ void MTGS::ResetGS(bool hardware_reset)
 
 	if (hardware_reset)
 		SetEvent();
+}
+
+int MTGS::GetCurrentVsyncQueueSize()
+{
+	return s_QueuedFrameCount.load(std::memory_order_acquire);
 }
 
 struct RingCmdPacket_Vsync
@@ -931,7 +937,6 @@ void MTGS::ApplySettings()
 
 	RunOnGSThread([opts = EmuConfig.GS]() {
 		GSUpdateConfig(opts);
-		GSSetVSyncEnabled(Host::IsVsyncEffectivelyEnabled());
 	});
 
 	// We need to synchronize the thread when changing any settings when the download mode
@@ -970,19 +975,16 @@ void MTGS::UpdateDisplayWindow()
 	});
 }
 
-void MTGS::SetVSyncEnabled(bool enabled)
+void MTGS::SetVSyncMode(GSVSyncMode mode, bool allow_present_throttle)
 {
 	pxAssertRel(IsOpen(), "MTGS is running");
 
-	RunOnGSThread([enabled]() {
-		INFO_LOG("Vsync is {}", enabled ? "ON" : "OFF");
-		GSSetVSyncEnabled(enabled);
-	});
+	RunOnGSThread([mode, allow_present_throttle]() { GSSetVSyncMode(mode, allow_present_throttle); });
 }
 
-void MTGS::UpdateVSyncEnabled()
+void MTGS::UpdateVSyncMode()
 {
-	SetVSyncEnabled(Host::IsVsyncEffectivelyEnabled());
+	SetVSyncMode(VMManager::GetEffectiveVSyncMode(), VMManager::ShouldAllowPresentThrottle());
 }
 
 void MTGS::SetSoftwareRendering(bool software, GSInterlaceMode interlace, bool display_message /* = true */)

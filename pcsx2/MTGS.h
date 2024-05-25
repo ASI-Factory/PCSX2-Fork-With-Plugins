@@ -62,6 +62,7 @@ namespace MTGS
 	void WaitForClose();
 	void Freeze(FreezeAction mode, FreezeData& data);
 
+	int GetCurrentVsyncQueueSize();
 	void PostVsyncStart(bool registers_written);
 	void InitAndReadFIFO(u8* mem, u32 qwc);
 
@@ -70,8 +71,8 @@ namespace MTGS
 	void ApplySettings();
 	void ResizeDisplayWindow(int width, int height, float scale);
 	void UpdateDisplayWindow();
-	void SetVSyncEnabled(bool enabled);
-	void UpdateVSyncEnabled();
+	void SetVSyncMode(GSVSyncMode mode, bool allow_present_throttle);
+	void UpdateVSyncMode();
 	void SetSoftwareRendering(bool software, GSInterlaceMode interlace, bool display_message = true);
 	void ToggleSoftwareRendering();
 	bool SaveMemorySnapshot(u32 window_width, u32 window_height, bool apply_aspect, bool crop_borders,
