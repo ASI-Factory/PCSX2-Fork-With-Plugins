@@ -591,6 +591,7 @@ struct Pcsx2Config
 				bool
 					SynchronousMTGS : 1,
 					VsyncEnable : 1,
+					DisableMailboxPresentation : 1,
 					PCRTCAntiBlur : 1,
 					DisableInterlaceOffset : 1,
 					PCRTCOffsets : 1,
@@ -601,7 +602,6 @@ struct Pcsx2Config
 					DisableShaderCache : 1,
 					DisableFramebufferFetch : 1,
 					DisableVertexShaderExpand : 1,
-					DisableThreadedPresentation : 1,
 					SkipDuplicateFrames : 1,
 					OsdShowMessages : 1,
 					OsdShowSpeed : 1,

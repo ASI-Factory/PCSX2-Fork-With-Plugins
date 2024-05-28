@@ -2052,9 +2052,9 @@
              </widget>
             </item>
             <item row="1" column="0">
-             <widget class="QCheckBox" name="threadedPresentation">
+             <widget class="QCheckBox" name="disableMailboxPresentation">
               <property name="text">
-               <string>Disable Threaded Presentation</string>
+               <string>Disable Mailbox Presentation</string>
               </property>
              </widget>
             </item>

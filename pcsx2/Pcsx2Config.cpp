@@ -622,7 +622,6 @@ Pcsx2Config::GSOptions::GSOptions()
 	DisableShaderCache = false;
 	DisableFramebufferFetch = false;
 	DisableVertexShaderExpand = false;
-	DisableThreadedPresentation = false;
 	SkipDuplicateFrames = false;
 	OsdShowMessages = true;
 	OsdShowSpeed = false;
@@ -693,8 +692,6 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 {
 	return (
 		OpEqu(bitset) &&
-
-		OpEqu(VsyncEnable) &&
 
 		OpEqu(InterlaceMode) &&
 		OpEqu(LinearPresent) &&
@@ -784,7 +781,6 @@ bool Pcsx2Config::GSOptions::RestartOptionsAreEqual(const GSOptions& right) cons
 		   OpEqu(DisableShaderCache) &&
 		   OpEqu(DisableFramebufferFetch) &&
 		   OpEqu(DisableVertexShaderExpand) &&
-		   OpEqu(DisableThreadedPresentation) &&
 		   OpEqu(OverrideTextureBarriers) &&
 		   OpEqu(ExclusiveFullscreenControl);
 }
@@ -798,6 +794,7 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 #endif
 
 	SettingsWrapBitBool(VsyncEnable);
+	SettingsWrapBitBool(DisableMailboxPresentation);
 
 	SettingsWrapEntry(VsyncQueueSize);
 
@@ -827,7 +824,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(DisableShaderCache);
 	SettingsWrapBitBool(DisableFramebufferFetch);
 	SettingsWrapBitBool(DisableVertexShaderExpand);
-	SettingsWrapBitBool(DisableThreadedPresentation);
 	SettingsWrapBitBool(SkipDuplicateFrames);
 	SettingsWrapBitBool(OsdShowMessages);
 	SettingsWrapBitBool(OsdShowSpeed);
