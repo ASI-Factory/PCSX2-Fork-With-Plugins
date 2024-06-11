@@ -1433,6 +1433,9 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 					"Please consult the FAQs and Guides for further instructions."));
 			return false;
 		}
+
+		// Must happen after BIOS load, depends on BIOS version.
+		cdvdLoadNVRAM();
 	}
 
 	Error error;
@@ -1734,6 +1737,8 @@ void VMManager::Shutdown(bool save_resume_state)
 
 	if (GSDumpReplayer::IsReplayingDump())
 		GSDumpReplayer::Shutdown();
+	else
+		cdvdSaveNVRAM();
 
 	s_state.store(VMState::Shutdown, std::memory_order_release);
 	FullscreenUI::OnVMDestroyed();
@@ -2734,6 +2739,11 @@ bool VMManager::ShouldAllowPresentThrottle()
 	const VMState state = GetState();
 	const bool valid_vm = (state != VMState::Shutdown && state != VMState::Stopping);
 	return (!valid_vm || (!s_target_speed_synced_to_host && s_target_speed != 1.0f));
+}
+
+bool VMManager::Internal::WasFastBooted()
+{
+	return s_fast_boot_requested;
 }
 
 bool VMManager::Internal::IsFastBootInProgress()
