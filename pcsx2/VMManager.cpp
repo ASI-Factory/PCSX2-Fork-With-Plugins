@@ -38,6 +38,7 @@
 #include "SIO/Sio2.h"
 #include "SPU2/spu2.h"
 #include "USB/USB.h"
+#include "Vif_Dynarec.h"
 #include "VMManager.h"
 #include "ps2/BiosTools.h"
 #include "svnrev.h"
@@ -74,10 +75,6 @@
 
 #ifdef __APPLE__
 #include "common/Darwin/DarwinMisc.h"
-#endif
-
-#ifdef _M_X86
-#include "x86/newVif.h"
 #endif
 
 namespace VMManager
@@ -343,6 +340,14 @@ bool VMManager::PerformEarlyHardwareChecks(const char** error)
 		return false;
 	}
 #endif
+#elif defined(_M_ARM64)
+	// Check page size. If it doesn't match, it is a fatal error.
+	const size_t runtime_host_page_size = HostSys::GetRuntimePageSize();
+	if (__pagesize != runtime_host_page_size)
+	{
+		*error = "Page size mismatch. This build cannot run on your Mac.\n\n" COMMON_DOWNLOAD_MESSAGE;
+		return false;
+	}
 #endif
 
 #undef COMMON_DOWNLOAD_MESSAGE
@@ -2617,6 +2622,7 @@ void VMManager::LogCPUCapabilities()
 	LogUserPowerPlan();
 #endif
 
+#ifdef _M_X86
 	std::string features;
 	if (cpuinfo_has_x86_avx())
 		features += "AVX ";
@@ -2628,6 +2634,18 @@ void VMManager::LogCPUCapabilities()
 	Console.WriteLn(Color_StrongBlack, "x86 Features Detected:");
 	Console.WriteLnFmt("  {}", features);
 	Console.WriteLn();
+#endif
+
+#ifdef _M_ARM64
+	const size_t runtime_cache_line_size = HostSys::GetRuntimeCacheLineSize();
+	if (__cachelinesize != runtime_cache_line_size)
+	{
+		// Not fatal, but does have performance implications.
+		WARNING_LOG(
+			"Cache line size mismatch. This build was compiled with {} byte lines, but the system has {} byte lines.",
+			__cachelinesize, runtime_cache_line_size);
+	}
+#endif
 
 #if 0
 	LogGPUCapabilities();
@@ -2637,11 +2655,13 @@ void VMManager::LogCPUCapabilities()
 
 void VMManager::InitializeCPUProviders()
 {
+#ifdef _M_X86 // TODO(Stenzek): Remove me once EE/VU/IOP recs are added.
 	recCpu.Reserve();
 	psxRec.Reserve();
 
 	CpuMicroVU0.Reserve();
 	CpuMicroVU1.Reserve();
+#endif
 
 	VifUnpackSSE_Init();
 }
@@ -2654,11 +2674,13 @@ void VMManager::ShutdownCPUProviders()
 		dVifRelease(0);
 	}
 
+#ifdef _M_X86 // TODO(Stenzek): Remove me once EE/VU/IOP recs are added.
 	CpuMicroVU1.Shutdown();
 	CpuMicroVU0.Shutdown();
 
 	psxRec.Shutdown();
 	recCpu.Shutdown();
+#endif
 }
 
 void VMManager::UpdateCPUImplementations()
@@ -2672,17 +2694,19 @@ void VMManager::UpdateCPUImplementations()
 		return;
 	}
 
+#ifdef _M_X86 // TODO(Stenzek): Remove me once EE/VU/IOP recs are added.
 	Cpu = CHECK_EEREC ? &recCpu : &intCpu;
 	psxCpu = CHECK_IOPREC ? &psxRec : &psxInt;
 
+	CpuVU0 = EmuConfig.Cpu.Recompiler.EnableVU0 ? static_cast<BaseVUmicroCPU*>(&CpuMicroVU0) : static_cast<BaseVUmicroCPU*>(&CpuIntVU0);
+	CpuVU1 = EmuConfig.Cpu.Recompiler.EnableVU1 ? static_cast<BaseVUmicroCPU*>(&CpuMicroVU1) : static_cast<BaseVUmicroCPU*>(&CpuIntVU1);
+#else
+	Cpu = &intCpu;
+	psxCpu = &psxInt;
+
 	CpuVU0 = &CpuIntVU0;
 	CpuVU1 = &CpuIntVU1;
-
-	if (EmuConfig.Cpu.Recompiler.EnableVU0)
-		CpuVU0 = &CpuMicroVU0;
-
-	if (EmuConfig.Cpu.Recompiler.EnableVU1)
-		CpuVU1 = &CpuMicroVU1;
+#endif
 }
 
 void VMManager::Internal::ClearCPUExecutionCaches()
@@ -2690,9 +2714,11 @@ void VMManager::Internal::ClearCPUExecutionCaches()
 	Cpu->Reset();
 	psxCpu->Reset();
 
+#ifdef _M_X86 // TODO(Stenzek): Remove me once EE/VU/IOP recs are added.
 	// mVU's VU0 needs to be properly initialized for macro mode even if it's not used for micro mode!
 	if (CHECK_EEREC && !EmuConfig.Cpu.Recompiler.EnableVU0)
 		CpuMicroVU0.Reset();
+#endif
 
 	CpuVU0->Reset();
 	CpuVU1->Reset();
@@ -3328,6 +3354,8 @@ void VMManager::WarnAboutUnsafeSettings()
 		append(ICON_FA_EXCLAMATION_CIRCLE,
 			TRANSLATE_SV("VMManager", "INTC Spin Detection is not enabled, this may reduce performance."));
 	}
+	if (!EmuConfig.Cpu.Recompiler.EnableFastmem)
+		append(ICON_FA_EXCLAMATION_CIRCLE, TRANSLATE_SV("VMManager", "Fastmem is not enabled, this will reduce performance."));
 	if (!EmuConfig.Speedhacks.vu1Instant)
 	{
 		append(ICON_FA_EXCLAMATION_CIRCLE,
@@ -3453,6 +3481,12 @@ static u32 GetProcessorIdForProcessor(const cpuinfo_processor* proc)
 
 static void InitializeProcessorList()
 {
+	if (!cpuinfo_initialize())
+	{
+		Console.Error("cpuinfo_initialize() failed");
+		return;
+	}
+
 	const u32 cluster_count = cpuinfo_get_clusters_count();
 	if (cluster_count == 0)
 	{
@@ -3579,6 +3613,10 @@ static void InitializeProcessorList()
 
 static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)
 {
+#ifdef __APPLE__
+	// Everything we support Mac-wise has enough cores for MTVU.
+	si.SetBoolValue("EmuCore/Speedhacks", "vuThread", true);
+#endif
 }
 
 #endif

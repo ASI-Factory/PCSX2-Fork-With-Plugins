@@ -280,6 +280,15 @@
     <Filter Include="Misc\Host">
       <UniqueIdentifier>{9f0d3bda-76d4-42d3-87e9-ce65db9163ef}</UniqueIdentifier>
     </Filter>
+    <Filter Include="System\Ps2\EmotionEngine\DMAC\Vif\Unpack\newVif\Dynarec\arm64">
+      <UniqueIdentifier>{8aea3ae6-9722-463a-94ac-34f3738a3153}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Tools\arm64">
+      <UniqueIdentifier>{cf847f4e-744e-4c27-a7ac-8564726fb4e6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="System\Ps2\EmotionEngine\EE\Dynarec\arm64">
+      <UniqueIdentifier>{cd8ec519-2196-43f7-86de-7faced2d4296}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="Docs\License.txt">
@@ -511,9 +520,6 @@
     </ClCompile>
     <ClCompile Include="Vif_Unpack.cpp">
       <Filter>System\Ps2\EmotionEngine\DMAC\Vif\Unpack</Filter>
-    </ClCompile>
-    <ClCompile Include="x86\newVif_Unpack.cpp">
-      <Filter>System\Ps2\EmotionEngine\DMAC\Vif\Unpack\newVif</Filter>
     </ClCompile>
     <ClCompile Include="x86\newVif_Dynarec.cpp">
       <Filter>System\Ps2\EmotionEngine\DMAC\Vif\Unpack\newVif\Dynarec</Filter>
@@ -1395,6 +1401,24 @@
     <ClCompile Include="CDVD\FlatFileReader.cpp">
       <Filter>System\ISO</Filter>
     </ClCompile>
+    <ClCompile Include="GS\Renderers\SW\GSDrawScanlineCodeGenerator.arm64.cpp">
+      <Filter>System\Ps2\GS\Renderers\Software</Filter>
+    </ClCompile>
+    <ClCompile Include="GS\Renderers\SW\GSSetupPrimCodeGenerator.arm64.cpp">
+      <Filter>System\Ps2\GS\Renderers\Software</Filter>
+    </ClCompile>
+    <ClCompile Include="arm64\newVif_Dynarec.cpp">
+      <Filter>System\Ps2\EmotionEngine\DMAC\Vif\Unpack\newVif\Dynarec\arm64</Filter>
+    </ClCompile>
+    <ClCompile Include="arm64\newVif_UnpackNEON.cpp">
+      <Filter>System\Ps2\EmotionEngine\DMAC\Vif\Unpack\newVif\Dynarec\arm64</Filter>
+    </ClCompile>
+    <ClCompile Include="arm64\AsmHelpers.cpp">
+      <Filter>Tools\arm64</Filter>
+    </ClCompile>
+    <ClCompile Include="arm64\RecStubs.cpp">
+      <Filter>System\Ps2\EmotionEngine\EE\Dynarec\arm64</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Patch.h">
@@ -1482,9 +1506,6 @@
       <Filter>System\Ps2\EmotionEngine\DMAC\Vif\Unpack</Filter>
     </ClInclude>
     <ClInclude Include="x86\newVif.h">
-      <Filter>System\Ps2\EmotionEngine\DMAC\Vif\Unpack\newVif</Filter>
-    </ClInclude>
-    <ClInclude Include="x86\newVif_HashBucket.h">
       <Filter>System\Ps2\EmotionEngine\DMAC\Vif\Unpack\newVif</Filter>
     </ClInclude>
     <ClInclude Include="x86\newVif_UnpackSSE.h">
@@ -2302,6 +2323,30 @@
     </ClInclude>
     <ClInclude Include="CDVD\FlatFileReader.h">
       <Filter>System\ISO</Filter>
+    </ClInclude>
+    <ClInclude Include="Vif_Dynarec.h">
+      <Filter>System\Ps2\EmotionEngine\DMAC\Vif\Unpack\newVif\Dynarec</Filter>
+    </ClInclude>
+    <ClInclude Include="Vif_HashBucket.h">
+      <Filter>System\Ps2\EmotionEngine\DMAC\Vif\Unpack\newVif\Dynarec</Filter>
+    </ClInclude>
+    <ClInclude Include="GS\Renderers\SW\GSDrawScanlineCodeGenerator.arm64.h">
+      <Filter>System\Ps2\GS\Renderers\Software</Filter>
+    </ClInclude>
+    <ClInclude Include="GS\Renderers\SW\GSSetupPrimCodeGenerator.arm64.h">
+      <Filter>System\Ps2\GS\Renderers\Software</Filter>
+    </ClInclude>
+    <ClInclude Include="GS\GSVector4_arm64.h">
+      <Filter>System\Ps2\GS</Filter>
+    </ClInclude>
+    <ClInclude Include="GS\GSVector4i_arm64.h">
+      <Filter>System\Ps2\GS</Filter>
+    </ClInclude>
+    <ClInclude Include="arm64\newVif_UnpackNEON.h">
+      <Filter>System\Ps2\EmotionEngine\DMAC\Vif\Unpack\newVif\Dynarec\arm64</Filter>
+    </ClInclude>
+    <ClInclude Include="arm64\AsmHelpers.h">
+      <Filter>Tools\arm64</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

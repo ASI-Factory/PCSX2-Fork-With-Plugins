@@ -449,11 +449,21 @@ set(pcsx2GSSourcesUnshared
 	GS/Renderers/Common/GSVertexTraceFMM.cpp
 	GS/Renderers/HW/GSRendererHWMultiISA.cpp
 	GS/Renderers/SW/GSDrawScanline.cpp
-	GS/Renderers/SW/GSDrawScanlineCodeGenerator.all.cpp
 	GS/Renderers/SW/GSRasterizer.cpp
 	GS/Renderers/SW/GSRendererSW.cpp
-	GS/Renderers/SW/GSSetupPrimCodeGenerator.all.cpp
 )
+
+if(_M_X86)
+	list(APPEND pcsx2GSSourcesUnshared
+		GS/Renderers/SW/GSDrawScanlineCodeGenerator.all.cpp
+		GS/Renderers/SW/GSSetupPrimCodeGenerator.all.cpp
+	)
+elseif(_M_ARM64)
+	list(APPEND pcsx2GSSourcesUnshared
+		GS/Renderers/SW/GSDrawScanlineCodeGenerator.arm64.cpp
+		GS/Renderers/SW/GSSetupPrimCodeGenerator.arm64.cpp
+	)
+endif()
 
 set(pcsx2GSSources
 	GS/GS.cpp
@@ -509,10 +519,6 @@ set(pcsx2GSHeaders
 	GS/GSTables.h
 	GS/GSUtil.h
 	GS/GSVector.h
-	GS/GSVector4.h
-	GS/GSVector4i.h
-	GS/GSVector8.h
-	GS/GSVector8i.h
 	GS/GSXXH.h
 	GS/MultiISA.h
 	GS/Renderers/Common/GSDevice.h
@@ -539,6 +545,20 @@ set(pcsx2GSHeaders
 	GS/Renderers/SW/GSTextureCacheSW.h
 	GS/Renderers/SW/GSVertexSW.h
 	)
+
+if(_M_X86)
+	list(APPEND pcsx2GSHeaders
+		GS/GSVector4.h
+		GS/GSVector4i.h
+		GS/GSVector8.h
+		GS/GSVector8i.h
+	)
+elseif(_M_ARM64)
+	list(APPEND pcsx2GSHeaders
+		GS/GSVector4_arm64.h
+		GS/GSVector4i_arm64.h
+	)
+endif()
 
 if(USE_OPENGL)
 	list(APPEND pcsx2GSSources
@@ -954,7 +974,6 @@ set(pcsx2x86Sources
 	x86/ix86-32/iR5900Templates.cpp
 	x86/ix86-32/recVTLB.cpp
 	x86/newVif_Dynarec.cpp
-	x86/newVif_Unpack.cpp
 	x86/newVif_UnpackSSE.cpp
 	)
 
@@ -995,10 +1014,21 @@ set(pcsx2x86Headers
 	x86/microVU_Tables.inl
 	x86/microVU_Upper.inl
 	x86/newVif.h
-	x86/newVif_HashBucket.h
 	x86/newVif_UnpackSSE.h
 	x86/R5900_Profiler.h
 	)
+
+# ARM64
+set(pcsx2arm64Sources
+	arm64/AsmHelpers.cpp
+	arm64/newVif_Dynarec.cpp
+	arm64/newVif_UnpackNEON.cpp
+	arm64/RecStubs.cpp
+	)
+
+set(pcsx2arm64Headers
+	arm64/AsmHelpers.h
+)
 
 # These ones benefit a lot from LTO
 set(pcsx2LTOSources
@@ -1006,19 +1036,22 @@ set(pcsx2LTOSources
 	${pcsx2Headers}
 	${pcsx2IPUSources}
 	${pcsx2IPUHeaders}
-	${pcsx2x86Sources}
-	${pcsx2x86Headers}
 	${pcsx2SPU2Sources}
 	${pcsx2SPU2Headers}
 	${pcsx2GSSources}
 	${pcsx2GSHeaders}
 )
 
+if(_M_X86)
+	list(APPEND pcsx2LTOSources ${pcsx2x86Sources} ${pcsx2x86Headers})
+	target_link_libraries(PCSX2_FLAGS INTERFACE zydis)
+elseif(_M_ARM64)
+	list(APPEND pcsx2LTOSources ${pcsx2arm64Sources} ${pcsx2arm64Headers})
+	target_link_libraries(PCSX2_FLAGS INTERFACE vixl)
+endif()
+
 if(LTO_PCSX2_CORE)
 	add_library(PCSX2_LTO ${pcsx2LTOSources})
-	if (WIN32)
-		target_compile_definitions(PCSX2_LTO PRIVATE _M_SSE=0x401)
-	endif()
 	if (DISABLE_ADVANCE_SIMD)
 		target_compile_definitions(PCSX2_LTO PRIVATE MULTI_ISA_SHARED_COMPILATION)
 	endif()
@@ -1091,7 +1124,6 @@ target_link_libraries(PCSX2_FLAGS INTERFACE
 	libchdr
 	libzip::zip
 	cpuinfo
-	zydis
 	cubeb
 	rcheevos
 	discord-rpc
@@ -1138,15 +1170,15 @@ else()
 endif()
 
 # additonal include directories
+if(_M_X86)
+	target_include_directories(PCSX2_FLAGS INTERFACE "${CMAKE_SOURCE_DIR}/3rdparty/xbyak")
+	target_compile_definitions(PCSX2_FLAGS INTERFACE XBYAK_NO_EXCEPTION)
+endif()
 target_include_directories(PCSX2_FLAGS INTERFACE
 	"${CMAKE_CURRENT_SOURCE_DIR}"
 	"${CMAKE_BINARY_DIR}/pcsx2"
 	"${CMAKE_BINARY_DIR}/common/include"
-	"${CMAKE_SOURCE_DIR}/3rdparty/xbyak"
 	"${FFMPEG_INCLUDE_DIRS}"
-)
-target_compile_definitions(PCSX2_FLAGS INTERFACE
-	XBYAK_NO_EXCEPTION
 )
 
 set_source_files_properties(PrecompiledHeader.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
