@@ -512,7 +512,7 @@ Pcsx2Config::CpuOptions::CpuOptions()
 
 	VU0FPCR = DEFAULT_VU_FP_CONTROL_REGISTER;
 	VU1FPCR = DEFAULT_VU_FP_CONTROL_REGISTER;
-	AffinityControlMode = 0;
+
 	ExtraMemory = true; // Forced true for now.
 }
 
