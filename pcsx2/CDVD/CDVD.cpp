@@ -197,11 +197,15 @@ void cdvdSaveNVRAM()
 {
 	Error error;
 	const std::string nvmfile = cdvdGetNVRAMPath();
-	auto fp = FileSystem::OpenManagedCFile(nvmfile.c_str(), "wb", &error);
+	auto fp = FileSystem::OpenManagedCFile(nvmfile.c_str(), "r+b", &error);
 	if (!fp)
 	{
-		ERROR_LOG("Failed to open NVRAM at {} for updating: {}", Path::GetFileName(nvmfile), error.GetDescription());
-		return;
+		fp = FileSystem::OpenManagedCFile(nvmfile.c_str(), "w+b", &error);
+		if (!fp) [[unlikely]]
+		{
+			ERROR_LOG("Failed to open NVRAM at {} for updating: {}", Path::GetFileName(nvmfile), error.GetDescription());
+			return;
+		}
 	}
 
 	u8 existing_nvram[NVRAM_SIZE];
@@ -226,7 +230,7 @@ void cdvdSaveNVRAM()
 static void cdvdReadNVM(u8* dst, int offset, int bytes)
 {
 	int to_read = bytes;
-	if ((offset + bytes) > sizeof(s_nvram)) [[unlikely]]
+	if (static_cast<size_t>(offset + bytes) > sizeof(s_nvram)) [[unlikely]]
 	{
 		WARNING_LOG("CDVD: Out of bounds NVRAM read: offset={}, bytes={}", offset, bytes);
 		to_read = std::max(static_cast<int>(sizeof(s_nvram)) - offset, 0);
@@ -241,7 +245,7 @@ static void cdvdReadNVM(u8* dst, int offset, int bytes)
 static void cdvdWriteNVM(const u8* src, int offset, int bytes)
 {
 	int to_write = bytes;
-	if ((offset + bytes) > sizeof(s_nvram)) [[unlikely]]
+	if (static_cast<size_t>(offset + bytes) > sizeof(s_nvram)) [[unlikely]]
 	{
 		WARNING_LOG("CDVD: Out of bounds NVRAM write: offset={}, bytes={}", offset, bytes);
 		to_write = std::max(static_cast<int>(sizeof(s_nvram)) - offset, 0);
@@ -335,7 +339,6 @@ s32 cdvdReadConfig(u8* config)
 		default:
 		{
 			cdvdReadNVM(config, nvmLayout->config1 + (cdvd.CBlockIndex * 16), 16);
-			DEV_LOG("CONF1: {:02X} {:02X} {:02X} {:02X} {:02X} {:02X}", config[0], config[1], config[2], config[3], config[4], config[5]);
 			if (cdvd.CBlockIndex == 1 && (NoOSD || VMManager::Internal::WasFastBooted()))
 			{
 				// HACK: Set the "initialized" flag when fast booting, otherwise some games crash (e.g. Jak 1).
