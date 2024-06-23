@@ -2171,7 +2171,7 @@ void GSRendererHW::Draw()
 	}
 
 	// We want to fix up the context if we're doing a double half clear, regardless of whether we do the CPU fill.
-	const bool is_possible_mem_clear = IsConstantDirectWriteMemClear();
+	const ClearType is_possible_mem_clear = IsConstantDirectWriteMemClear();
 	if (!GSConfig.UserHacks_DisableSafeFeatures && is_possible_mem_clear)
 	{
 		if (!DetectStripedDoubleClear(no_rt, no_ds))
@@ -2630,7 +2630,8 @@ void GSRendererHW::Draw()
 	else
 	{
 		// if it's directly copying keep the scale - Ratchet and clank hits this, stops edge garbage happening.
-		if (scale_draw == -1 && src && src->m_from_target && src->m_from_target->m_downscaled &&
+		// Keep it to small targets of 256 or lower.
+		if (scale_draw == -1 && src && src->m_from_target && src->m_from_target->m_downscaled && static_cast<int>(m_cached_ctx.FRAME.FBW * 64) <= (PCRTCDisplays.GetResolution().x >> 1) &&
 			(GSVector4i(m_vt.m_min.p).xyxy() == GSVector4i(m_vt.m_min.t).xyxy()).alltrue() && (GSVector4i(m_vt.m_max.p).xyxy() == GSVector4i(m_vt.m_max.t).xyxy()).alltrue())
 		{
 			target_scale = src->m_from_target->GetScale();
@@ -2685,7 +2686,7 @@ void GSRendererHW::Draw()
 															 IsPossibleChannelShuffle());
 
 		rt = g_texture_cache->LookupTarget(FRAME_TEX0, t_size, ((src && src->m_scale != 1) && GSConfig.UserHacks_NativeScaling == GSNativeScaling::Normal && !possible_shuffle) ? GetTextureScaleFactor() : target_scale, GSTextureCache::RenderTarget, true,
-			fm, false, force_preload, preserve_rt_rgb, preserve_rt_alpha, unclamped_draw_rect, possible_shuffle, is_possible_mem_clear && FRAME_TEX0.TBP0 != m_cached_ctx.ZBUF.Block(), GSConfig.UserHacks_NativeScaling != GSNativeScaling::Off && scale_draw != 1);
+			fm, false, force_preload, preserve_rt_rgb, preserve_rt_alpha, unclamped_draw_rect, possible_shuffle, is_possible_mem_clear && FRAME_TEX0.TBP0 != m_cached_ctx.ZBUF.Block(), GSConfig.UserHacks_NativeScaling != GSNativeScaling::Off && scale_draw != 1 && is_possible_mem_clear != ClearType::NormalClear);
 
 		// Draw skipped because it was a clear and there was no target.
 		if (!rt)
@@ -2707,8 +2708,8 @@ void GSRendererHW::Draw()
 				return;
 			}
 
-			rt = g_texture_cache->CreateTarget(FRAME_TEX0, t_size, GetValidSize(src), (scale_draw < 0) ? src->m_from_target->GetScale() : target_scale, GSTextureCache::RenderTarget, true,
-				fm, false, force_preload, preserve_rt_color, m_r, src);
+			rt = g_texture_cache->CreateTarget(FRAME_TEX0, t_size, GetValidSize(src), (scale_draw < 0 && is_possible_mem_clear != ClearType::NormalClear) ? src->m_from_target->GetScale() : target_scale, GSTextureCache::RenderTarget, true,
+				fm, false, force_preload, preserve_rt_color | possible_shuffle, m_r, src);
 			if (!rt) [[unlikely]]
 			{
 				GL_INS("ERROR: Failed to create FRAME target, skipping.");
@@ -4771,8 +4772,11 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	HandleTextureHazards(rt, ds, tex, tmm, source_region, target_region, unscaled_size, scale, src_copy);
 
 	// This is used for reading depth sources, so we should go off the source scale.
-	float scale_factor = scale;
-	m_conf.cb_ps.ScaleFactor = GSVector4(scale_factor * (1.0f / 16.0f), 1.0f / scale_factor, scale_factor, 0.0f);
+	// the Z vector contains line width which will be based on the target draw, where XY are used for source reading.
+	const float scale_factor = scale;
+	const float scale_rt = rt ? rt->GetScale() : ds->GetScale();
+
+	m_conf.cb_ps.ScaleFactor = GSVector4(scale_factor * (1.0f / 16.0f), 1.0f / scale_factor, scale_rt, 0.0f);
 
 	if ((m_conf.ps.tex_is_fb && rt->m_rt_alpha_scale) || (tex->m_target && tex->m_from_target && tex->m_target_direct && tex->m_from_target->m_rt_alpha_scale))
 		m_conf.ps.rta_source_correction = 1;
@@ -7235,17 +7239,17 @@ int GSRendererHW::IsScalingDraw(GSTextureCache::Source* src, bool no_gaps)
 	if (is_target_src && src->m_from_target->m_downscaled && std::abs(draw_size.x - tex_size.x) <= 1 && std::abs(draw_size.y - tex_size.y) <= 1)
 		return -1;
 
-	if (m_context->TEX1.MMAG != 1 || m_vt.m_primclass < GS_TRIANGLE_CLASS || m_cached_ctx.FRAME.Block() == m_cached_ctx.TEX0.TBP0 ||
+	if (!PRIM->TME || m_context->TEX1.MMAG != 1 || m_vt.m_primclass < GS_TRIANGLE_CLASS || m_cached_ctx.FRAME.Block() == m_cached_ctx.TEX0.TBP0 ||
 		IsMipMapDraw() || GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].trbpp <= 8 || !src || !src->m_from_target)
 		return 0;
 
 	// Should usually be 2x but some games like Monster House goes from 512x448 -> 128x128
-	const bool is_downscale = draw_size.x <= (tex_size.x * 0.75f) && draw_size.y <= (tex_size.y * 0.75f);
+	const bool is_downscale = m_cached_ctx.TEX0.TBW >= m_cached_ctx.FRAME.FBW && draw_size.x <= (tex_size.x * 0.75f) && draw_size.y <= (tex_size.y * 0.75f);
 
 	if (is_downscale && draw_size.x >= PCRTCDisplays.GetResolution().x)
 		return 0;
 
-	const bool is_upscale = (draw_size.x / tex_size.x) >= 4 || (draw_size.y / tex_size.y) >= 4;
+	const bool is_upscale = m_cached_ctx.TEX0.TBW <= m_cached_ctx.FRAME.FBW && (draw_size.x / tex_size.x) >= 4 || (draw_size.y / tex_size.y) >= 4;
 	// DMC does a blit in strips with the scissor to keep it inside page boundaries, so that's not technically full coverage
 	// but good enough for what we want.
 	const bool no_gaps_or_single_sprite = (is_downscale || is_upscale) && (no_gaps || (m_vt.m_primclass == GS_SPRITE_CLASS && SpriteDrawWithoutGaps()));
@@ -7261,19 +7265,22 @@ int GSRendererHW::IsScalingDraw(GSTextureCache::Source* src, bool no_gaps)
 	return 0;
 }
 
-bool GSRendererHW::IsConstantDirectWriteMemClear()
+ClearType GSRendererHW::IsConstantDirectWriteMemClear()
 {
 	const bool direct_draw = (m_vt.m_primclass == GS_SPRITE_CLASS) || (((m_index.tail % 6) == 0 && TrianglesAreQuads()) && m_vt.m_primclass == GS_TRIANGLE_CLASS);
 	// Constant Direct Write without texture/test/blending (aka a GS mem clear)
 	if (direct_draw && !PRIM->TME // Direct write
-		&& !(m_draw_env->SCANMSK.MSK & 2)
-		&& !m_cached_ctx.TEST.ATE // no alpha test
+		&& !(m_draw_env->SCANMSK.MSK & 2) && !m_cached_ctx.TEST.ATE // no alpha test
 		&& !m_cached_ctx.TEST.DATE // no destination alpha test
 		&& (!m_cached_ctx.TEST.ZTE || m_cached_ctx.TEST.ZTST == ZTST_ALWAYS) // no depth test
 		&& (m_vt.m_eq.rgba == 0xFFFF || m_vertex.next == 2)) // constant color write
-		return true;
+	{
+		if (PRIM->ABE && (!m_context->ALPHA.IsOpaque() || m_cached_ctx.FRAME.FBMSK))
+			return ClearWithDraw;
 
-	return false;
+		return NormalClear;
+	}
+	return NotClear;
 }
 
 u32 GSRendererHW::GetConstantDirectWriteMemClearColor() const
