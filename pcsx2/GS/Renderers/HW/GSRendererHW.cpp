@@ -2685,8 +2685,12 @@ void GSRendererHW::Draw()
 															  GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].bpp == 16 && GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].bpp == 16) ||
 															 IsPossibleChannelShuffle());
 
+		// Preserve downscaled target when copying directly from a downscaled target, or it's a normal draw using a downscaled target. Clears that are drawing to the target can also preserve size.
+		// Of course if this size is different (in width) or this is a shuffle happening, this will be bypassed.
+		const bool preserve_downscale_draw = scale_draw < 0 || (scale_draw == 0 && ((src && src->m_from_target && src->m_from_target->m_downscaled) || is_possible_mem_clear == ClearType::ClearWithDraw));
+
 		rt = g_texture_cache->LookupTarget(FRAME_TEX0, t_size, ((src && src->m_scale != 1) && GSConfig.UserHacks_NativeScaling == GSNativeScaling::Normal && !possible_shuffle) ? GetTextureScaleFactor() : target_scale, GSTextureCache::RenderTarget, true,
-			fm, false, force_preload, preserve_rt_rgb, preserve_rt_alpha, unclamped_draw_rect, possible_shuffle, is_possible_mem_clear && FRAME_TEX0.TBP0 != m_cached_ctx.ZBUF.Block(), GSConfig.UserHacks_NativeScaling != GSNativeScaling::Off && scale_draw != 1 && is_possible_mem_clear != ClearType::NormalClear);
+			fm, false, force_preload, preserve_rt_rgb, preserve_rt_alpha, unclamped_draw_rect, possible_shuffle, is_possible_mem_clear && FRAME_TEX0.TBP0 != m_cached_ctx.ZBUF.Block(), GSConfig.UserHacks_NativeScaling != GSNativeScaling::Off && preserve_downscale_draw && is_possible_mem_clear != ClearType::NormalClear);
 
 		// Draw skipped because it was a clear and there was no target.
 		if (!rt)
@@ -4739,7 +4743,6 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 __ri static constexpr bool IsRedundantClamp(u8 clamp, u32 clamp_min, u32 clamp_max, u32 tsize)
 {
 	// Don't shader sample when the clamp/repeat is configured to the texture size.
-	// That way trilinear etc still works.
 	const u32 textent = (1u << tsize) - 1u;
 	if (clamp == CLAMP_REGION_CLAMP)
 		return (clamp_min == 0 && clamp_max >= textent);
@@ -4790,9 +4793,9 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	// we keep the shader clamp. See #5851 on github, and the note in Draw().
 	[[maybe_unused]] static constexpr const char* clamp_modes[] = {"REPEAT", "CLAMP", "REGION_CLAMP", "REGION_REPEAT"};
 	const bool redundant_wms = IsRedundantClamp(m_cached_ctx.CLAMP.WMS, m_cached_ctx.CLAMP.MINU,
-													 m_cached_ctx.CLAMP.MAXU, tex->m_TEX0.TW);
+													 m_cached_ctx.CLAMP.MAXU, m_cached_ctx.TEX0.TW);
 	const bool redundant_wmt = IsRedundantClamp(m_cached_ctx.CLAMP.WMT, m_cached_ctx.CLAMP.MINV,
-													 m_cached_ctx.CLAMP.MAXV, tex->m_TEX0.TH);
+													 m_cached_ctx.CLAMP.MAXV, m_cached_ctx.TEX0.TH);
 	const u8 wms = EffectiveClamp(m_cached_ctx.CLAMP.WMS, !tex->m_target && (source_region.HasX() || redundant_wms));
 	const u8 wmt = EffectiveClamp(m_cached_ctx.CLAMP.WMT, !tex->m_target && (source_region.HasY() || redundant_wmt));
 	const bool complex_wms_wmt = !!((wms | wmt) & 2) || target_region;
@@ -4805,6 +4808,7 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	const bool need_mipmap = IsMipMapDraw();
 	const bool shader_emulated_sampler = tex->m_palette || (tex->m_target && !m_conf.ps.shuffle && cpsm.fmt != 0) ||
 										 complex_wms_wmt || psm.depth || target_region;
+	const bool can_trilinear = !tex->m_palette && !tex->m_target && !m_conf.ps.shuffle;
 	const bool trilinear_manual = need_mipmap && GSConfig.HWMipmap;
 
 	bool bilinear = m_vt.IsLinear();
@@ -4817,8 +4821,11 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 			// Force bilinear otherwise we can end up with min/mag nearest and mip linear.
 			// We don't need to check for HWMipmapLevel::Off here, because forced trilinear implies forced mipmaps.
 			bilinear = true;
-			trilinear = static_cast<u8>(GS_MIN_FILTER::Linear_Mipmap_Linear);
-			trilinear_auto = !tex->m_target && (!need_mipmap || !GSConfig.HWMipmap);
+			if (can_trilinear)
+			{
+				trilinear = static_cast<u8>(GS_MIN_FILTER::Linear_Mipmap_Linear);
+				trilinear_auto = !tex->m_target && (!need_mipmap || !GSConfig.HWMipmap);
+			}
 		}
 		break;
 
@@ -4826,7 +4833,7 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 		case TriFiltering::Automatic:
 		{
 			// Can only use PS2 trilinear when mipmapping is enabled.
-			if (need_mipmap && GSConfig.HWMipmap)
+			if (need_mipmap && GSConfig.HWMipmap && can_trilinear)
 			{
 				trilinear = m_context->TEX1.MMIN;
 				trilinear_auto = !tex->m_target && !GSConfig.HWMipmap;
@@ -5033,17 +5040,19 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 			m_conf.cb_ps.MinMax.w = (wmt == CLAMP_REGION_CLAMP && !m_conf.ps.depth_fmt) ? region_clamp.w : region_repeat.w;
 		}
 	}
-	else if (trilinear_manual)
+	
+	if (trilinear_manual)
 	{
-		// Reuse uv_min_max for mipmap parameter to avoid an extension of the UBO
-		m_conf.cb_ps.MinMax.x = static_cast<float>(m_context->TEX1.K) / 16.0f;
-		m_conf.cb_ps.MinMax.y = static_cast<float>(1 << m_context->TEX1.L);
-		m_conf.cb_ps.MinMax.z = static_cast<float>(m_lod.x); // Offset because first layer is m_lod, dunno if we can do better
-		m_conf.cb_ps.MinMax.w = static_cast<float>(m_lod.y);
+		m_conf.cb_ps.LODParams.x = static_cast<float>(m_context->TEX1.K) / 16.0f;
+		m_conf.cb_ps.LODParams.y = static_cast<float>(1 << m_context->TEX1.L);
+		m_conf.cb_ps.LODParams.z = static_cast<float>(m_lod.x); // Offset because first layer is m_lod, dunno if we can do better
+		m_conf.cb_ps.LODParams.w = static_cast<float>(m_lod.y);
+		m_conf.ps.manual_lod = 1;
 	}
 	else if (trilinear_auto)
 	{
 		tex->m_texture->GenerateMipmapsIfNeeded();
+		m_conf.ps.automatic_lod = 1;
 	}
 
 	// TC Offset Hack
@@ -5059,7 +5068,11 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	{
 		m_conf.sampler.biln = 0;
 		m_conf.sampler.aniso = 0;
-		m_conf.sampler.triln = 0;
+
+		// Remove linear from trilinear, since we're doing the bilinear in the shader, and we only want this for mip selection.
+		m_conf.sampler.triln = (trilinear >= static_cast<u8>(GS_MIN_FILTER::Linear_Mipmap_Nearest)) ?
+								   (trilinear - static_cast<u8>(GS_MIN_FILTER::Nearest_Mipmap_Nearest)) :
+								   0;
 	}
 	else
 	{
@@ -5069,14 +5082,8 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 		const bool anisotropic = m_vt.m_primclass == GS_TRIANGLE_CLASS && !trilinear_manual;
 		m_conf.sampler.aniso = anisotropic;
 		m_conf.sampler.triln = trilinear;
-		if (trilinear_manual)
-		{
-			m_conf.ps.manual_lod = 1;
-		}
-		else if (trilinear_auto || anisotropic)
-		{
+		if (anisotropic && !trilinear_manual)
 			m_conf.ps.automatic_lod = 1;
-		}
 	}
 
 	// clamp to base level if we're not providing or generating mipmaps
