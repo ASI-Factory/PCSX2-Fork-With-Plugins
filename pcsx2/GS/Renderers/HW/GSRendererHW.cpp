@@ -5283,8 +5283,25 @@ __ri void GSRendererHW::HandleTextureHazards(const GSTextureCache::Target* rt, c
 	}
 	if (m_downscale_source)
 	{
-		const GSVector4 dst_rect = GSVector4(0, 0, src_unscaled_size.x, src_unscaled_size.y);
-		g_gs_device->StretchRect(src_target->m_texture, GSVector4::cxpr(0.0f, 0.0f, 1.0f, 1.0f), src_copy.get(), dst_rect, src_target->m_texture->IsDepthStencil() ? ShaderConvert::DEPTH_COPY : ShaderConvert::COPY, false);
+		g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+
+		// Can't use box filtering on depth (yet), or fractional scales.
+		if (src_target->m_texture->IsDepthStencil() || std::floor(src_target->GetScale()) != src_target->GetScale())
+		{
+			const GSVector4 dst_rect = GSVector4(GSVector4i::loadh(src_unscaled_size));
+			g_gs_device->StretchRect(src_target->m_texture, GSVector4::cxpr(0.0f, 0.0f, 1.0f, 1.0f), src_copy.get(), dst_rect,
+				src_target->m_texture->IsDepthStencil() ? ShaderConvert::DEPTH_COPY : ShaderConvert::COPY, false);
+		}
+		else
+		{
+			// When using native HPO, the top-left column/row of pixels are often not drawn. Clamp these away to avoid sampling black,
+			// causing bleeding into the edges of the downsampled texture.
+			const u32 downsample_factor = static_cast<u32>(src_target->GetScale());
+			const GSVector2i clamp_min = (GSConfig.UserHacks_HalfPixelOffset != GSHalfPixelOffset::Native) ?
+											 GSVector2i(0, 0) :
+											 GSVector2i(downsample_factor, downsample_factor);
+			g_gs_device->FilteredDownsampleTexture(src_target->m_texture, src_copy.get(), downsample_factor, clamp_min);
+		}
 	}
 	else
 	{
@@ -6002,12 +6019,12 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 
 	// FIXME D3D11 and GL support half pixel center. Code could be easier!!!
 	const GSTextureCache::Target* rt_or_ds = rt ? rt : ds;
-	const float rtscale = rt_or_ds ? rt_or_ds->GetScale() : 0.0f;
-	const GSVector2i rtsize = rt_or_ds ? rt_or_ds->GetTexture()->GetSize() : GSVector2i(0, 0);
+	const float rtscale = rt_or_ds->GetScale();
+	const GSVector2i rtsize = rt_or_ds->GetTexture()->GetSize();
 	float sx, sy, ox2, oy2;
 	const float ox = static_cast<float>(static_cast<int>(m_context->XYOFFSET.OFX));
 	const float oy = static_cast<float>(static_cast<int>(m_context->XYOFFSET.OFY));
-	if (GSConfig.UserHacks_HalfPixelOffset != GSHalfPixelOffset::Native && (!rt || rt->GetScale() > 1.0f))
+	if (GSConfig.UserHacks_HalfPixelOffset != GSHalfPixelOffset::Native && rtscale > 1.0f)
 	{
 		sx = 2.0f * rtscale / (rtsize.x << 4);
 		sy = 2.0f * rtscale / (rtsize.y << 4);
@@ -6032,12 +6049,12 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	else
 	{
 		// Align coordinates to native resolution framebuffer, hope for the best.
-		const int scaled_x = rt_or_ds ? rt_or_ds->GetUnscaledWidth() : 0;
-		const int scaled_y = rt_or_ds ? rt_or_ds->GetUnscaledHeight() : 0;
-		sx = 2.0f / (scaled_x << 4);
-		sy = 2.0f / (scaled_y << 4);
-		ox2 = -1.0f / scaled_x;
-		oy2 = -1.0f / scaled_y;
+		const int unscaled_x = rt_or_ds ? rt_or_ds->GetUnscaledWidth() : 0;
+		const int unscaled_y = rt_or_ds ? rt_or_ds->GetUnscaledHeight() : 0;
+		sx = 2.0f / (unscaled_x << 4);
+		sy = 2.0f / (unscaled_y << 4);
+		ox2 = -1.0f / unscaled_x;
+		oy2 = -1.0f / unscaled_y;
 	}
 
 	m_conf.cb_vs.vertex_scale = GSVector2(sx, sy);
@@ -7135,7 +7152,6 @@ bool GSRendererHW::OI_BlitFMV(GSTextureCache::Target* _rt, GSTextureCache::Sourc
 			const GSVector4i r_full(0, 0, tw, th);
 
 			g_gs_device->CopyRect(tex->m_texture, rt, r_full, 0, 0);
-			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 
 			g_gs_device->StretchRect(tex->m_texture, sRect, rt, dRect, ShaderConvert::COPY, m_vt.IsRealLinear());
 			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
@@ -7284,7 +7300,7 @@ int GSRendererHW::IsScalingDraw(GSTextureCache::Source* src, bool no_gaps)
 	if (is_downscale && draw_size.x >= PCRTCDisplays.GetResolution().x)
 		return 0;
 
-	const bool is_upscale = m_cached_ctx.TEX0.TBW <= m_cached_ctx.FRAME.FBW && (draw_size.x / tex_size.x) >= 4 || (draw_size.y / tex_size.y) >= 4;
+	const bool is_upscale = m_cached_ctx.TEX0.TBW <= m_cached_ctx.FRAME.FBW && ((draw_size.x / tex_size.x) >= 4 || (draw_size.y / tex_size.y) >= 4);
 	// DMC does a blit in strips with the scissor to keep it inside page boundaries, so that's not technically full coverage
 	// but good enough for what we want.
 	const bool no_gaps_or_single_sprite = (is_downscale || is_upscale) && (no_gaps || (m_vt.m_primclass == GS_SPRITE_CLASS && SpriteDrawWithoutGaps()));
