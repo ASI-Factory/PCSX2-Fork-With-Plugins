@@ -793,6 +793,7 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 
 	SettingsWrapBitBool(VsyncEnable);
 	SettingsWrapBitBool(DisableMailboxPresentation);
+	SettingsWrapBitBool(ExtendedUpscalingMultipliers);
 
 	SettingsWrapEntry(VsyncQueueSize);
 
