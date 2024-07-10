@@ -4052,7 +4052,7 @@ __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool 
 	return true;
 }
 
-void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DATE_PRIMID, bool& DATE_BARRIER,
+void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const bool DATE, bool& DATE_PRIMID, bool& DATE_BARRIER,
 	GSTextureCache::Target* rt, bool can_scale_rt_alpha, bool& new_rt_alpha_scale)
 {
 	{
@@ -4069,6 +4069,8 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 		{
 			m_conf.blend = {};
 			m_conf.ps.no_color1 = true;
+
+			// TODO: Find games that may benefit from adding full coverage on RTA Scale when we're overwriting the whole target.
 
 			return;
 		}
@@ -4454,6 +4456,17 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 
 		// Output is Cd, set rgb write to 0.
 		m_conf.colormask.wrgba &= 0x8;
+
+		// TODO: Find games that may benefit from adding full coverage on RTA Scale when we're overwriting the whole target,
+		// then the rest of then conditions can be added.
+		if (can_scale_rt_alpha && !new_rt_alpha_scale && m_conf.colormask.wa)
+		{
+			const bool afail_fb_only = m_cached_ctx.TEST.AFAIL == AFAIL_FB_ONLY;
+			const bool full_cover = rt->m_valid.rintersect(m_r).eq(rt->m_valid) && m_primitive_covers_without_gaps == NoGapsType::FullCover && !(DATE || !afail_fb_only || !IsDepthAlwaysPassing());
+
+			// Restrict this to only when we're overwriting the whole target.
+			new_rt_alpha_scale = full_cover;
+		}
 
 		return;
 	}
@@ -4997,7 +5010,7 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	m_conf.ps.tcc = m_cached_ctx.TEX0.TCC;
 
 	m_conf.ps.ltf = bilinear && shader_emulated_sampler;
-	m_conf.ps.point_sampler = g_gs_device->Features().broken_point_sampler && !target_region && (!bilinear || shader_emulated_sampler);
+	m_conf.ps.point_sampler = g_gs_device->Features().broken_point_sampler && GSConfig.GPUPaletteConversion && !target_region && (!bilinear || shader_emulated_sampler);
 
 	const int tw = static_cast<int>(1 << m_cached_ctx.TEX0.TW);
 	const int th = static_cast<int>(1 << m_cached_ctx.TEX0.TH);
@@ -5867,7 +5880,7 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 
 	if ((!IsOpaque() || m_context->ALPHA.IsBlack()) && rt && ((m_conf.colormask.wrgba & 0x7) || (m_texture_shuffle && !m_copy_16bit_to_target_shuffle && !m_same_group_texture_shuffle)))
 	{
-		EmulateBlending(blend_alpha_min, blend_alpha_max, DATE_PRIMID, DATE_BARRIER, rt, can_scale_rt_alpha, new_scale_rt_alpha);
+		EmulateBlending(blend_alpha_min, blend_alpha_max, DATE, DATE_PRIMID, DATE_BARRIER, rt, can_scale_rt_alpha, new_scale_rt_alpha);
 	}
 	else
 	{
@@ -7280,23 +7293,30 @@ int GSRendererHW::IsScalingDraw(GSTextureCache::Source* src, bool no_gaps)
 	const GSVector2i draw_size = GSVector2i(m_vt.m_max.p.x - m_vt.m_min.p.x, m_vt.m_max.p.y - m_vt.m_min.p.y);
 	const GSVector2i tex_size = GSVector2i(m_vt.m_max.t.x - m_vt.m_min.t.x, m_vt.m_max.t.y - m_vt.m_min.t.y);
 
-	// Try to catch cases of stupid draws like Manhunt and Syphon Filter where they sample a single pixel.
-	if(tex_size.x == 0 || tex_size.y == 0 || draw_size.x == 0 || draw_size.y == 0)
-		return 0;
-
 	const bool is_target_src = src && src->m_from_target;
+
+	// Try to catch cases of stupid draws like Manhunt and Syphon Filter where they sample a single pixel.
+	// Also make sure it's grabbing most of the texture.
+	if (tex_size.x == 0 || tex_size.y == 0 || draw_size.x == 0 || draw_size.y == 0 || !is_target_src)
+		return 0;
 
 	if (is_target_src && src->m_from_target->m_downscaled && std::abs(draw_size.x - tex_size.x) <= 1 && std::abs(draw_size.y - tex_size.y) <= 1)
 		return -1;
 
-	if (!PRIM->TME || m_context->TEX1.MMAG != 1 || m_vt.m_primclass < GS_TRIANGLE_CLASS || m_cached_ctx.FRAME.Block() == m_cached_ctx.TEX0.TBP0 ||
-		IsMipMapDraw() || GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].trbpp <= 8 || !src || !src->m_from_target)
+	const GSDrawingContext& next_ctx = m_env.CTXT[m_env.PRIM.CTXT];
+	const bool next_tex0_is_draw = m_env.PRIM.TME && next_ctx.TEX0.TBP0 == m_cached_ctx.FRAME.Block() && next_ctx.TEX1.MMAG == 1;
+	if (!PRIM->TME || (m_context->TEX1.MMAG != 1 && !next_tex0_is_draw) || m_vt.m_primclass < GS_TRIANGLE_CLASS || m_cached_ctx.FRAME.Block() == m_cached_ctx.TEX0.TBP0 ||
+		IsMipMapDraw() || GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].trbpp <= 8)
 		return 0;
 
 	// Should usually be 2x but some games like Monster House goes from 512x448 -> 128x128
 	const bool is_downscale = m_cached_ctx.TEX0.TBW >= m_cached_ctx.FRAME.FBW && draw_size.x <= (tex_size.x * 0.75f) && draw_size.y <= (tex_size.y * 0.75f);
+	// Check we're getting most of the texture and not just stenciling a part of it.
+	// Only allow non-bilineared downscales if it's most of the target (misdetections of shadows in Naruto, Transformers etc), otherwise it's fine.
+	const GSVector2i tex_size_half = GSVector2i((src->GetRegion().HasX() ? src->GetRegionSize().x : src->m_from_target->m_valid.width()) / 2, (src->GetRegion().HasY() ? src->GetRegionSize().y : src->m_from_target->m_valid.height()) / 2);
+	const bool possible_downscale = m_context->TEX1.MMAG == 1 || src->m_from_target->m_downscaled || tex_size.x >= tex_size_half.x || tex_size.y >= tex_size_half.y;
 
-	if (is_downscale && draw_size.x >= PCRTCDisplays.GetResolution().x)
+	if (is_downscale && (draw_size.x >= PCRTCDisplays.GetResolution().x || !possible_downscale))
 		return 0;
 
 	const bool is_upscale = m_cached_ctx.TEX0.TBW <= m_cached_ctx.FRAME.FBW && ((draw_size.x / tex_size.x) >= 4 || (draw_size.y / tex_size.y) >= 4);
