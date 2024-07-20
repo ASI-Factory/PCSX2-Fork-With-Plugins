@@ -24,6 +24,7 @@
 #include "SIO/Pad/PadBase.h"
 #include "USB/USB.h"
 #include "VMManager.h"
+#include "svnrev.h"
 
 #include "common/BitUtils.h"
 #include "common/FileSystem.h"
@@ -123,6 +124,7 @@ __ri void ImGuiManager::DrawPerformanceOverlay(float& position_y, float scale, f
 	{
 		bool first = true;
 		const float speed = PerformanceMetrics::GetSpeed();
+
 		if (GSConfig.OsdShowFPS)
 		{
 			switch (PerformanceMetrics::GetInternalFPSMethod())
@@ -154,6 +156,16 @@ __ri void ImGuiManager::DrawPerformanceOverlay(float& position_y, float scale, f
 			else
 				text.append_format(" ({:.0f}%)", target_speed * 100.0f);
 		}
+
+		if (GSConfig.OsdShowVersion)
+		{
+			if (GSConfig.OsdShowFPS || GSConfig.OsdShowSpeed)
+			{
+				text.append_format(" | ");
+			}
+			text.append_format("PCSX2 {}", GIT_REV);
+		}
+
 		if (!text.empty())
 		{
 			ImU32 color;
