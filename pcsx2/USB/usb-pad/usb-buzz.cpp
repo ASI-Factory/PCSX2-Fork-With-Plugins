@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2002-2024 PCSX2 Dev Team
-// SPDX-License-Identifier: LGPL-3.0+
+// SPDX-License-Identifier: GPL-3.0+
 
 #include "Host.h"
 #include "Input/InputManager.h"
@@ -196,6 +196,11 @@ namespace usb_pad
 	const char* BuzzDevice::TypeName() const
 	{
 		return "BuzzDevice";
+	}
+
+	bool BuzzDevice::Freeze(USBDevice* dev, StateWrapper& sw) const
+	{
+		return true;
 	}
 
 	USBDevice* BuzzDevice::CreateDevice(SettingsInterface& si, u32 port, u32 subtype) const
