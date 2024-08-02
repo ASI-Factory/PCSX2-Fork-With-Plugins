@@ -2485,8 +2485,7 @@ inline void LogUserPowerPlan()
 }
 #endif
 
-#if 0
-#if defined(__linux__) || defined(_WIN32)
+#if defined(_WIN32)
 void LogGPUCapabilities()
 {
 	Console.WriteLn(Color_StrongBlack, "Graphics Adapters Detected:");
@@ -2599,7 +2598,6 @@ void LogGPUCapabilities()
 #endif
 }
 #endif
-#endif
 
 void VMManager::LogCPUCapabilities()
 {
@@ -2647,7 +2645,7 @@ void VMManager::LogCPUCapabilities()
 	}
 #endif
 
-#if 0
+#if defined(_WIN32)
 	LogGPUCapabilities();
 #endif
 }
