@@ -5,6 +5,8 @@
 
 #include "DebugTools/Debug.h"
 #include "common/Console.h"
+#include "IconsPromptFont.h"
+#include "IconsFontAwesome5.h"
 #include "GS.h"
 #include "Host.h"
 
@@ -12,12 +14,12 @@
 
 namespace InputRec
 {
-	void log(const std::string& log)
+	void log(const std::string& log, const float duration)
 	{
 		if (!log.empty())
 		{
 			recordingConLog(fmt::format("[REC]: {}\n", log));
-			Host::AddOSDMessage(log, 15.0f);
+			Host::AddIconOSDMessage("input_rec_log", ICON_PF_ANALOG_LEFT_RIGHT, log, duration);
 		}
 	}
 
