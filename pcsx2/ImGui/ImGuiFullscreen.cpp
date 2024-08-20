@@ -85,7 +85,7 @@ namespace ImGuiFullscreen
 
 	static u32 s_menu_button_index = 0;
 	static u32 s_close_button_state = 0;
-	static bool s_focus_reset_queued = false;
+	static FocusResetType s_focus_reset_queued = FocusResetType::None;
 	static bool s_light_theme = false;
 
 	static LRUCache<std::string, std::shared_ptr<GSTexture>> s_texture_cache(128, true);
@@ -204,7 +204,7 @@ void ImGuiFullscreen::SetFonts(ImFont* standard_font, ImFont* medium_font, ImFon
 
 bool ImGuiFullscreen::Initialize(const char* placeholder_image_path)
 {
-	s_focus_reset_queued = true;
+	s_focus_reset_queued = FocusResetType::WindowChanged;
 	s_close_button_state = 0;
 
 	s_placeholder_texture = LoadTexture(placeholder_image_path);
@@ -552,22 +552,22 @@ void ImGuiFullscreen::PopResetLayout()
 	ImGui::PopStyleVar(12);
 }
 
-void ImGuiFullscreen::QueueResetFocus()
+void ImGuiFullscreen::QueueResetFocus(FocusResetType type)
 {
-	s_focus_reset_queued = true;
+	s_focus_reset_queued = type;
 	s_close_button_state = 0;
 }
 
 bool ImGuiFullscreen::ResetFocusHere()
 {
-	if (!s_focus_reset_queued)
+	if (s_focus_reset_queued == FocusResetType::None)
 		return false;
 
 	// don't take focus from dialogs
 	if (ImGui::FindBlockingModal(ImGui::GetCurrentWindow()))
 		return false;
 
-	s_focus_reset_queued = false;
+	s_focus_reset_queued = FocusResetType::None;
 	ImGui::SetWindowFocus();
 
 	// only do the active selection magic when we're using keyboard/gamepad
@@ -575,6 +575,11 @@ bool ImGuiFullscreen::ResetFocusHere()
 }
 
 bool ImGuiFullscreen::IsFocusResetQueued()
+{
+	return (s_focus_reset_queued != FocusResetType::None);
+}
+
+ImGuiFullscreen::FocusResetType ImGuiFullscreen::GetQueuedFocusResetType()
 {
 	return s_focus_reset_queued;
 }
@@ -1084,11 +1089,20 @@ bool ImGuiFullscreen::MenuHeadingButton(
 
 bool ImGuiFullscreen::ActiveButton(const char* title, bool is_active, bool enabled, float height, ImFont* font)
 {
+	return ActiveButtonWithRightText(title, nullptr, is_active, enabled, height, font);
+}
+
+bool ImGuiFullscreen::ActiveButtonWithRightText(const char* title, const char* right_title, bool is_active,
+	bool enabled, float height, ImFont* font)
+{
 	if (is_active)
 	{
+		// don't draw over a prerendered border
+		const float border_size = ImGui::GetStyle().FrameBorderSize;
+		const ImVec2 border_size_v = ImVec2(border_size, border_size);
 		ImVec2 pos, size;
 		GetMenuButtonFrameBounds(height, &pos, &size);
-		ImGui::RenderFrame(pos, pos + size, ImGui::GetColorU32(UIPrimaryColor), false);
+		ImGui::RenderFrame(pos + border_size_v, pos + size - border_size_v, ImGui::GetColorU32(UIPrimaryColor), false);
 	}
 
 	ImRect bb;
@@ -1104,6 +1118,16 @@ bool ImGuiFullscreen::ActiveButton(const char* title, bool is_active, bool enabl
 
 	ImGui::PushFont(font);
 	ImGui::RenderTextClipped(title_bb.Min, title_bb.Max, title, nullptr, nullptr, ImVec2(0.0f, 0.0f), &title_bb);
+
+
+	if (right_title && *right_title)
+	{
+		const ImVec2 right_text_size = font->CalcTextSizeA(font->FontSize, title_bb.GetWidth(), 0.0f, right_title);
+		const ImVec2 right_text_start = ImVec2(title_bb.Max.x - right_text_size.x, title_bb.Min.y);
+		ImGui::RenderTextClipped(right_text_start, title_bb.Max, right_title, nullptr, &right_text_size, ImVec2(0.0f, 0.0f),
+			&title_bb);
+	}
+
 	ImGui::PopFont();
 
 	if (!enabled)
@@ -1924,7 +1948,7 @@ void ImGuiFullscreen::OpenFileSelector(std::string_view title, bool select_direc
 	s_file_selector_filters = std::move(filters);
 
 	SetFileSelectorDirectory(std::move(initial_directory));
-	QueueResetFocus();
+	QueueResetFocus(FocusResetType::PopupOpened);
 }
 
 void ImGuiFullscreen::CloseFileSelector()
@@ -1940,7 +1964,7 @@ void ImGuiFullscreen::CloseFileSelector()
 	std::string().swap(s_file_selector_current_directory);
 	s_file_selector_items.clear();
 	ImGui::CloseCurrentPopup();
-	QueueResetFocus();
+	QueueResetFocus(FocusResetType::PopupClosed);
 }
 
 void ImGuiFullscreen::DrawFileSelector()
@@ -1975,8 +1999,8 @@ void ImGuiFullscreen::DrawFileSelector()
 
 		if (!s_file_selector_current_directory.empty())
 		{
-			MenuButton(fmt::format(ICON_FA_FOLDER_OPEN " {}", s_file_selector_current_directory).c_str(), nullptr, false,
-				LAYOUT_MENU_BUTTON_HEIGHT_NO_SUMMARY);
+			MenuButton(SmallString::from_format(ICON_FA_FOLDER_OPEN " {}", s_file_selector_current_directory).c_str(),
+				nullptr, false, LAYOUT_MENU_BUTTON_HEIGHT_NO_SUMMARY);
 		}
 
 		if (s_file_selector_directory && !s_file_selector_current_directory.empty())
@@ -2014,7 +2038,7 @@ void ImGuiFullscreen::DrawFileSelector()
 		if (selected->is_file)
 		{
 			s_file_selector_callback(selected->full_path);
-			QueueResetFocus();
+			QueueResetFocus(FocusResetType::Other);
 		}
 		else
 		{
@@ -2039,7 +2063,7 @@ void ImGuiFullscreen::DrawFileSelector()
 													  "  <Parent Directory>")
 			{
 				SetFileSelectorDirectory(std::move(s_file_selector_items.front().full_path));
-				QueueResetFocus();
+				QueueResetFocus(FocusResetType::Other);
 			}
 		}
 	}
@@ -2060,7 +2084,7 @@ void ImGuiFullscreen::OpenChoiceDialog(std::string_view title, bool checkable, C
 	s_choice_dialog_title = fmt::format("{}##choice_dialog", title);
 	s_choice_dialog_options = std::move(options);
 	s_choice_dialog_callback = std::move(callback);
-	QueueResetFocus();
+	QueueResetFocus(FocusResetType::PopupOpened);
 }
 
 void ImGuiFullscreen::CloseChoiceDialog()
@@ -2073,7 +2097,7 @@ void ImGuiFullscreen::CloseChoiceDialog()
 	std::string().swap(s_choice_dialog_title);
 	ChoiceDialogOptions().swap(s_choice_dialog_options);
 	ChoiceDialogCallback().swap(s_choice_dialog_callback);
-	QueueResetFocus();
+	QueueResetFocus(FocusResetType::PopupClosed);
 }
 
 void ImGuiFullscreen::DrawChoiceDialog()
@@ -2116,7 +2140,8 @@ void ImGuiFullscreen::DrawChoiceDialog()
 			{
 				auto& option = s_choice_dialog_options[i];
 
-				const std::string title(fmt::format("{0} {1}", option.second ? ICON_FA_CHECK_SQUARE : ICON_FA_SQUARE, option.first));
+				const SmallString title =
+					SmallString::from_format("{0} {1}", option.second ? ICON_FA_CHECK_SQUARE : ICON_FA_SQUARE, option.first);
 				if (MenuButton(title.c_str(), nullptr, true, LAYOUT_MENU_BUTTON_HEIGHT_NO_SUMMARY))
 				{
 					choice = i;
@@ -2134,7 +2159,8 @@ void ImGuiFullscreen::DrawChoiceDialog()
 					title += ICON_FA_CHECK " ";
 				title += option.first;
 
-				if (ActiveButton(title.c_str(), option.second, true, LAYOUT_MENU_BUTTON_HEIGHT_NO_SUMMARY))
+				if (ActiveButtonWithRightText(option.first.c_str(), option.second ? ICON_FA_CHECK : nullptr, option.second,
+						true, LAYOUT_MENU_BUTTON_HEIGHT_NO_SUMMARY))
 				{
 					choice = i;
 					for (s32 j = 0; j < static_cast<s32>(s_choice_dialog_options.size()); j++)
@@ -2190,7 +2216,7 @@ void ImGuiFullscreen::OpenInputStringDialog(
 	s_input_dialog_caption = std::move(caption);
 	s_input_dialog_ok_text = std::move(ok_button_text);
 	s_input_dialog_callback = std::move(callback);
-	QueueResetFocus();
+	QueueResetFocus(FocusResetType::PopupOpened);
 }
 
 void ImGuiFullscreen::DrawInputDialog()
@@ -2299,7 +2325,7 @@ void ImGuiFullscreen::OpenConfirmMessageDialog(
 	s_message_dialog_callback = std::move(callback);
 	s_message_dialog_buttons[0] = std::move(yes_button_text);
 	s_message_dialog_buttons[1] = std::move(no_button_text);
-	QueueResetFocus();
+	QueueResetFocus(FocusResetType::PopupOpened);
 }
 
 void ImGuiFullscreen::OpenInfoMessageDialog(
@@ -2312,7 +2338,7 @@ void ImGuiFullscreen::OpenInfoMessageDialog(
 	s_message_dialog_message = std::move(message);
 	s_message_dialog_callback = std::move(callback);
 	s_message_dialog_buttons[0] = std::move(button_text);
-	QueueResetFocus();
+	QueueResetFocus(FocusResetType::PopupOpened);
 }
 
 void ImGuiFullscreen::OpenMessageDialog(std::string title, std::string message, MessageDialogCallback callback,
@@ -2327,7 +2353,7 @@ void ImGuiFullscreen::OpenMessageDialog(std::string title, std::string message, 
 	s_message_dialog_buttons[0] = std::move(first_button_text);
 	s_message_dialog_buttons[1] = std::move(second_button_text);
 	s_message_dialog_buttons[2] = std::move(third_button_text);
-	QueueResetFocus();
+	QueueResetFocus(FocusResetType::PopupOpened);
 }
 
 void ImGuiFullscreen::CloseMessageDialog()
@@ -2340,7 +2366,7 @@ void ImGuiFullscreen::CloseMessageDialog()
 	s_message_dialog_message = {};
 	s_message_dialog_buttons = {};
 	s_message_dialog_callback = {};
-	QueueResetFocus();
+	QueueResetFocus(FocusResetType::PopupClosed);
 }
 
 void ImGuiFullscreen::DrawMessageDialog()
