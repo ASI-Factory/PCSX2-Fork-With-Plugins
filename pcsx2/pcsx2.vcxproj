@@ -56,6 +56,8 @@
       <AdditionalIncludeDirectories Condition="'$(Platform)'=='x64'">%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\xbyak</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Platform)'=='x64'">%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\zydis\include;$(SolutionDir)3rdparty\zydis\dependencies\zycore\include</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Platform)'=='ARM64'">%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\vixl\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\demangler\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\ccc\src</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>PrecompiledHeader.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>PrecompiledHeader.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
@@ -152,7 +154,7 @@
     <ClCompile Include="DebugTools\MipsAssembler.cpp" />
     <ClCompile Include="DebugTools\MipsAssemblerTables.cpp" />
     <ClCompile Include="DebugTools\MipsStackWalk.cpp" />
-    <ClCompile Include="DebugTools\SymbolMap.cpp" />
+    <ClCompile Include="DebugTools\SymbolGuardian.cpp" />
     <ClCompile Include="DEV9\AdapterUtils.cpp" />
     <ClCompile Include="DEV9\ATA\Commands\ATA_Command.cpp" />
     <ClCompile Include="DEV9\ATA\Commands\ATA_CmdDMA.cpp" />
@@ -596,7 +598,7 @@
     <ClInclude Include="DebugTools\MipsAssembler.h" />
     <ClInclude Include="DebugTools\MipsAssemblerTables.h" />
     <ClInclude Include="DebugTools\MipsStackWalk.h" />
-    <ClInclude Include="DebugTools\SymbolMap.h" />
+    <ClInclude Include="DebugTools\SymbolGuardian.h" />
     <ClInclude Include="DEV9\AdapterUtils.h" />
     <ClInclude Include="DEV9\ATA\ATA.h" />
     <ClInclude Include="DEV9\ATA\HddCreate.h" />
@@ -1003,6 +1005,12 @@
     </ProjectReference>
     <ProjectReference Include="..\3rdparty\vixl\vixl.vcxproj" Condition="'$(Platform)'=='ARM64'">
       <Project>{8906836e-f06e-46e8-b11a-74e5e8c7b8fb}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\3rdparty\demangler\demangler.vcxproj">
+      <Project>{d31a6dd1-99ca-41d8-a230-1fae913c8989}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\3rdparty\ccc\ccc.vcxproj">
+      <Project>{2589f8ce-ea77-4b73-911e-64074569795b}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
