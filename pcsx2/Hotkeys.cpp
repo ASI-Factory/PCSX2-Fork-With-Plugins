@@ -247,6 +247,14 @@ DEFINE_HOTKEY("SaveStateAndSelectNextSlot", TRANSLATE_NOOP("Hotkeys", "Save Stat
 			SaveStateSelectorUI::SelectNextSlot(false);
 		}
 	})
+DEFINE_HOTKEY("SelectNextSlotAndSaveState", TRANSLATE_NOOP("Hotkeys", "Save States"),
+	TRANSLATE_NOOP("Hotkeys", "Select Next Slot and Save State"), [](s32 pressed) {
+		if (!pressed && VMManager::HasValidVM())
+		{
+			SaveStateSelectorUI::SelectNextSlot(false);
+			SaveStateSelectorUI::SaveCurrentSlot();
+		}
+	})
 
 #define DEFINE_HOTKEY_SAVESTATE_X(slotnum, title) \
 	DEFINE_HOTKEY("SaveStateToSlot" #slotnum, "Save States", title, [](s32 pressed) { \
