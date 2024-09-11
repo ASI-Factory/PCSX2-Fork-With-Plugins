@@ -1821,6 +1821,8 @@ void VMManager::Reset()
 	if (elf_was_changed)
 		HandleELFChange(false);
 
+	Achievements::ResetClient();
+
 	mmap_ResetBlockTracking();
 	memSetExtraMemMode(EmuConfig.Cpu.ExtraMemory);
 	Internal::ClearCPUExecutionCaches();
