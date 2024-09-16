@@ -134,41 +134,45 @@ __ri void ImGuiManager::DrawPerformanceOverlay(float& position_y, float scale, f
 			switch (PerformanceMetrics::GetInternalFPSMethod())
 			{
 				case PerformanceMetrics::InternalFPSMethod::GSPrivilegedRegister:
-					text.append_format("G: {:.2f} [P] | V: {:.2f}", PerformanceMetrics::GetInternalFPS(),
+					text.append_format("FPS: {:.2f} [P]", PerformanceMetrics::GetInternalFPS(),
 						PerformanceMetrics::GetFPS());
 					break;
 
 				case PerformanceMetrics::InternalFPSMethod::DISPFBBlit:
-					text.append_format("G: {:.2f} [B] | V: {:.2f}", PerformanceMetrics::GetInternalFPS(),
+					text.append_format("FPS: {:.2f} [B]", PerformanceMetrics::GetInternalFPS(),
 						PerformanceMetrics::GetFPS());
 					break;
 
 				case PerformanceMetrics::InternalFPSMethod::None:
 				default:
-					text.append_format("V: {:.2f}", PerformanceMetrics::GetFPS());
+					text.append_format("FPS: {:.2f}", PerformanceMetrics::GetFPS());
 					break;
 			}
 			first = false;
 		}
 
+		if (GSConfig.OsdShowVPS)
+		{
+			text.append_format("{}VPS: {:.2f}", first ? "" : " | ", PerformanceMetrics::GetFPS(),
+				PerformanceMetrics::GetFPS());
+			first = false;
+		}
+
 		if (GSConfig.OsdShowSpeed)
 		{
-			text.append_format("{}{}%", first ? "" : " | ", static_cast<u32>(std::round(speed)));
+			text.append_format("{}Speed: {}%", first ? "" : " | ", static_cast<u32>(std::round(speed)));
 
 			const float target_speed = VMManager::GetTargetSpeed();
 			if (target_speed == 0.0f)
-				text.append(" (Max)");
+				text.append(" (T: Max)");
 			else
-				text.append_format(" ({:.0f}%)", target_speed * 100.0f);
+				text.append_format(" (T: {:.0f}%)", target_speed * 100.0f);
+			first = false;
 		}
 
 		if (GSConfig.OsdShowVersion)
 		{
-			if (GSConfig.OsdShowFPS || GSConfig.OsdShowSpeed)
-			{
-				text.append_format(" | ");
-			}
-			text.append_format("PCSX2 {}", GIT_REV);
+			text.append_format("{}PCSX2 {}", first ? "" : " | ", GIT_REV);
 		}
 
 		if (!text.empty())
@@ -215,11 +219,17 @@ __ri void ImGuiManager::DrawPerformanceOverlay(float& position_y, float scale, f
 
 		if (GSConfig.OsdShowHardwareInfo)
 		{
+			// CPU
 			text.clear();
 			text.append_format("CPU: {} ({}C/{}T)",
 				cpuinfo_get_package(0)->name,
 				cpuinfo_get_cores_count(),
 				cpuinfo_get_processors_count());
+			DRAW_LINE(fixed_font, text.c_str(), IM_COL32(255, 255, 255, 255));
+
+			// GPU
+			text.clear();
+			text.append_format("GPU: {}", g_gs_device->GetName());
 			DRAW_LINE(fixed_font, text.c_str(), IM_COL32(255, 255, 255, 255));
 		}
 
