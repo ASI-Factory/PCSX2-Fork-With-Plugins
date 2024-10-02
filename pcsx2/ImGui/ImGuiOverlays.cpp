@@ -757,6 +757,7 @@ namespace SaveStateSelectorUI
 	static void RefreshHotkeyLegend();
 	static void Draw();
 	static void ShowSlotOSDMessage();
+	bool IsOpen();
 
 	static constexpr const char* DATE_TIME_FORMAT = TRANSLATE_NOOP("ImGuiOverlays", "Saved at {0:%H:%M} on {0:%a} {0:%Y/%m/%d}.");
 
@@ -803,6 +804,10 @@ void SaveStateSelectorUI::Open(float open_time /* = DEFAULT_OPEN_TIME */)
 	s_open = true;
 	RefreshList(serial, VMManager::GetDiscCRC());
 	RefreshHotkeyLegend();
+}
+
+bool SaveStateSelectorUI::IsOpen(){
+	return s_open;
 }
 
 void SaveStateSelectorUI::Close()
