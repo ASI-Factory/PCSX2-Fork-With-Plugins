@@ -766,6 +766,7 @@ namespace SaveStateSelectorUI
 	static std::string s_save_legend;
 	static std::string s_prev_legend;
 	static std::string s_next_legend;
+	static std::string s_close_legend;
 
 	static std::array<ListEntry, VMManager::NUM_SAVE_STATE_SLOTS> s_slots;
 	static std::atomic_int32_t s_current_slot{0};
@@ -817,6 +818,7 @@ void SaveStateSelectorUI::Close()
 	s_save_legend = {};
 	s_prev_legend = {};
 	s_next_legend = {};
+	s_close_legend = {};
 }
 
 void SaveStateSelectorUI::RefreshList(const std::string& serial, u32 crc)
@@ -878,6 +880,8 @@ void SaveStateSelectorUI::RefreshHotkeyLegend()
 		TRANSLATE_STR("ImGuiOverlays", "Select Previous"));
 	s_next_legend = format_legend_entry(Host::GetSmallStringSettingValue("Hotkeys", "NextSaveStateSlot"),
 		TRANSLATE_STR("ImGuiOverlays", "Select Next"));
+	s_close_legend = format_legend_entry(Host::GetSmallStringSettingValue("Hotkeys", "OpenPauseMenu"),
+		TRANSLATE_STR("ImGuiOverlays", "Close Menu"));
 }
 
 void SaveStateSelectorUI::SelectNextSlot(bool open_selector)
@@ -965,9 +969,9 @@ void SaveStateSelectorUI::Draw()
 	const auto& io = ImGui::GetIO();
 	const float scale = ImGuiManager::GetGlobalScale();
 	const float width = (600.0f * scale);
-	const float height = (420.0f * scale);
+	const float height = (430.0f * scale);
 
-	const float padding_and_rounding = 15.0f * scale;
+	const float padding_and_rounding = 10.0f * scale;
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, padding_and_rounding);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(padding_and_rounding, padding_and_rounding));
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.11f, 0.15f, 0.17f, 0.8f));
@@ -980,7 +984,7 @@ void SaveStateSelectorUI::Draw()
 				ImGuiWindowFlags_NoScrollbar))
 	{
 		// Leave 2 lines for the legend
-		const float legend_margin = ImGui::GetFontSize() * 2.0f + ImGui::GetStyle().ItemSpacing.y * 3.0f;
+		const float legend_margin = ImGui::GetFontSize() * 3.0f + ImGui::GetStyle().ItemSpacing.y * 3.0f;
 		const float padding = 10.0f * scale;
 
 		ImGui::BeginChild("##item_list", ImVec2(0, -legend_margin), false,
@@ -1074,6 +1078,8 @@ void SaveStateSelectorUI::Draw()
 				ImGui::TextUnformatted(s_save_legend.c_str());
 				ImGui::TableNextColumn();
 				ImGui::TextUnformatted(s_next_legend.c_str());
+				ImGui::TableNextColumn();
+				ImGui::TextUnformatted(s_close_legend.c_str());
 
 				ImGui::EndTable();
 			}
