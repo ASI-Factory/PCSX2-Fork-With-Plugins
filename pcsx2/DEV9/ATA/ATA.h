@@ -96,6 +96,8 @@ private:
 
 	u8 regStatus; //ReadOnly. When read via AlternateStatus pending interrupts are not cleared
 
+	bool pendingInterrupt = false;
+
 	//Transfer
 	//Write Buffer(s)
 	bool awaitFlush = false;
@@ -160,8 +162,8 @@ public:
 
 	void ATA_HardReset();
 
-	u16 Read16(u32 addr);
-	void Write16(u32 addr, u16 value);
+	u16 Read(u32 addr, int width);
+	void Write(u32 addr, u16 value, int width);
 
 	void Async(u32 cycles);
 
@@ -234,8 +236,8 @@ private:
 	void HDD_WriteDMA(bool isLBA48);
 
 	void PreCmdExecuteDeviceDiag();
-	void PostCmdExecuteDeviceDiag();
-	void HDD_ExecuteDeviceDiag();
+	void PostCmdExecuteDeviceDiag(bool sendIRQ);
+	void HDD_ExecuteDeviceDiag(bool sendIRQ);
 
 	void PostCmdNoData();
 	void CmdNoDataAbort();
