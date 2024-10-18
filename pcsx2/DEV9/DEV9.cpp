@@ -5,6 +5,8 @@
 #include "common/Path.h"
 #include "common/StringUtil.h"
 
+#include "IopDma.h"
+
 #ifdef _WIN32
 #include "common/RedtapeWindows.h"
 #include <winioctl.h>
@@ -200,6 +202,7 @@ void DEV9close()
 {
 	DevCon.WriteLn("DEV9: DEV9close");
 
+	dev9.dma_iop_ptr = nullptr;
 	dev9.ata->Close();
 	TermNet();
 	isRunning = false;
@@ -226,49 +229,124 @@ void _DEV9irq(int cause, int cycles)
 		dev9Irq(cycles);
 }
 
-//Fakes SPEED FIFO
+// SPEED <-> HDD FIFO
 void HDDWriteFIFO()
 {
-	if (dev9.ata->dmaReady && (dev9.if_ctrl & SPD_IF_ATA_DMAEN))
-	{
-		const int unread = (dev9.fifo_bytes_write - dev9.fifo_bytes_read);
-		const int spaceSectors = (SPD_DBUF_AVAIL_MAX * 512 - unread) / 512;
-		if (spaceSectors < 0)
-		{
-			Console.Error("DEV9: No Space on SPEED FIFO");
-			pxAssert(false);
-			abort();
-		}
+	pxAssert(dev9.ata->dmaReady && (dev9.if_ctrl & SPD_IF_ATA_DMAEN));
+	pxAssert((dev9.if_ctrl & SPD_IF_READ));
 
-		const int readSectors = dev9.ata->nsectorLeft < spaceSectors ? dev9.ata->nsectorLeft : spaceSectors;
-		dev9.fifo_bytes_write += readSectors * 512;
-		dev9.ata->nsectorLeft -= readSectors;
+	const int unread = (dev9.fifo_bytes_write - dev9.fifo_bytes_read);
+	const int space = (SPD_DBUF_AVAIL_MAX * 512 - unread);
+	const int base = dev9.fifo_bytes_write % (SPD_DBUF_AVAIL_MAX * 512);
+
+	pxAssert(unread <= SPD_DBUF_AVAIL_MAX * 512);
+
+	int read;
+	if (base + space > SPD_DBUF_AVAIL_MAX * 512)
+	{
+		const int was = SPD_DBUF_AVAIL_MAX * 512 - base;
+		read = dev9.ata->ReadDMAToFIFO(dev9.fifo + base, was);
+		if (read == was)
+			read += dev9.ata->ReadDMAToFIFO(dev9.fifo, space - was);
 	}
-	//FIFOIntr();
+	else
+	{
+		read = dev9.ata->ReadDMAToFIFO(dev9.fifo + base, space);
+	}
+
+	dev9.fifo_bytes_write += read;
 }
 void HDDReadFIFO()
 {
-	if (dev9.ata->dmaReady && (dev9.if_ctrl & SPD_IF_ATA_DMAEN))
+	pxAssert(dev9.ata->dmaReady && (dev9.if_ctrl & SPD_IF_ATA_DMAEN));
+	pxAssert((dev9.if_ctrl & SPD_IF_READ) == 0);
+
+	const int unread = (dev9.fifo_bytes_write - dev9.fifo_bytes_read);
+	const int base = dev9.fifo_bytes_read % (SPD_DBUF_AVAIL_MAX * 512);
+
+	pxAssert(unread <= SPD_DBUF_AVAIL_MAX * 512);
+
+	int write;
+	if (base + unread > SPD_DBUF_AVAIL_MAX * 512)
 	{
-		const int writeSectors = (dev9.fifo_bytes_write - dev9.fifo_bytes_read) / 512;
-		dev9.fifo_bytes_read += writeSectors * 512;
-		dev9.ata->nsectorLeft -= writeSectors;
+		const int was = SPD_DBUF_AVAIL_MAX * 512 - base;
+		write = dev9.ata->WriteDMAFromFIFO(dev9.fifo + base, was);
+		if (write == was)
+			write += dev9.ata->WriteDMAFromFIFO(dev9.fifo, unread - was);
 	}
-	//FIFOIntr();
+	else
+	{
+		write = dev9.ata->WriteDMAFromFIFO(dev9.fifo + base, unread);
+	}
+
+	dev9.fifo_bytes_read += write;
 }
-void IOPReadFIFO(int bytes)
+void IOPReadFIFO()
 {
-	dev9.fifo_bytes_read += bytes;
+	pxAssert((dev9.dma_iop_ptr != nullptr) && (dev9.xfr_ctrl & SPD_XFR_DMAEN));
+	pxAssert((dev9.xfr_ctrl & SPD_XFR_WRITE) == 0);
+
+	const int unread = (dev9.fifo_bytes_write - dev9.fifo_bytes_read);
+	const int base = dev9.fifo_bytes_read % (SPD_DBUF_AVAIL_MAX * 512);
+
+	const int remain = dev9.dma_iop_size - dev9.dma_iop_transfered;
+	const int read = std::min(remain, unread);
+
+	pxAssert(unread <= SPD_DBUF_AVAIL_MAX * 512);
+
+	if (read == 0)
+		return;
+
+	if (base + read > SPD_DBUF_AVAIL_MAX * 512)
+	{
+		const int was = SPD_DBUF_AVAIL_MAX * 512 - base;
+
+		std::memcpy(dev9.dma_iop_ptr + dev9.dma_iop_transfered, dev9.fifo + base, was);
+		std::memcpy(dev9.dma_iop_ptr + dev9.dma_iop_transfered + was, dev9.fifo, read - was);
+	}
+	else
+	{
+		std::memcpy(dev9.dma_iop_ptr + dev9.dma_iop_transfered, dev9.fifo + base, read);
+	}
+
+	dev9.dma_iop_transfered += read;
+	dev9.fifo_bytes_read += read;
 	if (dev9.fifo_bytes_read > dev9.fifo_bytes_write)
 		Console.Error("DEV9: UNDERFLOW BY IOP");
-	//FIFOIntr();
 }
-void IOPWriteFIFO(int bytes)
+void IOPWriteFIFO()
 {
-	dev9.fifo_bytes_write += bytes;
-	if (dev9.fifo_bytes_write - SPD_DBUF_AVAIL_MAX * 512 > dev9.fifo_bytes_read)
+	pxAssert((dev9.dma_iop_ptr != nullptr) && (dev9.xfr_ctrl & SPD_XFR_DMAEN));
+	pxAssert(dev9.xfr_ctrl & SPD_XFR_WRITE);
+
+	const int unread = (dev9.fifo_bytes_write - dev9.fifo_bytes_read);
+	const int space = (SPD_DBUF_AVAIL_MAX * 512 - unread);
+	const int base = dev9.fifo_bytes_write % (SPD_DBUF_AVAIL_MAX * 512);
+
+	const int remain = dev9.dma_iop_size - dev9.dma_iop_transfered;
+	const int write = std::min(remain, space);
+
+	pxAssert(unread <= SPD_DBUF_AVAIL_MAX * 512);
+
+	if (write == 0)
+		return;
+
+	if (base + write > SPD_DBUF_AVAIL_MAX * 512)
+	{
+		const int was = SPD_DBUF_AVAIL_MAX * 512 - base;
+
+		std::memcpy(dev9.fifo + base, dev9.dma_iop_ptr + dev9.dma_iop_transfered, was);
+		std::memcpy(dev9.fifo + base, dev9.dma_iop_ptr + dev9.dma_iop_transfered + was, write - was);
+	}
+	else
+	{
+		std::memcpy(dev9.fifo + base, dev9.dma_iop_ptr + dev9.dma_iop_transfered, write);
+	}
+
+	dev9.dma_iop_transfered += write;
+	dev9.fifo_bytes_write += write;
+	if ((dev9.fifo_bytes_write - dev9.fifo_bytes_read) > SPD_DBUF_AVAIL_MAX * 512)
 		Console.Error("DEV9: OVERFLOW BY IOP");
-	//FIFOIntr();
 }
 void FIFOIntr()
 {
@@ -277,14 +355,83 @@ void FIFOIntr()
 
 	if (unread == 0)
 	{
+		dev9.irqcause &= ~SPD_INTR_ATA_FIFO_DATA;
 		if ((dev9.irqcause & SPD_INTR_ATA_FIFO_EMPTY) == 0)
 			_DEV9irq(SPD_INTR_ATA_FIFO_EMPTY, 1);
 	}
+	else
+	{
+		dev9.irqcause &= ~SPD_INTR_ATA_FIFO_EMPTY;
+		if ((dev9.irqcause & SPD_INTR_ATA_FIFO_DATA) == 0)
+			_DEV9irq(SPD_INTR_ATA_FIFO_DATA, 1);
+	}
+
 	if (unread == SPD_DBUF_AVAIL_MAX * 512)
 	{
-		//Log_Error("FIFO Full");
-		//INTR Full?
+		if ((dev9.irqcause & SPD_INTR_ATA_FIFO_FULL) == 0)
+			_DEV9irq(SPD_INTR_ATA_FIFO_FULL, 1);
 	}
+	else
+	{
+		dev9.irqcause &= ~SPD_INTR_ATA_FIFO_FULL;
+	}
+
+	// is DMA finished
+	if ((dev9.dma_iop_ptr != nullptr) &&
+		(dev9.dma_iop_transfered == dev9.dma_iop_size))
+	{
+		dev9.dma_iop_ptr = nullptr;
+		psxDMA8Interrupt();
+	}
+}
+
+// FIFO counters operate based on the direction set in SPD_R_XFR_CTRL
+// Both might have to set to the same direction for (SPEED <-> HDD) to work
+void DEV9runFIFO()
+{
+	const bool iopWrite = dev9.xfr_ctrl & SPD_XFR_WRITE; // IOP writes to FIFO
+	const bool hddRead = dev9.if_ctrl & SPD_IF_READ; // HDD writes to FIFO
+
+	const bool iopXfer = (dev9.dma_iop_ptr != nullptr) && (dev9.xfr_ctrl & SPD_XFR_DMAEN);
+	const bool hddXfer = dev9.ata->dmaReady && (dev9.if_ctrl & SPD_IF_ATA_DMAEN);
+
+	// Order operations based on iopWrite to ensure DMA has data/space to work with.
+	if (iopWrite)
+	{
+		// Perform DMA from IOP.
+		if (iopXfer)
+			IOPWriteFIFO();
+
+		// Drain the FIFO
+		if (hddXfer && !hddRead)
+		{
+			HDDReadFIFO();
+		}
+	}
+	else
+	{
+		// Ensure FIFO has data.
+		if (hddXfer && hddRead)
+		{
+			HDDWriteFIFO();
+		}
+
+		if (iopXfer)
+		{
+			// Perform DMA to IOP.
+			IOPReadFIFO();
+
+			// Refill FIFO after DMA.
+			// Need to recheck dmaReady incase prior
+			// HDDWriteFIFO competed the transfer from HDD
+			if (hddXfer && hddRead && dev9.ata->dmaReady)
+			{
+				HDDWriteFIFO();
+			}
+		}
+	}
+
+	FIFOIntr();
 }
 
 u16 SpeedRead(u32 addr, int width)
@@ -357,18 +504,8 @@ u16 SpeedRead(u32 addr, int width)
 			return dev9.xfr_ctrl;
 		case SPD_R_DBUF_STAT:
 		{
-			if (dev9.if_ctrl & SPD_IF_READ) // Semi async
-			{
-				HDDWriteFIFO(); // Yes this is not a typo
-			}
-			else
-			{
-				HDDReadFIFO();
-			}
-			FIFOIntr();
-
 			const u8 count = static_cast<u8>((dev9.fifo_bytes_write - dev9.fifo_bytes_read) / 512);
-			if (dev9.xfr_ctrl & SPD_XFR_WRITE) // or ifRead?
+			if (dev9.xfr_ctrl & SPD_XFR_WRITE)
 			{
 				hard = static_cast<u8>(SPD_DBUF_AVAIL_MAX - count);
 				hard |= (count == 0) ? SPD_DBUF_STAT_1 : static_cast<u16>(0);
@@ -516,8 +653,13 @@ void SpeedWrite(u32 addr, u16 value, int width)
 
 			break;
 		case SPD_R_XFR_CTRL:
+		{
 			//DevCon.WriteLn("DEV9: SPD_R_XFR_CTRL %dbit write %x", width, value);
+			const u16 oldValue = dev9.xfr_ctrl;
 			dev9.xfr_ctrl = value;
+
+			if ((value & SPD_XFR_WRITE) != (oldValue & SPD_XFR_WRITE))
+				DEV9runFIFO();
 
 			//if (value & SPD_XFR_WRITE)
 			//	DevCon.WriteLn("DEV9: SPD_R_XFR_CTRL Set Write");
@@ -530,8 +672,11 @@ void SpeedWrite(u32 addr, u16 value, int width)
 			//if ((value & (1 << 2)) != 0)
 			//	DevCon.WriteLn("DEV9: SPD_R_XFR_CTRL Unknown Bit 2");
 
-			//if (value & SPD_XFR_DMAEN)
-			//	DevCon.WriteLn("DEV9: SPD_R_XFR_CTRL For DMA Enabled");
+			if (value & SPD_XFR_DMAEN)
+			{
+				//DevCon.WriteLn("DEV9: SPD_R_XFR_CTRL For DMA Enabled");
+				DEV9runFIFO();
+			}
 			//else
 			//	DevCon.WriteLn("DEV9: SPD_R_XFR_CTRL For DMA Disabled");
 
@@ -539,32 +684,42 @@ void SpeedWrite(u32 addr, u16 value, int width)
 				Console.Error("DEV9: SPD_R_XFR_CTRL Unknown value written %x", value);
 
 			break;
+		}
 		case SPD_R_DBUF_STAT:
 			//DevCon.WriteLn("DEV9: SPD_R_DBUF_STAT %dbit write %x", width, value);
 
-			if ((value & SPD_DBUF_RESET_FIFO) != 0)
+			if ((value & SPD_DBUF_RESET_READ_CNT) != 0)
 			{
-				//DevCon.WriteLn("DEV9: SPD_R_DBUF_STAT Reset FIFO");
-				dev9.fifo_bytes_write = 0;
+				//DevCon.WriteLn("DEV9: SPD_R_DBUF_STAT Reset read counter");
 				dev9.fifo_bytes_read = 0;
-				dev9.xfr_ctrl &= ~SPD_XFR_WRITE; //?
-				dev9.if_ctrl |= SPD_IF_READ; //?
-
-				FIFOIntr();
 			}
+			if ((value & SPD_DBUF_RESET_WRITE_CNT) != 0)
+			{
+				//DevCon.WriteLn("DEV9: SPD_R_DBUF_STAT Reset write counter");
+				dev9.fifo_bytes_write = 0;
+			}
+
+			if (value != 0)
+				FIFOIntr();
 
 			if (value != 3)
 				Console.Error("DEV9: SPD_R_DBUF_STAT 16bit write %x Which != 3!!!", value);
 			break;
 
 		case SPD_R_IF_CTRL:
+		{
 			//DevCon.WriteLn("DEV9: SPD_R_IF_CTRL %dbit write %x", width, value);
+			const u16 oldValue = dev9.if_ctrl;
 			dev9.if_ctrl = value;
 
 			//if (value & SPD_IF_UDMA)
 			//	DevCon.WriteLn("DEV9: IF_CTRL UDMA Enabled");
 			//else
 			//	DevCon.WriteLn("DEV9: IF_CTRL UDMA Disabled");
+
+			if ((value & SPD_IF_READ) != (oldValue & SPD_IF_READ))
+				DEV9runFIFO();
+
 			//if (value & SPD_IF_READ)
 			//	DevCon.WriteLn("DEV9: IF_CTRL DMA Is ATA Read");
 			//else
@@ -573,21 +728,22 @@ void SpeedWrite(u32 addr, u16 value, int width)
 			if (value & SPD_IF_ATA_DMAEN)
 			{
 				//DevCon.WriteLn("DEV9: IF_CTRL ATA DMA Enabled");
-				if (value & SPD_IF_READ) //Semi async
-				{
-					HDDWriteFIFO(); //Yes this is not a typo
-				}
-				else
-				{
-					HDDReadFIFO();
-				}
-				FIFOIntr();
+				DEV9runFIFO();
 			}
 			//else
 			//	DevCon.WriteLn("DEV9: IF_CTRL ATA DMA Disabled");
 
-			if (value & (1 << 3))
-				DevCon.WriteLn("DEV9: IF_CTRL Unknown Bit 3 Set");
+			/* During a HDD DMA transfer, the ATA regs are inacessable.
+			 * The SPEED will cache register writes and wait until the end of the DMA block to write them.
+			 * Bit 3 controls what happens when a read is performed while the ATA regs are inacessable.
+			 * When set, the SPEED will asserts /WAIT to the IOP and wait for the HDD to end the DMA block, before reading the reg.
+			 * When cleared, the read will fail if mid DMA. bit 1 in reg 0x62 indicates if the last read failed.
+			 * Our DMA transfers are instant, so we can ignore this bit.
+			 */
+			//if (value & (1 << 3))
+			//	DevCon.WriteLn("DEV9: IF_CTRL Wait for ATA register read Enabled");
+			//else
+			//	DevCon.WriteLn("DEV9: IF_CTRL Wait for ATA register read Disabled");
 
 			if (value & (1 << 4))
 				Console.Error("DEV9: IF_CTRL Unknown Bit 4 Set");
@@ -615,6 +771,7 @@ void SpeedWrite(u32 addr, u16 value, int width)
 				Console.Error("DEV9: IF_CTRL Unknown Bit(s) %x", (value & 0xFF00));
 
 			break;
+		}
 		case SPD_R_PIO_MODE: //ATA only? or includes EEPROM?
 			//DevCon.WriteLn("DEV9: SPD_R_PIO_MODE 16bit %dbit write %x", width, value);
 			dev9.pio_mode = value;
@@ -916,16 +1073,20 @@ void DEV9readDMA8Mem(u32* pMem, int size)
 	DevCon.WriteLn("DEV9: *DEV9readDMA8Mem: size %x", size);
 
 	if (dev9.dma_ctrl & SPD_DMA_TO_SMAP)
+	{
 		smap_readDMA8Mem(pMem, size);
+		psxDMA8Interrupt();
+	}
 	else
 	{
-		if (dev9.xfr_ctrl & SPD_XFR_DMAEN &&
-			!(dev9.xfr_ctrl & SPD_XFR_WRITE))
+		if (!(dev9.xfr_ctrl & SPD_XFR_WRITE))
 		{
-			HDDWriteFIFO();
-			IOPReadFIFO(size);
-			dev9.ata->ATAreadDMA8Mem((u8*)pMem, size);
-			FIFOIntr();
+			pxAssert(size <= SPD_DBUF_AVAIL_MAX * 512);
+			dev9.dma_iop_ptr = reinterpret_cast<u8*>(pMem);
+			dev9.dma_iop_size = size;
+			dev9.dma_iop_transfered = 0;
+
+			DEV9runFIFO();
 		}
 	}
 
@@ -942,20 +1103,22 @@ void DEV9writeDMA8Mem(u32* pMem, int size)
 	DevCon.WriteLn("DEV9: *DEV9writeDMA8Mem: size %x", size);
 
 	if (dev9.dma_ctrl & SPD_DMA_TO_SMAP)
+	{
 		smap_writeDMA8Mem(pMem, size);
+		psxDMA8Interrupt();
+	}
 	else
 	{
-		if (dev9.xfr_ctrl & SPD_XFR_DMAEN &&
-			dev9.xfr_ctrl & SPD_XFR_WRITE)
+		if (dev9.xfr_ctrl & SPD_XFR_WRITE)
 		{
-			IOPWriteFIFO(size);
-			HDDReadFIFO();
-			dev9.ata->ATAwriteDMA8Mem((u8*)pMem, size);
-			FIFOIntr();
+			pxAssert(size <= SPD_DBUF_AVAIL_MAX * 512);
+			dev9.dma_iop_ptr = reinterpret_cast<u8*>(pMem);
+			dev9.dma_iop_size = size;
+			dev9.dma_iop_transfered = 0;
+
+			DEV9runFIFO();
 		}
 	}
-
-	//TODO, track if write was successful
 }
 
 void DEV9async(u32 cycles)
