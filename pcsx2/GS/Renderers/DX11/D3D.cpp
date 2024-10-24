@@ -197,7 +197,7 @@ bool D3D::GetRequestedExclusiveFullscreenModeDesc(IDXGIFactory5* factory, const 
 
 wil::com_ptr_nothrow<IDXGIAdapter1> D3D::GetAdapterByName(IDXGIFactory5* factory, const std::string_view name)
 {
-	if (name.empty())
+	if (name.empty() || name == GetDefaultAdapter())
 		return {};
 
 	// This might seem a bit odd to cache the names.. but there's a method to the madness.
@@ -375,7 +375,7 @@ GSRendererType D3D::GetPreferredRenderer()
 	};
 	const auto get_d3d12_device = [&adapter]() {
 		wil::com_ptr_nothrow<ID3D12Device> device;
-		const HRESULT hr = D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(device.put()));
+		const HRESULT hr = D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(device.put()));
 		if (FAILED(hr))
 			Console.Error("D3D12CreateDevice() for automatic renderer failed: %08X", hr);
 		return device;
