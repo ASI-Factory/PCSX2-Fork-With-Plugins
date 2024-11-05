@@ -3168,6 +3168,9 @@ void FullscreenUI::DrawInterfaceSettingsPage()
 	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_ARCHIVE, "Create Save State Backups"),
 		FSUI_CSTR("Creates a backup copy of a save state if it already exists when the save is created. The backup copy has a .backup suffix"),
 		"EmuCore", "BackupSavestate", true);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_INFO_CIRCLE, "Use Save State Selector"),
+		FSUI_CSTR("Show a save state selector UI when switching slots instead of showing a notification bubble."),
+		"EmuCore", "UseSavestateSelector", true);
 	if (DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_LIGHTBULB, "Use Light Theme"),
 			FSUI_CSTR("Uses a light coloured theme instead of the default dark theme."), "UI", "UseLightFullscreenUITheme", false))
 	{
@@ -6221,12 +6224,22 @@ void FullscreenUI::DrawGameGrid(const ImVec2& heading_size)
 	SmallString draw_title;
 
 	u32 grid_x = 0;
-	ImGui::SetCursorPos(ImVec2(start_x, 0.0f));
 	for (const GameList::Entry* entry : s_game_list_sorted_entries)
 	{
 		ImGuiWindow* window = ImGui::GetCurrentWindow();
 		if (window->SkipItems)
 			continue;
+
+		if (grid_x == grid_count_x)
+		{
+			grid_x = 0;
+			ImGui::SetCursorPosX(start_x);
+			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + item_spacing);
+		}
+		else
+		{
+			ImGui::SameLine(start_x + static_cast<float>(grid_x) * (item_width + item_spacing));
+		}
 
 		const ImGuiID id = window->GetID(entry->path.c_str(), entry->path.c_str() + entry->path.length());
 		const ImVec2 pos(window->DC.CursorPos);
@@ -6280,16 +6293,6 @@ void FullscreenUI::DrawGameGrid(const ImVec2& heading_size)
 		}
 
 		grid_x++;
-		if (grid_x == grid_count_x)
-		{
-			grid_x = 0;
-			ImGui::SetCursorPosX(start_x);
-			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + item_spacing);
-		}
-		else
-		{
-			ImGui::SameLine(start_x + static_cast<float>(grid_x) * (item_width + item_spacing));
-		}
 	}
 
 	EndMenuButtons();
