@@ -1142,9 +1142,6 @@ void DrawPluginsOverlay();
 
 void ImGuiManager::RenderOverlays()
 {
-	if (VMManager::GetState() != VMState::Running)
-		return;
-
 	const float scale = ImGuiManager::GetGlobalScale();
 	const float margin = std::ceil(10.0f * scale);
 	const float spacing = std::ceil(5.0f * scale);
