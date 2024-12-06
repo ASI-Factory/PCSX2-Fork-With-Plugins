@@ -4,6 +4,7 @@
 #include "IP_Packet.h"
 #include "DEV9/PacketReader/NetLib.h"
 
+#include "common/BitUtils.h"
 #include "common/Console.h"
 
 namespace PacketReader::IP
@@ -17,7 +18,7 @@ namespace PacketReader::IP
 	{
 		return (dscp >> 2) & 0x3F;
 	}
-	void IP_Packet::GetDscpValue(u8 value)
+	void IP_Packet::SetDscpValue(u8 value)
 	{
 		dscp = (dscp & ~(0x3F << 2)) | ((value & 0x3F) << 2);
 	}
@@ -209,8 +210,8 @@ namespace PacketReader::IP
 		for (size_t i = 0; i < options.size(); i++)
 			opOffset += options[i]->GetLength();
 
-		opOffset += opOffset % 4; //needs to be a whole number of 32bits
-		headerLength = opOffset;
+		//needs to be a whole number of 32bits
+		headerLength = Common::AlignUpPow2(opOffset, 4);
 	}
 
 	void IP_Packet::CalculateChecksum()
