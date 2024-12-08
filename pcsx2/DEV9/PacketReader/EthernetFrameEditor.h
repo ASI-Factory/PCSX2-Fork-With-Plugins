@@ -16,18 +16,18 @@ namespace PacketReader
 		//Length
 	private:
 		NetPacket* basePkt;
-		std::unique_ptr<PayloadPtr> payload;
+		std::unique_ptr<PayloadPtrEditor> payload;
 
 	public:
 		EthernetFrameEditor(NetPacket* pkt);
 
-		MAC_Address GetDestinationMAC();
+		MAC_Address GetDestinationMAC() const;
 		void SetDestinationMAC(MAC_Address value);
-		MAC_Address GetSourceMAC();
+		MAC_Address GetSourceMAC() const;
 		void SetSourceMAC(MAC_Address value);
 
-		u16 GetProtocol();
+		u16 GetProtocol() const;
 
-		PayloadPtr* GetPayload();
+		PayloadPtrEditor* GetPayload() const;
 	};
 } // namespace PacketReader

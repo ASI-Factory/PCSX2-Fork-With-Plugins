@@ -10,7 +10,7 @@ namespace PacketReader::IP::ICMP
 		: payload{data}
 	{
 	}
-	ICMP_Packet::ICMP_Packet(u8* buffer, int bufferSize)
+	ICMP_Packet::ICMP_Packet(const u8* buffer, int bufferSize)
 	{
 		int offset = 0;
 		//Bits 0-31
@@ -34,7 +34,7 @@ namespace PacketReader::IP::ICMP
 		memcpy(headerData, original.headerData, 4);
 	}
 
-	Payload* ICMP_Packet::GetPayload()
+	Payload* ICMP_Packet::GetPayload() const
 	{
 		return payload.get();
 	}
@@ -59,7 +59,7 @@ namespace PacketReader::IP::ICMP
 		return new ICMP_Packet(*this);
 	}
 
-	u8 ICMP_Packet::GetProtocol()
+	u8 ICMP_Packet::GetProtocol() const
 	{
 		return (u8)protocol;
 	}
@@ -102,7 +102,7 @@ namespace PacketReader::IP::ICMP
 		if (counter != pHeaderLen)
 			NetLib::WriteByte08(segment, &counter, 0);
 
-		u16 csumCal = IP_Packet::InternetChecksum(segment, pHeaderLen);
+		const u16 csumCal = IP_Packet::InternetChecksum(segment, pHeaderLen);
 		delete[] segment;
 
 		return (csumCal == 0);

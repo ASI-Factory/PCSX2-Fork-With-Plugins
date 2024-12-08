@@ -24,16 +24,16 @@ namespace PacketReader::IP::UDP
 	public:
 		//Takes ownership of payload
 		UDP_Packet(Payload* data);
-		UDP_Packet(u8* buffer, int bufferSize);
+		UDP_Packet(const u8* buffer, int bufferSize);
 		UDP_Packet(const UDP_Packet&);
 
-		Payload* GetPayload();
+		Payload* GetPayload() const;
 
 		virtual int GetLength();
 		virtual void WriteBytes(u8* buffer, int* offset);
 		virtual UDP_Packet* Clone() const;
 
-		virtual u8 GetProtocol();
+		virtual u8 GetProtocol() const;
 
 		virtual bool VerifyChecksum(IP_Address srcIP, IP_Address dstIP);
 		virtual void CalculateChecksum(IP_Address srcIP, IP_Address dstIP);
