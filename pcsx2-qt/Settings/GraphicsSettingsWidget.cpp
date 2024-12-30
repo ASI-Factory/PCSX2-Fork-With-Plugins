@@ -8,6 +8,7 @@
 #include <QtWidgets/QMessageBox>
 
 #include "pcsx2/Host.h"
+#include "pcsx2/Patch.h"
 #include "pcsx2/GS/GS.h"
 #include "pcsx2/GS/GSCapture.h"
 #include "pcsx2/GS/GSUtil.h"
@@ -88,6 +89,8 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(SettingsWindow* dialog, QWidget* 
 	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.interlacing, "EmuCore/GS", "deinterlace_mode", DEFAULT_INTERLACE_MODE);
 	SettingWidgetBinder::BindWidgetToIntSetting(
 		sif, m_ui.bilinearFiltering, "EmuCore/GS", "linear_present_mode", static_cast<int>(GSPostBilinearMode::BilinearSmooth));
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.widescreenPatches, "EmuCore", "EnableWideScreenPatches", false);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.noInterlacingPatches, "EmuCore", "EnableNoInterlacingPatches", false);
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.integerScaling, "EmuCore/GS", "IntegerScaling", false);
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.PCRTCOffsets, "EmuCore/GS", "pcrtc_offsets", false);
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.PCRTCOverscan, "EmuCore/GS", "pcrtc_overscan", false);
@@ -319,22 +322,61 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(SettingsWindow* dialog, QWidget* 
 	}
 #endif
 
-	// Prompt user to get rid of widescreen/no-interlace config from the ini if the user has enabled them before.
-	if ((m_dialog->getBoolValue("EmuCore", "EnableWideScreenPatches", false) == true ||
-		m_dialog->getBoolValue("EmuCore", "EnableWideScreenPatches", false) == true) &&
-		!m_dialog->containsSettingValue("UI", "UserHasDeniedWSPatchWarning"))
+	// Get rid of widescreen/no-interlace checkboxes from per-game settings, and migrate them to Patches if necessary.
+	if (m_dialog->isPerGameSettings())
 	{
-		if (QMessageBox::question(QtUtils::GetRootWidget(this), tr("Remove Unsupported Settings"),
-				tr("You previously had the <strong>Enable Widescreen Patches</strong> or <strong>Enable No-Interlacing Patches</strong> options enabled.<br><br>"
-				   "We no longer provide these options, instead <strong>you should go to the \"Patches\" section on the per-game settings, and explicitly enable the patches that you want.</strong><br><br>"
-				   "Do you want to remove these options from your configuration now?"),
-				QMessageBox::Yes, QMessageBox::No) == QMessageBox::Yes)
+		SettingsInterface* si = m_dialog->getSettingsInterface();
+		bool needs_save = false;
+
+		if (si->ContainsValue("EmuCore", "EnableWideScreenPatches"))
 		{
-			m_dialog->removeSettingValue("EmuCore", "EnableWideScreenPatches");
-			m_dialog->removeSettingValue("EmuCore", "EnableNoInterlacingPatches");
+			const bool ws_enabled = si->GetBoolValue("EmuCore", "EnableWideScreenPatches");
+			si->DeleteValue("EmuCore", "EnableWideScreenPatches");
+
+			const char* WS_PATCH_NAME = "Widescreen 16:9";
+			if (ws_enabled)
+			{
+				si->AddToStringList(Patch::PATCHES_CONFIG_SECTION, Patch::PATCH_ENABLE_CONFIG_KEY, WS_PATCH_NAME);
+				si->RemoveFromStringList(Patch::PATCHES_CONFIG_SECTION, Patch::PATCH_DISABLE_CONFIG_KEY, WS_PATCH_NAME);
+			}
+			else
+			{
+				si->AddToStringList(Patch::PATCHES_CONFIG_SECTION, Patch::PATCH_DISABLE_CONFIG_KEY, WS_PATCH_NAME);
+				si->RemoveFromStringList(Patch::PATCHES_CONFIG_SECTION, Patch::PATCH_ENABLE_CONFIG_KEY, WS_PATCH_NAME);
+			}
+			needs_save = true;
 		}
-		else
-			m_dialog->setBoolSettingValue("UI", "UserHasDeniedWSPatchWarning", true);
+
+		if (si->ContainsValue("EmuCore", "EnableNoInterlacingPatches"))
+		{
+			const bool ni_enabled = si->GetBoolValue("EmuCore", "EnableNoInterlacingPatches");
+			si->DeleteValue("EmuCore", "EnableNoInterlacingPatches");
+
+			const char* NI_PATCH_NAME = "No-Interlacing";
+			if (ni_enabled)
+			{
+				si->AddToStringList(Patch::PATCHES_CONFIG_SECTION, Patch::PATCH_ENABLE_CONFIG_KEY, NI_PATCH_NAME);
+				si->RemoveFromStringList(Patch::PATCHES_CONFIG_SECTION, Patch::PATCH_DISABLE_CONFIG_KEY, NI_PATCH_NAME);
+			}
+			else
+			{
+				si->AddToStringList(Patch::PATCHES_CONFIG_SECTION, Patch::PATCH_DISABLE_CONFIG_KEY, NI_PATCH_NAME);
+				si->RemoveFromStringList(Patch::PATCHES_CONFIG_SECTION, Patch::PATCH_ENABLE_CONFIG_KEY, NI_PATCH_NAME);
+			}
+			needs_save = true;
+		}
+
+		if (needs_save)
+		{
+			m_dialog->saveAndReloadGameSettings();
+		}
+
+		m_ui.displayGridLayout->removeWidget(m_ui.widescreenPatches);
+		m_ui.displayGridLayout->removeWidget(m_ui.noInterlacingPatches);
+		m_ui.widescreenPatches->deleteLater();
+		m_ui.noInterlacingPatches->deleteLater();
+		m_ui.widescreenPatches = nullptr;
+		m_ui.noInterlacingPatches = nullptr;
 	}
 
 	// Hide advanced options by default.
@@ -427,6 +469,12 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(SettingsWindow* dialog, QWidget* 
 
 	// Display tab
 	{
+		dialog->registerWidgetHelp(m_ui.widescreenPatches, tr("Enable Widescreen Patches"), tr("Unchecked"),
+			tr("Automatically loads and applies widescreen patches on game start. Can cause issues."));
+
+		dialog->registerWidgetHelp(m_ui.noInterlacingPatches, tr("Enable No-Interlacing Patches"), tr("Unchecked"),
+			tr("Automatically loads and applies no-interlacing patches on game start. Can cause issues."));
+
 		dialog->registerWidgetHelp(m_ui.DisableInterlaceOffset, tr("Disable Interlace Offset"), tr("Unchecked"),
 			tr("Disables interlacing offset which may reduce blurring in some situations."));
 
