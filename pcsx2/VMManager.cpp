@@ -873,7 +873,7 @@ bool VMManager::ReloadGameSettings()
 		return false;
 
 	// Patches must come first, because they can affect aspect ratio/interlacing.
-	Patch::UpdateActivePatches(true, false, true);
+	Patch::UpdateActivePatches(true, false, true, HasValidVM());
 	ApplySettings();
 	return true;
 }
@@ -2902,6 +2902,7 @@ void VMManager::Internal::EntryPointCompilingOnCPUThread()
 	);
 
 	Patch::ApplyLoadedPatches(Patch::PPT_ONCE_ON_LOAD);
+	Patch::ApplyLoadedPatches(Patch::PPT_COMBINED_0_1);
 	// If the config changes at this point, it's a reset, so the game doesn't currently know about the memcard
 	// so there's no need to leave the eject running.
 	FileMcd_CancelEject();
@@ -3029,7 +3030,7 @@ void VMManager::CheckForPatchConfigChanges(const Pcsx2Config& old_config)
 		return;
 	}
 
-	Patch::UpdateActivePatches(true, false, true);
+	Patch::UpdateActivePatches(true, false, true, HasValidVM());
 
 	// This is a bit messy, because the patch config update happens after the settings are loaded,
 	// if we disable widescreen patches, we have to reload the original settings again.
