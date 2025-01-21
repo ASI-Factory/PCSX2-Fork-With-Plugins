@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2002-2024 PCSX2 Dev Team
+// SPDX-FileCopyrightText: 2002-2025 PCSX2 Dev Team
 // SPDX-License-Identifier: GPL-3.0+
 
 #include "BuildVersion.h"
@@ -46,6 +46,8 @@
 #include <span>
 #include <tuple>
 #include <unordered_map>
+
+InputRecordingUI::InputRecordingData g_InputRecordingData;
 
 extern "C" bool GetIsThrottlerTempDisabled();
 
@@ -685,7 +687,7 @@ __ri void ImGuiManager::DrawInputRecordingOverlay(float& position_y, float scale
 	} while (0)
 
 	// Status Indicators
-	if (g_InputRecording.getControls().isRecording())
+	if (g_InputRecordingData.is_recording)
 	{
 		DRAW_LINE(standard_font, TinyString::from_format(TRANSLATE_FS("ImGuiOverlays", "{} Recording Input"), ICON_PF_CIRCLE).c_str(), IM_COL32(255, 0, 0, 255));
 	}
@@ -695,9 +697,9 @@ __ri void ImGuiManager::DrawInputRecordingOverlay(float& position_y, float scale
 	}
 
 	// Input Recording Metadata
-	DRAW_LINE(fixed_font, TinyString::from_format(TRANSLATE_FS("ImGuiOverlays", "Input Recording Active: {}"), g_InputRecording.getData().getFilename()).c_str(), IM_COL32(117, 255, 241, 255));
-	DRAW_LINE(fixed_font, TinyString::from_format(TRANSLATE_FS("ImGuiOverlays", "Frame: {}/{} ({})"), g_InputRecording.getFrameCounter() + 1, g_InputRecording.getData().getTotalFrames(), g_FrameCount).c_str(), IM_COL32(117, 255, 241, 255));
-	DRAW_LINE(fixed_font, TinyString::from_format(TRANSLATE_FS("ImGuiOverlays", "Undo Count: {}"), g_InputRecording.getData().getUndoCount()).c_str(), IM_COL32(117, 255, 241, 255));
+	DRAW_LINE(fixed_font, g_InputRecordingData.recording_active_message.c_str(), IM_COL32(117, 255, 241, 255));
+	DRAW_LINE(fixed_font, g_InputRecordingData.frame_data_message.c_str(), IM_COL32(117, 255, 241, 255));
+	DRAW_LINE(fixed_font, g_InputRecordingData.undo_count_message.c_str(), IM_COL32(117, 255, 241, 255));
 
 #undef DRAW_LINE
 }

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2002-2024 PCSX2 Dev Team
+// SPDX-FileCopyrightText: 2002-2025 PCSX2 Dev Team
 // SPDX-License-Identifier: GPL-3.0+
 
 #include "Achievements.h"
@@ -9,6 +9,7 @@
 #include "Config.h"
 #include "Counters.h"
 #include "DebugTools/Breakpoints.h"
+#include "DebugTools/SymbolImporter.h"
 #include "Elfheader.h"
 #include "GS.h"
 #include "GS/GS.h"
@@ -80,6 +81,9 @@ static void PostLoadPrep()
 	CBreakPoints::SetSkipFirst(BREAKPOINT_IOP, 0);
 
 	UpdateVSyncRate(true);
+
+	if (VMManager::Internal::HasBootedELF())
+		R5900SymbolImporter.OnElfLoadedInMemory();
 }
 
 // --------------------------------------------------------------------------------------

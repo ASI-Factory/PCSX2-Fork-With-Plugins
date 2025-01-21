@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2002-2024 PCSX2 Dev Team
+// SPDX-FileCopyrightText: 2002-2025 PCSX2 Dev Team
 // SPDX-License-Identifier: GPL-3.0+
 
 #include "Achievements.h"
@@ -2920,6 +2920,8 @@ void VMManager::Internal::EntryPointCompilingOnCPUThread()
 	// Toss all the recs, we're going to be executing new code.
 	mmap_ResetBlockTracking();
 	ClearCPUExecutionCaches();
+
+	R5900SymbolImporter.OnElfLoadedInMemory();
 }
 
 void VMManager::Internal::VSyncOnCPUThread()
