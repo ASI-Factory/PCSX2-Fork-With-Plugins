@@ -3,6 +3,7 @@
 
 #include "InterfaceSettingsWidget.h"
 #include "AutoUpdaterDialog.h"
+#include "Common.h"
 #include "MainWindow.h"
 #include "SettingWidgetBinder.h"
 #include "SettingsWindow.h"
@@ -36,6 +37,8 @@ const char* InterfaceSettingsWidget::THEME_NAMES[] = {
 	//: Ignore what Crowdin says in this string about "[Light]/[Dark]" being untouchable here, these are not variables in this case and must be translated.
 	QT_TRANSLATE_NOOP("InterfaceSettingsWidget", "Cobalt Sky (Blue) [Dark]"),
 	//: Ignore what Crowdin says in this string about "[Light]/[Dark]" being untouchable here, these are not variables in this case and must be translated.
+	QT_TRANSLATE_NOOP("InterfaceSettingsWidget", "AMOLED (Black) [Dark]"),
+	//: Ignore what Crowdin says in this string about "[Light]/[Dark]" being untouchable here, these are not variables in this case and must be translated.
 	QT_TRANSLATE_NOOP("InterfaceSettingsWidget", "Ruby (Black/Red) [Dark]"),
 	//: Ignore what Crowdin says in this string about "[Light]/[Dark]" being untouchable here, these are not variables in this case and must be translated.
 	QT_TRANSLATE_NOOP("InterfaceSettingsWidget", "Sapphire (Black/Blue) [Dark]"),
@@ -61,6 +64,7 @@ const char* InterfaceSettingsWidget::THEME_VALUES[] = {
 	"ScarletDevilRed",
 	"VioletAngelPurple",
 	"CobaltSky",
+	"AMOLED",
 	"Ruby",
 	"Sapphire",
 	"Emerald",
@@ -80,6 +84,13 @@ InterfaceSettingsWidget::InterfaceSettingsWidget(SettingsWindow* dialog, QWidget
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.pauseOnControllerDisconnection, "UI", "PauseOnControllerDisconnection", false);
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.discordPresence, "EmuCore", "EnableDiscordPresence", false);
 
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.mouseLock, "EmuCore", "EnableMouseLock", false);
+	connect(m_ui.mouseLock, &QCheckBox::checkStateChanged, [](Qt::CheckState state) {
+		if (state == Qt::Checked)
+			Common::AttachMousePositionCb([](int x, int y) { g_main_window->checkMousePosition(x, y); });
+		else
+			Common::DetachMousePositionCb();
+	});
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.startFullscreen, "UI", "StartFullscreen", false);
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.doubleClickTogglesFullscreen, "UI", "DoubleClickTogglesFullscreen",
 		true);
@@ -161,6 +172,9 @@ InterfaceSettingsWidget::InterfaceSettingsWidget(SettingsWindow* dialog, QWidget
 	dialog->registerWidgetHelp(
 		m_ui.discordPresence, tr("Enable Discord Presence"), tr("Unchecked"),
 		tr("Shows the game you are currently playing as part of your profile in Discord."));
+	dialog->registerWidgetHelp(
+		m_ui.mouseLock, tr("Enable Mouse Lock"), tr("Unchecked"),
+		tr("Locks the mouse cursor to the windows when PCSX2 is in focus and all other windows are closed.<br><b>Unavailable on Linux Wayland.</b><br><b>Requires accessibility permissions on macOS.</b>"));
 	dialog->registerWidgetHelp(
 		m_ui.doubleClickTogglesFullscreen, tr("Double-Click Toggles Fullscreen"), tr("Checked"),
 		tr("Allows switching in and out of fullscreen mode by double-clicking the game window."));

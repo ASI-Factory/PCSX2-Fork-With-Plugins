@@ -104,7 +104,7 @@ public:
 	void rescanFile(const std::string& path);
 
 	void openDebugger();
-
+	void checkMousePosition(int x, int y);
 public Q_SLOTS:
 	void checkForUpdates(bool display_message, bool force_check);
 	void refreshGameList(bool invalidate_cache);
@@ -128,7 +128,7 @@ private Q_SLOTS:
 	void mouseModeRequested(bool relative_mode, bool hide_cursor);
 	void releaseRenderWindow();
 	void focusDisplayWidget();
-
+	void setupMouseMoveHandler();
 	void onGameListRefreshComplete();
 	void onGameListRefreshProgress(const QString& status, int current, int total);
 	void onGameListSelectionChanged();
@@ -182,7 +182,6 @@ private Q_SLOTS:
 	void onInputRecPlayActionTriggered();
 	void onInputRecStopActionTriggered();
 	void onInputRecOpenViewer();
-
 	void onVMStarting();
 	void onVMStarted();
 	void onVMPaused();
@@ -240,6 +239,7 @@ private:
 	bool isRenderingToMain() const;
 	bool shouldHideMouseCursor() const;
 	bool shouldHideMainWindow() const;
+	bool shouldMouseLock() const;
 	void switchToGameListView();
 	void switchToEmulationView();
 
