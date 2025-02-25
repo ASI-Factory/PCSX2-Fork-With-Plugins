@@ -10417,15 +10417,6 @@ SCUS-21295:
     recommendedBlendingLevel: 3 # Fixes water and grass textures.
     halfPixelOffset: 4 # Mostly aligns post processing.
     nativeScaling: 1 # Fixes post processing smoothness and position.
-SCUS-21494:
-  name: "Need for Speed - Carbon Collector's Edition"
-  region: "NTSC-U"
-  compat: 5
-  clampModes:
-    eeClampMode: 3 # Fixes game hang after opening intro.
-  gsHWFixes:
-    halfPixelOffset: 2 # Fixes blurriness.
-    roundSprite: 2 # Fixes blurriness.
 SCUS-90174:
   name: "Disney/Pixar Toy Story 3 [PlayStation 2 Bundle]"
   region: "NTSC-U"
@@ -12804,9 +12795,7 @@ SLAJ-25075:
     - "SLAJ-25075"
     - "SLPM-66232"
     - "SLPM-66562"
-    - "SLPM-65766"
-    - "SLPM-66051"
-    - "SLPM-66960"
+    - "SLAJ-25054" # Underground 2 save grants extra money.
 SLAJ-25076:
   name: "Harry Potter and the Goblet of Fire"
   region: "NTSC-Unk"
@@ -12878,6 +12867,13 @@ SLAJ-25091:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes car headlights.
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLAJ-25091"
+    # Most Wanted save grants extra money.
+    - "SLAJ-25075"
+    - "SLPM-66232"
+    # UG2 saves can be detected, but the code is unused.
+    - "SLAJ-25054"
 SLAJ-25092:
   name: "Shin Sangoku Musou 4 [PlayStation2 the Best]"
   region: "NTSC-Unk"
@@ -20076,7 +20072,7 @@ SLES-52636:
     autoFlush: 1 # Fixes incorrect colors.
     alignSprite: 1 # Fixes vertical lines such as in FMVs.
 SLES-52637:
-  name: "TOCA Racer Driver 2"
+  name: "TOCA Race Driver 2"
   region: "PAL-M5"
   gsHWFixes:
     alignSprite: 1 # Fixes lighting and vertical lines, also works with normal vertex.
@@ -21519,6 +21515,9 @@ SLES-53087:
     skipDrawEnd: 1 # Removes large black box around player car till we properly emulate it.
     halfPixelOffset: 2 # Fixes depth of field alignment.
     nativeScaling: 1 # Fixes depth of field.
+  memcardFilters:
+    - "SLES-53087"
+    - "SLES-52637" # Race Driver 2 save unlocks 'Class A 4WD Track Challenge' in career early.
 SLES-53088:
   name: "DTM Race Driver 3"
   region: "PAL-M5"
@@ -21529,6 +21528,9 @@ SLES-53088:
     skipDrawEnd: 1 # Removes large black box around player car till we properly emulate it.
     halfPixelOffset: 2 # Fixes depth of field alignment.
     nativeScaling: 1 # Fixes depth of field.
+  memcardFilters:
+    - "SLES-53088"
+    - "SLES-52638" # Race Driver 2 save unlocks 'Class A 4WD Track Challenge' in career early.
 SLES-53089:
   name: "V8 Supercars Australia 3"
   region: "PAL-E"
@@ -21539,6 +21541,9 @@ SLES-53089:
     skipDrawEnd: 1 # Removes large black box around player car till we properly emulate it.
     halfPixelOffset: 2 # Fixes depth of field alignment.
     nativeScaling: 1 # Fixes depth of field.
+  memcardFilters:
+    - "SLES-53089"
+    - "SLES-52639" # Race Driver 2 save unlocks 'Class A 4WD Track Challenge' in career early.
 SLES-53090:
   name: "Circuit Blasters"
   region: "PAL-M5"
@@ -22918,12 +22923,12 @@ SLES-53557:
     halfPixelOffset: 2 # Fixes blurriness.
     cpuCLUTRender: 1 # Final colour adjustment LUT.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
-  memcardFilters: # Reads Underground 2 save for extra money.
+  memcardFilters:
     - "SLES-53557"
     - "SLES-53558"
     - "SLES-53559"
     - "SLES-53857"
-    - "SLES-52725"
+    - "SLES-52725" # Underground 2 save grants extra money.
 SLES-53558:
   name: "Need for Speed - Most Wanted"
   region: "PAL-M8"
@@ -22937,7 +22942,7 @@ SLES-53558:
     - "SLES-53558"
     - "SLES-53559"
     - "SLES-53857"
-    - "SLES-52725"
+    - "SLES-52725" # Underground 2 save grants extra money.
 SLES-53559:
   name: "Need for Speed - Most Wanted"
   region: "PAL-M7"
@@ -22951,7 +22956,7 @@ SLES-53559:
     - "SLES-53558"
     - "SLES-53559"
     - "SLES-53857"
-    - "SLES-52725"
+    - "SLES-52725" # Underground 2 save grants extra money.
 SLES-53560:
   name: "Sonic Riders"
   region: "PAL-M5"
@@ -23889,7 +23894,7 @@ SLES-53857:
     - "SLES-53558"
     - "SLES-53559"
     - "SLES-53857"
-    - "SLES-52725"
+    - "SLES-52725" # Underground 2 save grants extra money.
 SLES-53860:
   name: "Dynasty Warriors 5 - Xtreme Legends"
   region: "PAL-E"
@@ -25153,6 +25158,18 @@ SLES-54321:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes car headlights.
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLES-54321"
+    - "SLES-54322"
+    - "SLES-54323"
+    - "SLES-54324"
+    # Most Wanted save grants extra money.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857" # Black Edition detection is bugged by default, can be fixed with a patch.
+    # UG2 saves can be detected, but the code is unused.
+    - "SLES-52725"
 SLES-54322:
   name: "Need for Speed - Carbon"
   region: "PAL-M8"
@@ -25161,6 +25178,18 @@ SLES-54322:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes car headlights.
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLES-54321"
+    - "SLES-54322"
+    - "SLES-54323"
+    - "SLES-54324"
+    # Most Wanted save grants extra money.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857" # Black Edition detection is bugged by default, can be fixed with a patch.
+    # UG2 saves can be detected, but the code is unused.
+    - "SLES-52725"
 SLES-54323:
   name: "Need for Speed - Carbon"
   region: "PAL-I-S"
@@ -25169,6 +25198,18 @@ SLES-54323:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes car headlights.
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLES-54321"
+    - "SLES-54322"
+    - "SLES-54323"
+    - "SLES-54324"
+    # Most Wanted save grants extra money.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857" # Black Edition detection is bugged by default, can be fixed with a patch.
+    # UG2 saves can be detected, but the code is unused.
+    - "SLES-52725"
 SLES-54324:
   name: "Need for Speed - Carbon"
   region: "PAL-R"
@@ -25177,6 +25218,18 @@ SLES-54324:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes car headlights.
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLES-54321"
+    - "SLES-54322"
+    - "SLES-54323"
+    - "SLES-54324"
+    # Most Wanted save grants extra money.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857" # Black Edition detection is bugged by default, can be fixed with a patch.
+    # UG2 saves can be detected, but the code is unused.
+    - "SLES-52725"
 SLES-54326:
   name: "Raceway - Drag Stock Racing"
   region: "PAL-E"
@@ -25451,6 +25504,17 @@ SLES-54402:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes car headlights.
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLES-54402"
+    - "SLES-54492"
+    - "SLES-54493"
+    # Most Wanted save grants extra money.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857" # Black Edition detection is bugged by default, can be fixed with a patch.
+    # UG2 saves can be detected, but the code is unused.
+    - "SLES-52725"
 SLES-54410:
   name: "Monster Trux Arenas - Special Edition"
   region: "PAL-Unk"
@@ -25747,6 +25811,17 @@ SLES-54492:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes car headlights.
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLES-54402"
+    - "SLES-54492"
+    - "SLES-54493"
+    # Most Wanted save grants extra money.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857" # Black Edition detection is bugged by default, can be fixed with a patch.
+    # UG2 saves can be detected, but the code is unused.
+    - "SLES-52725"
 SLES-54493:
   name: "Need for Speed - Carbon [Collector's Edition]"
   region: "PAL-F-G"
@@ -25755,6 +25830,17 @@ SLES-54493:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes car headlights.
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLES-54402"
+    - "SLES-54492"
+    - "SLES-54493"
+    # Most Wanted save grants extra money.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857" # Black Edition detection is bugged by default, can be fixed with a patch.
+    # UG2 saves can be detected, but the code is unused.
+    - "SLES-52725"
 SLES-54494:
   name: "Little Britain - The Video Game"
   region: "PAL-E"
@@ -27318,26 +27404,132 @@ SLES-55002:
   region: "PAL-E"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLES-55002"
+    - "SLES-55003"
+    - "SLES-55004"
+    - "SLES-55005"
+    - "SLES-55006"
+    # Carbon save grants extra money.
+    - "SLES-54321"
+    - "SLES-54322"
+    - "SLES-54323"
+    - "SLES-54324"
+    - "SLES-54402"
+    - "SLES-54492"
+    - "SLES-54493"
+    # Most Wanted save grants extra money.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857" # Black Edition detection is bugged by default, can be fixed with a patch.
+    # UG2 saves can be detected, but the code is unused.
+    - "SLES-52725"
 SLES-55003:
   name: "Need for Speed - ProStreet"
   region: "PAL-F-G"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLES-55002"
+    - "SLES-55003"
+    - "SLES-55004"
+    - "SLES-55005"
+    - "SLES-55006"
+    # Carbon save grants extra money.
+    - "SLES-54321"
+    - "SLES-54322"
+    - "SLES-54323"
+    - "SLES-54324"
+    - "SLES-54402"
+    - "SLES-54492"
+    - "SLES-54493"
+    # Most Wanted save grants extra money.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857" # Black Edition detection is bugged by default, can be fixed with a patch.
+    # UG2 saves can be detected, but the code is unused.
+    - "SLES-52725"
 SLES-55004:
   name: "Need for Speed - ProStreet"
   region: "PAL-I-S"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLES-55002"
+    - "SLES-55003"
+    - "SLES-55004"
+    - "SLES-55005"
+    - "SLES-55006"
+    # Carbon save grants extra money.
+    - "SLES-54321"
+    - "SLES-54322"
+    - "SLES-54323"
+    - "SLES-54324"
+    - "SLES-54402"
+    - "SLES-54492"
+    - "SLES-54493"
+    # Most Wanted save grants extra money.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857" # Black Edition detection is bugged by default, can be fixed with a patch.
+    # UG2 saves can be detected, but the code is unused.
+    - "SLES-52725"
 SLES-55005:
   name: "Need for Speed - ProStreet"
   region: "PAL-M8"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLES-55002"
+    - "SLES-55003"
+    - "SLES-55004"
+    - "SLES-55005"
+    - "SLES-55006"
+    # Carbon save grants extra money.
+    - "SLES-54321"
+    - "SLES-54322"
+    - "SLES-54323"
+    - "SLES-54324"
+    - "SLES-54402"
+    - "SLES-54492"
+    - "SLES-54493"
+    # Most Wanted save grants extra money.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857" # Black Edition detection is bugged by default, can be fixed with a patch.
+    # UG2 saves can be detected, but the code is unused.
+    - "SLES-52725"
 SLES-55006:
   name: "Need for Speed - ProStreet"
   region: "PAL-R"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLES-55002"
+    - "SLES-55003"
+    - "SLES-55004"
+    - "SLES-55005"
+    - "SLES-55006"
+    # Carbon save grants extra money. Detection is bugged by default, can be fixed with a patch.
+    - "SLES-54321"
+    - "SLES-54322"
+    - "SLES-54323"
+    - "SLES-54324"
+    - "SLES-54402"
+    - "SLES-54492"
+    - "SLES-54493"
+    # Most Wanted save grants extra money. Detection is bugged by default, can be fixed with a patch.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857"
+    - "SLUS-21267" # Original wrong Most Wanted serial.
+    # UG2 saves can be detected, but the code is unused.
+    - "SLES-52725"
 SLES-55007:
   name: "Boogie"
   region: "PAL-M7"
@@ -28282,6 +28474,18 @@ SLES-55349:
     gpuTargetCLUT: 1 # Fixes sun penetration.
     nativeScaling: 2 # Fixes post alignment.
     getSkipCount: "GSC_NFSUndercover"
+  memcardFilters:
+    - "SLES-55349"
+    - "SLES-55350"
+    - "SLES-55351"
+    - "SLES-55352"
+    - "SLES-55353"
+    # Checks from Carbon are left in the code, unused.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857"
+    - "SLES-52725"
 SLES-55350:
   name: "Need for Speed - Undercover"
   region: "PAL-F-G"
@@ -28292,6 +28496,18 @@ SLES-55350:
     gpuTargetCLUT: 1 # Fixes sun penetration.
     nativeScaling: 2 # Fixes post alignment.
     getSkipCount: "GSC_NFSUndercover"
+  memcardFilters:
+    - "SLES-55349"
+    - "SLES-55350"
+    - "SLES-55351"
+    - "SLES-55352"
+    - "SLES-55353"
+    # Checks from Carbon are left in the code, unused.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857"
+    - "SLES-52725"
 SLES-55351:
   name: "Need for Speed - Undercover"
   region: "PAL-I-S"
@@ -28302,6 +28518,18 @@ SLES-55351:
     gpuTargetCLUT: 1 # Fixes sun penetration.
     nativeScaling: 2 # Fixes post alignment.
     getSkipCount: "GSC_NFSUndercover"
+  memcardFilters:
+    - "SLES-55349"
+    - "SLES-55350"
+    - "SLES-55351"
+    - "SLES-55352"
+    - "SLES-55353"
+    # Checks from Carbon are left in the code, unused.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857"
+    - "SLES-52725"
 SLES-55352:
   name: "Need for Speed - Undercover"
   region: "PAL-SC"
@@ -28313,6 +28541,18 @@ SLES-55352:
     gpuTargetCLUT: 1 # Fixes sun penetration.
     nativeScaling: 2 # Fixes post alignment.
     getSkipCount: "GSC_NFSUndercover"
+  memcardFilters:
+    - "SLES-55349"
+    - "SLES-55350"
+    - "SLES-55351"
+    - "SLES-55352"
+    - "SLES-55353"
+    # Checks from Carbon are left in the code, unused.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857"
+    - "SLES-52725"
 SLES-55353:
   name: "Need for Speed - Undercover"
   region: "PAL-M6"
@@ -28323,6 +28563,18 @@ SLES-55353:
     gpuTargetCLUT: 1 # Fixes sun penetration.
     nativeScaling: 2 # Fixes post alignment.
     getSkipCount: "GSC_NFSUndercover"
+  memcardFilters:
+    - "SLES-55349"
+    - "SLES-55350"
+    - "SLES-55351"
+    - "SLES-55352"
+    - "SLES-55353"
+    # Checks from Carbon are left in the code, unused.
+    - "SLES-53557"
+    - "SLES-53558"
+    - "SLES-53559"
+    - "SLES-53857"
+    - "SLES-52725"
 SLES-55354:
   name: "Shin Megami Tensei - Persona 3 FES"
   region: "PAL-E"
@@ -30254,6 +30506,11 @@ SLKA-25185:
   gsHWFixes:
     halfPixelOffset: 2 # Fixes blurriness.
     roundSprite: 2 # Fixes blurriness.
+  memcardFilters:
+    - "SLKA-25185"
+    - "SLKA-25334" # Most Wanted save grants extra money.
+    - "SLAJ-25075" # Original wrong Black Edition serial.
+    - "SLKA-25241" # UG2 saves can be detected, but the code is unused.
 SLKA-25186:
   name: "The King of Fighters - Maximum Impact [Limited Edition]"
   name-sort: "King of Fighters, The - Maximum Impact [Limited Edition]"
@@ -30940,6 +31197,9 @@ SLKA-25334:
     halfPixelOffset: 2 # Fixes blurriness.
     cpuCLUTRender: 1 # Final colour adjustment LUT.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+  memcardFilters:
+    - "SLKA-25334"
+    - "SLKA-25241" # Underground 2 save grants extra money.
 SLKA-25335:
   name: "Shadow the Hedgehog"
   region: "NTSC-K"
@@ -31301,6 +31561,11 @@ SLKA-25411:
   region: "NTSC-K"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLKA-25411"
+    - "SLKA-25185" # Carbon save grants extra money.
+    - "SLKA-25334" # Most Wanted save grants extra money.
+    - "SLKA-25241" # UG2 saves can be detected, but the code is unused.
 SLKA-25412:
   name: "Sengoku Basara 2 - Heroes"
   region: "NTSC-K"
@@ -31417,6 +31682,13 @@ SLKA-25446:
     recommendedBlendingLevel: 3 # Improves car reflections.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_NFSUndercover"
+  memcardFilters:
+    - "SLKA-25446"
+    # Checks from Carbon are left in the code, unused.
+    - "SLKA-25185"
+    - "SLKA-25334"
+    - "SLAJ-25075"
+    - "SLKA-25241"
 SLKA-25447:
   name: "FIFA 09"
   region: "NTSC-K"
@@ -31612,6 +31884,9 @@ SLPM-55003:
     halfPixelOffset: 2 # Fixes blurriness.
     cpuCLUTRender: 1 # Final colour adjustment LUT.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+  memcardFilters:
+    - "SLPM-55003"
+    - "SLPM-65766" # Underground 2 save grants extra money.
 SLPM-55004:
   name: "バーンアウト リベンジ [EA:SY! 1980]"
   name-sort: "ばーんあうと りべんじ [EA:SY! 1980])"
@@ -31865,6 +32140,9 @@ SLPM-55046:
     skipDrawEnd: 1 # Removes large black box around player car till we properly emulate it.
     halfPixelOffset: 2 # Fixes depth of field alignment.
     nativeScaling: 1 # Fixes depth of field.
+  memcardFilters:
+    - "SLPM-55046"
+    - "SLPM-66498" # Race Driver 2 save unlocks 'Class A 4WD Track Challenge' in career early.
 SLPM-55047:
   name: "Sugar+Spice！ ～あの子のステキな何もかも～"
   name-sort: "しゅがーすぱいす あのこのすてきななにもかも"
@@ -31939,6 +32217,13 @@ SLPM-55061:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes car headlights.
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLPM-55061"
+    # Most Wanted save grants extra money.
+    - "SLPM-66232"
+    - "SLPM-66562"
+    - "SLAJ-25075" # Original wrong Black Edition serial.
+    - "SLPM-65766" # UG2 saves can be detected, but the code is unused.
 SLPM-55062:
   name: "実況パワフルメジャーリーグ 3"
   name-sort: "じっきょうぱわふるめじゃーりーぐ 3"
@@ -32256,6 +32541,13 @@ SLPM-55127:
     gpuTargetCLUT: 1 # Fixes sun penetration.
     nativeScaling: 2 # Fixes post alignment.
     getSkipCount: "GSC_NFSUndercover"
+  memcardFilters:
+    - "SLPM-55127"
+    # Checks from Carbon are left in the code, unused.
+    - "SLPM-66232"
+    - "SLPM-66562"
+    - "SLAJ-25075"
+    - "SLPM-65766"
 SLPM-55128:
   name: "ラグビー08 [英語版] [EA:SY! 1980]"
   name-sort: "らぐびー08 [えいごばん] [EA:SY! 1980]"
@@ -32393,6 +32685,16 @@ SLPM-55151:
   region: "NTSC-J"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLPM-55151"
+    # Carbon save grants extra money.
+    - "SLPM-55061"
+    - "SLPM-66617"
+    - "SLPM-66869"
+    # Most Wanted save grants extra money.
+    - "SLPM-66232"
+    - "SLPM-66562"
+    - "SLPM-65766" # UG2 saves can be detected, but the code is unused.
 SLPM-55152:
   name: "スロッターUPコア11 巨人の星Ⅳ 青春群像編"
   name-sort: "すろったーUPこあ11 きょじんのほし4 せいしゅんぐんぞうへん"
@@ -32834,6 +33136,13 @@ SLPM-55244:
     gpuTargetCLUT: 1 # Fixes sun penetration.
     nativeScaling: 2 # Fixes post alignment.
     getSkipCount: "GSC_NFSUndercover"
+  memcardFilters:
+    - "SLPM-55244"
+    # Checks from Carbon are left in the code, unused.
+    - "SLPM-66232"
+    - "SLPM-66562"
+    - "SLAJ-25075"
+    - "SLPM-65766"
 SLPM-55245:
   name: "ひまわり -Pebble in the Sky-"
   name-sort: "ひまわり -Pebble in the Sky-"
@@ -46053,7 +46362,8 @@ SLPM-66232:
     - "SLAJ-25075"
     - "SLPM-66232"
     - "SLPM-66562"
-    - "SLPM-65766"
+    - "SLPM-65766" # Underground 2 save grants extra money.
+    # Unconfirmed UG2 serials.
     - "SLPM-66051"
     - "SLPM-66960"
 SLPM-66233:
@@ -48084,7 +48394,8 @@ SLPM-66562:
     - "SLAJ-25075"
     - "SLPM-66232"
     - "SLPM-66562"
-    - "SLPM-65766"
+    - "SLPM-65766" # Underground 2 save grants extra money.
+    # Unconfirmed UG2 serials.
     - "SLPM-66051"
     - "SLPM-66960"
 SLPM-66563:
@@ -48433,6 +48744,13 @@ SLPM-66617:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes car headlights.
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLPM-66617"
+    # Most Wanted save grants extra money.
+    - "SLPM-66232"
+    - "SLPM-66562"
+    - "SLAJ-25075" # Original wrong Black Edition serial.
+    - "SLPM-65766" # UG2 saves can be detected, but the code is unused.
 SLPM-66618:
   name: "夢見師 [初回限定版]"
   name-sort: "ゆめみし [しょかいげんていばん]"
@@ -49961,6 +50279,13 @@ SLPM-66869:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes car headlights.
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLPM-66869"
+    # Most Wanted save grants extra money.
+    - "SLPM-66232"
+    - "SLPM-66562"
+    - "SLAJ-25075" # Original wrong Black Edition serial.
+    - "SLPM-65766" # UG2 saves can be detected, but the code is unused.
 SLPM-66870:
   name: "星色のおくりもの [初回スペシャル限定版]"
   name-sort: "ほしいろのおくりもの [しょかいすぺしゃるげんていばん]"
@@ -50029,6 +50354,9 @@ SLPM-66881:
     skipDrawEnd: 1 # Removes large black box around player car till we properly emulate it.
     halfPixelOffset: 2 # Fixes depth of field alignment.
     nativeScaling: 1 # Fixes depth of field.
+  memcardFilters:
+    - "SLPM-66881"
+    - "SLPM-66498" # Race Driver 2 save unlocks 'Class A 4WD Track Challenge' in career early.
 SLPM-66882:
   name: "はかれなはーと ～君がために輝きを～ [限定版・サントラボイスCD付]"
   name-sort: "はかれなはーと きみがためにかがやきを [げんていばん さんとらぼいすCDつき]"
@@ -50309,6 +50637,16 @@ SLPM-66932:
   region: "NTSC-J"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLPM-66932"
+    # Carbon save grants extra money.
+    - "SLPM-55061"
+    - "SLPM-66617"
+    - "SLPM-66869"
+    # Most Wanted save grants extra money.
+    - "SLPM-66232"
+    - "SLPM-66562"
+    - "SLPM-65766" # UG2 saves can be detected, but the code is unused.
 SLPM-66933:
   name: "君が主で執事が俺で～お仕え日記～ [初回限定版]"
   name-sort: "きみがあるじでしつじがおれで おつかえにっき [しょかいげんていばん]"
@@ -67340,6 +67678,9 @@ SLUS-21182:
     skipDrawEnd: 1 # Removes large black box around player car till we properly emulate it.
     halfPixelOffset: 2 # Fixes depth of field alignment.
     nativeScaling: 1 # Fixes depth of field.
+  memcardFilters:
+    - "SLUS-21182"
+    - "SLUS-21039" # Race Driver 2 save unlocks 'Class A 4WD Track Challenge' in career early.
 SLUS-21183:
   name: "Teen Titans"
   region: "NTSC-U"
@@ -67858,6 +68199,9 @@ SLUS-21257:
     halfPixelOffset: 2 # Fixes blurriness.
     cpuCLUTRender: 1 # Final colour adjustment LUT.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+  memcardFilters:
+    - "SLUS-21257"
+    - "SLUS-21065" # Underground 2 save grants extra money.
 SLUS-21258:
   name: ".hack//G.U. Vol.1 - Rebirth"
   region: "NTSC-U"
@@ -67944,7 +68288,7 @@ SLUS-21267:
   memcardFilters:
     - "SLUS-21267"
     - "SLUS-21351"
-    - "SLUS-21065"
+    - "SLUS-21065" # Underground 2 save grants extra money.
 SLUS-21268:
   name: "24 - The Game"
   region: "NTSC-U"
@@ -68533,7 +68877,7 @@ SLUS-21351:
   memcardFilters:
     - "SLUS-21267"
     - "SLUS-21351"
-    - "SLUS-21065"
+    - "SLUS-21065" # Underground 2 save grants extra money.
 SLUS-21352:
   name: "Dai Senryaku VII Exceed"
   region: "NTSC-U"
@@ -69475,14 +69819,29 @@ SLUS-21493:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes car headlights.
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLUS-21493"
+    # Most Wanted save grants extra money.
+    - "SLUS-21267"
+    - "SLUS-21351" # Black Edition detection is bugged by default, can be fixed with a patch.
+    - "SLAJ-25075" # Original wrong Black Edition serial.
+    - "SLUS-21065" # UG2 saves can be detected, but the code is unused.
 SLUS-21494:
   name: "Need for Speed - Carbon [Collector's Edition]"
   region: "NTSC-U"
+  compat: 5
   clampModes:
     eeClampMode: 3 # Fixes game hang after opening intro.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes car headlights.
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLUS-21494"
+    # Most Wanted save grants extra money.
+    - "SLUS-21267"
+    - "SLUS-21351" # Black Edition detection is bugged by default, can be fixed with a patch.
+    - "SLAJ-25075" # Original wrong Black Edition serial.
+    - "SLUS-21065" # UG2 saves can be detected, but the code is unused.
 SLUS-21495:
   name: "Sudoku, Carol Vorderman's"
   region: "NTSC-U"
@@ -70240,6 +70599,15 @@ SLUS-21658:
   compat: 5
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
+  memcardFilters:
+    - "SLUS-21658"
+    # Carbon save grants extra money.
+    - "SLUS-21493"
+    - "SLUS-21494"
+    # Most Wanted save grants extra money.
+    - "SLUS-21267"
+    - "SLUS-21351"
+    - "SLUS-21065" # UG2 saves can be detected, but the code is unused.
 SLUS-21660:
   name: "Disney Princess - Enchanted Journey"
   region: "NTSC-U"
@@ -71018,6 +71386,13 @@ SLUS-21801:
     gpuTargetCLUT: 1 # Fixes sun penetration.
     nativeScaling: 2 # Fixes post alignment.
     getSkipCount: "GSC_NFSUndercover"
+  memcardFilters:
+    - "SLUS-21801"
+    # Checks from Carbon are left in the code, unused.
+    - "SLUS-21267"
+    - "SLUS-21351"
+    - "SLAJ-25075"
+    - "SLUS-21065"
 SLUS-21802:
   name: "Naked Brothers Band - The Video Game"
   region: "NTSC-U"
