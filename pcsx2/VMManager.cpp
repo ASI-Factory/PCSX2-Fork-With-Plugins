@@ -3741,7 +3741,7 @@ void VMManager::ReloadPINE()
 	PINEServer::Deinitialize();
 
 	if (EmuConfig.EnablePINE)
-		PINEServer::Initialize();
+		PINEServer::Initialize(EmuConfig.PINESlot);
 }
 
 void VMManager::InitializeDiscordPresence()
