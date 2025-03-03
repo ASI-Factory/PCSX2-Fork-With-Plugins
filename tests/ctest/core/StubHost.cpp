@@ -39,6 +39,10 @@ std::unique_ptr<ProgressCallback> Host::CreateHostProgressCallback()
 	return ProgressCallback::CreateNullProgressCallback();
 }
 
+void Host::ReportInfoAsync(const std::string_view title, const std::string_view message)
+{
+}
+
 void Host::ReportErrorAsync(const std::string_view title, const std::string_view message)
 {
 }
@@ -236,6 +240,11 @@ void Host::OnCoverDownloaderOpenRequested()
 
 void Host::OnCreateMemoryCardOpenRequested()
 {
+}
+
+bool Host::LocaleCircleConfirm()
+{
+	return false;
 }
 
 bool Host::ShouldPreferHostFileSelector()
