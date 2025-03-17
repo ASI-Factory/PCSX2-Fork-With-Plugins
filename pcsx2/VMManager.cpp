@@ -587,7 +587,7 @@ void VMManager::UpdateLoggingSettings(SettingsInterface& si)
 
 	const bool system_console_enabled = !s_log_block_system_console && si.GetBoolValue("Logging", "EnableSystemConsole", false);
 	const bool log_window_enabled = !s_log_block_system_console && si.GetBoolValue("Logging", "EnableLogWindow", false);
-	const bool file_logging_enabled = s_log_force_file_log || si.GetBoolValue("Logging", "EnableFileLogging", false);
+	const bool file_logging_enabled = s_log_force_file_log || si.GetBoolValue("Logging", "EnableFileLogging", true);
 
 	if (system_console_enabled != Log::IsConsoleOutputEnabled())
 		Log::SetConsoleOutputLevel(system_console_enabled ? level : LOGLEVEL_NONE);
@@ -631,7 +631,7 @@ void VMManager::UpdateLoggingSettings(SettingsInterface& si)
 void VMManager::SetDefaultLoggingSettings(SettingsInterface& si)
 {
 	si.SetBoolValue("Logging", "EnableSystemConsole", false);
-	si.SetBoolValue("Logging", "EnableFileLogging", false);
+	si.SetBoolValue("Logging", "EnableFileLogging", true);
 	si.SetBoolValue("Logging", "EnableTimestamps", true);
 	si.SetBoolValue("Logging", "EnableVerbose", false);
 	si.SetBoolValue("Logging", "EnableEEConsole", false);
