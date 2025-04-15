@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2002-2025 PCSX2 Dev Team
 // SPDX-License-Identifier: GPL-3.0+
 
-#include "MemoryViewWidget.h"
+#include "MemoryView.h"
 
 #include "Debugger/JsonValueWrapper.h"
 
@@ -451,10 +451,10 @@ bool MemoryViewTable::KeyPress(int key, QChar keychar, DebugInterface& cpu)
 }
 
 /*
-	MemoryViewWidget
+	MemoryView
 */
-MemoryViewWidget::MemoryViewWidget(const DebuggerWidgetParameters& parameters)
-	: DebuggerWidget(parameters, MONOSPACE_FONT)
+MemoryView::MemoryView(const DebuggerViewParameters& parameters)
+	: DebuggerView(parameters, MONOSPACE_FONT)
 	, m_table(this)
 {
 	ui.setupUi(this);
@@ -462,7 +462,7 @@ MemoryViewWidget::MemoryViewWidget(const DebuggerWidgetParameters& parameters)
 	setFocusPolicy(Qt::FocusPolicy::ClickFocus);
 
 	setContextMenuPolicy(Qt::CustomContextMenu);
-	connect(this, &MemoryViewWidget::customContextMenuRequested, this, &MemoryViewWidget::openContextMenu);
+	connect(this, &MemoryView::customContextMenuRequested, this, &MemoryView::openContextMenu);
 
 	m_table.UpdateStartAddress(0x100000);
 
@@ -485,20 +485,20 @@ MemoryViewWidget::MemoryViewWidget(const DebuggerWidgetParameters& parameters)
 	});
 }
 
-MemoryViewWidget::~MemoryViewWidget() = default;
+MemoryView::~MemoryView() = default;
 
-void MemoryViewWidget::toJson(JsonValueWrapper& json)
+void MemoryView::toJson(JsonValueWrapper& json)
 {
-	DebuggerWidget::toJson(json);
+	DebuggerView::toJson(json);
 
 	json.value().AddMember("startAddress", m_table.startAddress, json.allocator());
 	json.value().AddMember("viewType", static_cast<int>(m_table.GetViewType()), json.allocator());
 	json.value().AddMember("littleEndian", m_table.GetLittleEndian(), json.allocator());
 }
 
-bool MemoryViewWidget::fromJson(const JsonValueWrapper& json)
+bool MemoryView::fromJson(const JsonValueWrapper& json)
 {
-	if (!DebuggerWidget::fromJson(json))
+	if (!DebuggerView::fromJson(json))
 		return false;
 
 	auto start_address = json.value().FindMember("startAddress");
@@ -525,7 +525,7 @@ bool MemoryViewWidget::fromJson(const JsonValueWrapper& json)
 	return true;
 }
 
-void MemoryViewWidget::paintEvent(QPaintEvent* event)
+void MemoryView::paintEvent(QPaintEvent* event)
 {
 	QPainter painter(this);
 
@@ -537,7 +537,7 @@ void MemoryViewWidget::paintEvent(QPaintEvent* event)
 	m_table.DrawTable(painter, this->palette(), this->height(), cpu());
 }
 
-void MemoryViewWidget::mousePressEvent(QMouseEvent* event)
+void MemoryView::mousePressEvent(QMouseEvent* event)
 {
 	if (!cpu().isAlive())
 		return;
@@ -546,7 +546,7 @@ void MemoryViewWidget::mousePressEvent(QMouseEvent* event)
 	repaint();
 }
 
-void MemoryViewWidget::openContextMenu(QPoint pos)
+void MemoryView::openContextMenu(QPoint pos)
 {
 	if (!cpu().isAlive())
 		return;
@@ -615,10 +615,10 @@ void MemoryViewWidget::openContextMenu(QPoint pos)
 		return std::optional(event);
 	});
 
-	connect(menu->addAction(tr("Copy Byte")), &QAction::triggered, this, &MemoryViewWidget::contextCopyByte);
-	connect(menu->addAction(tr("Copy Segment")), &QAction::triggered, this, &MemoryViewWidget::contextCopySegment);
-	connect(menu->addAction(tr("Copy Character")), &QAction::triggered, this, &MemoryViewWidget::contextCopyCharacter);
-	connect(menu->addAction(tr("Paste")), &QAction::triggered, this, &MemoryViewWidget::contextPaste);
+	connect(menu->addAction(tr("Copy Byte")), &QAction::triggered, this, &MemoryView::contextCopyByte);
+	connect(menu->addAction(tr("Copy Segment")), &QAction::triggered, this, &MemoryView::contextCopySegment);
+	connect(menu->addAction(tr("Copy Character")), &QAction::triggered, this, &MemoryView::contextCopyCharacter);
+	connect(menu->addAction(tr("Paste")), &QAction::triggered, this, &MemoryView::contextPaste);
 
 	menu->popup(this->mapToGlobal(pos));
 
@@ -626,27 +626,27 @@ void MemoryViewWidget::openContextMenu(QPoint pos)
 	return;
 }
 
-void MemoryViewWidget::contextCopyByte()
+void MemoryView::contextCopyByte()
 {
 	QApplication::clipboard()->setText(QString::number(cpu().read8(m_table.selectedAddress), 16).toUpper());
 }
 
-void MemoryViewWidget::contextCopySegment()
+void MemoryView::contextCopySegment()
 {
 	QApplication::clipboard()->setText(QString::number(m_table.GetSelectedSegment(cpu()).lo, 16).toUpper());
 }
 
-void MemoryViewWidget::contextCopyCharacter()
+void MemoryView::contextCopyCharacter()
 {
 	QApplication::clipboard()->setText(QChar::fromLatin1(cpu().read8(m_table.selectedAddress)).toUpper());
 }
 
-void MemoryViewWidget::contextPaste()
+void MemoryView::contextPaste()
 {
 	m_table.InsertAtCurrentSelection(QApplication::clipboard()->text(), cpu());
 }
 
-void MemoryViewWidget::contextGoToAddress()
+void MemoryView::contextGoToAddress()
 {
 	bool ok;
 	QString targetString = QInputDialog::getText(this, tr("Go To In Memory View"), "",
@@ -666,11 +666,11 @@ void MemoryViewWidget::contextGoToAddress()
 	gotoAddress(static_cast<u32>(address));
 }
 
-void MemoryViewWidget::mouseDoubleClickEvent(QMouseEvent* event)
+void MemoryView::mouseDoubleClickEvent(QMouseEvent* event)
 {
 }
 
-void MemoryViewWidget::wheelEvent(QWheelEvent* event)
+void MemoryView::wheelEvent(QWheelEvent* event)
 {
 	if (event->angleDelta().y() < 0)
 	{
@@ -683,7 +683,7 @@ void MemoryViewWidget::wheelEvent(QWheelEvent* event)
 	this->repaint();
 }
 
-void MemoryViewWidget::keyPressEvent(QKeyEvent* event)
+void MemoryView::keyPressEvent(QKeyEvent* event)
 {
 	if (!m_table.KeyPress(event->key(), event->text().size() ? event->text()[0] : '\0', cpu()))
 	{
@@ -701,10 +701,10 @@ void MemoryViewWidget::keyPressEvent(QKeyEvent* event)
 		}
 	}
 	this->repaint();
-	DebuggerWidget::broadcastEvent(DebuggerEvents::VMUpdate());
+	DebuggerView::broadcastEvent(DebuggerEvents::VMUpdate());
 }
 
-void MemoryViewWidget::gotoAddress(u32 address)
+void MemoryView::gotoAddress(u32 address)
 {
 	m_table.UpdateStartAddress(address & ~0xF);
 	m_table.selectedAddress = address;

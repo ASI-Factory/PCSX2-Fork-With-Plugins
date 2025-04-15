@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "ui_MemorySearchWidget.h"
+#include "ui_MemorySearchView.h"
 
-#include "Debugger/DebuggerWidget.h"
+#include "Debugger/DebuggerView.h"
 
 #include "DebugTools/DebugInterface.h"
 
@@ -13,13 +13,13 @@
 #include <QtCore/QTimer>
 #include <QtCore/QMap>
 
-class MemorySearchWidget final : public DebuggerWidget
+class MemorySearchView final : public DebuggerView
 {
 	Q_OBJECT
 
 public:
-	MemorySearchWidget(const DebuggerWidgetParameters& parameters);
-	~MemorySearchWidget() = default;
+	MemorySearchView(const DebuggerViewParameters& parameters);
+	~MemorySearchView() = default;
 
 	enum class SearchType
 	{
@@ -136,7 +136,7 @@ public slots:
 private:
 	std::vector<SearchResult> m_searchResults;
 	SearchComparisonLabelMap m_searchComparisonLabelMap;
-	Ui::MemorySearchWidget m_ui;
+	Ui::MemorySearchView m_ui;
 	QTimer m_resultsLoadTimer;
 
 	u32 m_initialResultsLoadLimit = 20000;

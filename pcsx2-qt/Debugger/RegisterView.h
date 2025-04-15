@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "ui_RegisterWidget.h"
+#include "ui_RegisterView.h"
 
-#include "DebuggerWidget.h"
+#include "DebuggerView.h"
 
 #include "DebugTools/DebugInterface.h"
 #include "DebugTools/DisassemblyManager.h"
@@ -14,13 +14,13 @@
 #include <QtWidgets/QTabBar>
 #include <QtGui/QPainter>
 
-class RegisterWidget final : public DebuggerWidget
+class RegisterView final : public DebuggerView
 {
 	Q_OBJECT
 
 public:
-	RegisterWidget(const DebuggerWidgetParameters& parameters);
-	~RegisterWidget();
+	RegisterView(const DebuggerViewParameters& parameters);
+	~RegisterView();
 
 	void toJson(JsonValueWrapper& json) override;
 	bool fromJson(const JsonValueWrapper& json) override;
@@ -47,7 +47,7 @@ public slots:
 	void tabCurrentChanged(int cur);
 
 private:
-	Ui::RegisterWidget ui;
+	Ui::RegisterView ui;
 
 	// Returns true on success
 	bool contextFetchNewValue(u64& out, u64 currentValue, bool segment = false);

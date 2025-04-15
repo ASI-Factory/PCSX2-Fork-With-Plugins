@@ -3,18 +3,18 @@
 
 #pragma once
 
-#include "ui_SavedAddressesWidget.h"
+#include "ui_SavedAddressesView.h"
 
 #include "SavedAddressesModel.h"
 
-#include "Debugger/DebuggerWidget.h"
+#include "Debugger/DebuggerView.h"
 
-class SavedAddressesWidget : public DebuggerWidget
+class SavedAddressesView : public DebuggerView
 {
 	Q_OBJECT
 
 public:
-	SavedAddressesWidget(const DebuggerWidgetParameters& parameters);
+	SavedAddressesView(const DebuggerViewParameters& parameters);
 
 	void openContextMenu(QPoint pos);
 	void contextPasteCSV();
@@ -23,7 +23,7 @@ public:
 	void saveToDebuggerSettings();
 
 private:
-	Ui::SavedAddressesWidget m_ui;
+	Ui::SavedAddressesView m_ui;
 
 	SavedAddressesModel* m_model;
 };
