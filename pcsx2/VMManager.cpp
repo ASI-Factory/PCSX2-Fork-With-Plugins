@@ -2619,8 +2619,10 @@ void VMManager::LogCPUCapabilities()
 
 	Console.WriteLnFmt(
 		"  Operating System = {}\n"
-		"  Physical RAM     = {} MB",
+		"  Available RAM    = {} MB\n"
+		"  Physical RAM     = {} MB\n",
 		GetOSVersionString(),
+		GetAvailablePhysicalMemory() / _1mb,
 		GetPhysicalMemory() / _1mb);
 
 	Console.WriteLnFmt("  Processor        = {}", cpuinfo_get_package(0)->name);
