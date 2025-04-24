@@ -638,7 +638,7 @@ void Pcsx2Config::CpuOptions::LoadSave(SettingsWrapper& wrap)
 	Recompiler.LoadSave(wrap);
 }
 
-const char* Pcsx2Config::GSOptions::AspectRatioNames[] = {
+const char* Pcsx2Config::GSOptions::AspectRatioNames[(size_t)AspectRatioType::MaxCount + 1] = {
 	"Stretch",
 	"Auto 4:3/3:2",
 	"4:3",
@@ -646,7 +646,7 @@ const char* Pcsx2Config::GSOptions::AspectRatioNames[] = {
 	"10:7",
 	nullptr};
 
-const char* Pcsx2Config::GSOptions::FMVAspectRatioSwitchNames[] = {
+const char* Pcsx2Config::GSOptions::FMVAspectRatioSwitchNames[(size_t)FMVAspectRatioSwitchType::MaxCount + 1] = {
 	"Off",
 	"Auto 4:3/3:2",
 	"4:3",
@@ -1985,7 +1985,12 @@ void Pcsx2Config::LoadSaveCore(SettingsWrapper& wrap)
 
 	if (wrap.IsLoading())
 	{
+		// Patches will get re-applied after loading the state so this doesn't matter too much
 		CurrentAspectRatio = GS.AspectRatio;
+		if (CurrentAspectRatio == AspectRatioType::RAuto4_3_3_2)
+		{
+			CurrentCustomAspectRatio = 0.f;
+		}
 	}
 }
 
@@ -2037,6 +2042,7 @@ void Pcsx2Config::CopyRuntimeConfig(Pcsx2Config& cfg)
 	CurrentIRX = std::move(cfg.CurrentIRX);
 	CurrentGameArgs = std::move(cfg.CurrentGameArgs);
 	CurrentAspectRatio = cfg.CurrentAspectRatio;
+	CurrentCustomAspectRatio = cfg.CurrentCustomAspectRatio;
 	IsPortableMode = cfg.IsPortableMode;
 
 	for (u32 i = 0; i < sizeof(Mcd) / sizeof(Mcd[0]); i++)
