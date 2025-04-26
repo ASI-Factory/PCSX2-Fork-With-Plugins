@@ -2137,74 +2137,79 @@ Leaderboard Position: {1} of {2}</source>
     </message>
     <message>
         <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="91"/>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="157"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="183"/>
         <source>Memory</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="116"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="119"/>
         <source>Address</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="138"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="141"/>
         <source>0</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="165"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="148"/>
+        <source>Description</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="191"/>
         <source>Read</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="175"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="201"/>
         <source>Write</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="185"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="211"/>
         <source>Change</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="196"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="222"/>
         <source>Size</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="215"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="241"/>
         <source>1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="239"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="265"/>
         <source>Condition</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="267"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="293"/>
         <source>Log</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="277"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.ui" line="303"/>
         <source>Enable</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.cpp" line="100"/>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.cpp" line="128"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.cpp" line="103"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.cpp" line="132"/>
         <source>Invalid Address</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.cpp" line="115"/>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.cpp" line="150"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.cpp" line="119"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.cpp" line="155"/>
         <source>Invalid Condition</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointDialog.cpp" line="135"/>
+        <location filename="../Debugger/Breakpoints/BreakpointDialog.cpp" line="139"/>
         <source>Invalid Size</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2217,75 +2222,77 @@ Leaderboard Position: {1} of {2}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="88"/>
-        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="111"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="90"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="115"/>
         <source>--</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="96"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="75"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="98"/>
         <source>Enabled</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="96"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="75"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="98"/>
         <source>Disabled</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="100"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="102"/>
         <source>Read</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="103"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="105"/>
         <source>Write(C)</source>
         <extracomment>(C) = changes, as in &quot;look for changes&quot;.</extracomment>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="103"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="105"/>
         <source>Write</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="232"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="267"/>
         <source>TYPE</source>
         <extracomment>Warning: limited space available. Abbreviate if needed.</extracomment>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="235"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="270"/>
         <source>OFFSET</source>
         <extracomment>Warning: limited space available. Abbreviate if needed.</extracomment>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="238"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="275"/>
         <source>SIZE / LABEL</source>
         <extracomment>Warning: limited space available. Abbreviate if needed.</extracomment>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="241"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="278"/>
         <source>INSTRUCTION</source>
         <extracomment>Warning: limited space available. Abbreviate if needed.</extracomment>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="244"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="281"/>
         <source>CONDITION</source>
         <extracomment>Warning: limited space available. Abbreviate if needed.</extracomment>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="247"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="284"/>
         <source>HITS</source>
         <extracomment>Warning: limited space available. Abbreviate if needed.</extracomment>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="250"/>
+        <location filename="../Debugger/Breakpoints/BreakpointModel.cpp" line="287"/>
         <source>X</source>
         <extracomment>Warning: limited space available. Abbreviate if needed.</extracomment>
         <translation type="unfinished"></translation>
@@ -2299,42 +2306,42 @@ Leaderboard Position: {1} of {2}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="44"/>
+        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="40"/>
         <source>New</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="51"/>
+        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="47"/>
         <source>Edit</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="56"/>
+        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="52"/>
         <source>Copy</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="60"/>
+        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="56"/>
         <source>Delete</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="68"/>
+        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="64"/>
         <source>Copy all as CSV</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="78"/>
+        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="74"/>
         <source>Paste from CSV</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="83"/>
+        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="79"/>
         <source>Load from Settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="89"/>
+        <location filename="../Debugger/Breakpoints/BreakpointView.cpp" line="85"/>
         <source>Save to Settings</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5031,13 +5038,13 @@ Do you want to overwrite?</source>
     </message>
     <message>
         <location filename="../Debugger/DebuggerWindow.ui" line="32"/>
-        <location filename="../Debugger/DebuggerWindow.ui" line="103"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="105"/>
         <source>File</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../Debugger/DebuggerWindow.ui" line="42"/>
-        <location filename="../Debugger/DebuggerWindow.ui" line="85"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="87"/>
         <source>Debug</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5047,134 +5054,134 @@ Do you want to overwrite?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="56"/>
-        <location filename="../Debugger/DebuggerWindow.ui" line="136"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="57"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="138"/>
         <source>View</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="66"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="67"/>
         <source>Layouts</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="73"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="74"/>
         <source>Tools</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="120"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="122"/>
         <source>System</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="157"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="159"/>
         <location filename="../Debugger/DebuggerWindow.cpp" line="319"/>
         <source>Run</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="165"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="167"/>
         <source>Step Into</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="168"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="170"/>
         <source>F11</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="176"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="178"/>
         <source>Step Over</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="179"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="181"/>
         <source>F10</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="187"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="189"/>
         <source>Step Out</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="190"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="192"/>
         <source>Shift+F11</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="201"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="203"/>
         <source>Always On Top</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="204"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="206"/>
         <source>Show this window on top</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="212"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="214"/>
         <source>Analyze</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="217"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="219"/>
         <source>Reset All Layouts</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="222"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="224"/>
         <source>Reset Default Layouts</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="227"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="229"/>
         <source>Reset Splitter Positions</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="235"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="237"/>
         <source>Shut Down</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="246"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="248"/>
         <source>Reset</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="257"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="259"/>
         <source>Close</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="268"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="270"/>
         <source>Increase Font Size</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="279"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="281"/>
         <source>Decrease Font Size</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="282"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="284"/>
         <source>Ctrl+-</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="293"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="295"/>
         <source>Reset Font Size</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="304"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="306"/>
         <source>Settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/DebuggerWindow.ui" line="315"/>
+        <location filename="../Debugger/DebuggerWindow.ui" line="317"/>
         <source>Game Settings</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5410,38 +5417,38 @@ Do you want to overwrite?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Docking/DockManager.cpp" line="360"/>
+        <location filename="../Debugger/Docking/DockManager.cpp" line="366"/>
         <source>Add Another...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Docking/DockManager.cpp" line="574"/>
+        <location filename="../Debugger/Docking/DockManager.cpp" line="580"/>
         <source>Edit Layout</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Docking/DockManager.cpp" line="579"/>
+        <location filename="../Debugger/Docking/DockManager.cpp" line="585"/>
         <source>Reset Layout</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Docking/DockManager.cpp" line="629"/>
+        <location filename="../Debugger/Docking/DockManager.cpp" line="635"/>
         <source>Are you sure you want to reset layout &apos;%1&apos;?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Docking/DockManager.cpp" line="630"/>
-        <location filename="../Debugger/Docking/DockManager.cpp" line="653"/>
+        <location filename="../Debugger/Docking/DockManager.cpp" line="636"/>
+        <location filename="../Debugger/Docking/DockManager.cpp" line="659"/>
         <source>Confirmation</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Docking/DockManager.cpp" line="585"/>
+        <location filename="../Debugger/Docking/DockManager.cpp" line="591"/>
         <source>Delete Layout</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Debugger/Docking/DockManager.cpp" line="652"/>
+        <location filename="../Debugger/Docking/DockManager.cpp" line="658"/>
         <source>Are you sure you want to delete layout &apos;%1&apos;?</source>
         <translation type="unfinished"></translation>
     </message>
