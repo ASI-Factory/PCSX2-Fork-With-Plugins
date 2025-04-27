@@ -2223,7 +2223,8 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 						
 						continue;
 					}
-					else if (t->m_dirty.empty() || (t->m_TEX0.TBP0 <= bp && t->m_dirty.GetTotalRect(t->m_TEX0, t->m_unscaled_size).rintersect(GSVector4i(0, 0, 0, 0) .max_i32(TranslateAlignedRectByPage(t, TEX0.TBP0, TEX0.PSM, TEX0.TBW, min_rect))).rempty()))
+					else if (t->m_dirty.empty() || (t->m_TEX0.TBP0 <= bp && t->m_last_draw >= (GSState::s_n - 1) && 
+													t->m_dirty.GetTotalRect(t->m_TEX0, t->m_unscaled_size).rintersect(GSVector4i(0, 0, 0, 0).max_i32(TranslateAlignedRectByPage(t, TEX0.TBP0, TEX0.PSM, TEX0.TBW, min_rect))).rempty()))
 					{
 						if (TEX0.TBW == t->m_TEX0.TBW && !is_shuffle && widthpage_offset == 0 && ((min_rect.w + 63)/ 64) > 1)
 						{
@@ -2694,6 +2695,15 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 				// Probably an old target, get rid of it.
 				if (remove_target)
 				{
+					// DT Racer hits this path and causes a crash when RT in RT is disabled,
+					// so let's make sure source and target texture isn't linked/shared before deleting the target.
+					if (src && src->m_target && src->m_from_target == t && src->m_target_direct)
+					{
+						src->m_target_direct = false;
+						src->m_shared_texture = false;
+						t->m_texture = nullptr;
+					}
+
 					InvalidateSourcesFromTarget(t);
 					i = rev_list.erase(i);
 					delete t;
