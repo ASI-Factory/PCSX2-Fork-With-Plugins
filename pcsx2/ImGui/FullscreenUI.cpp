@@ -3931,13 +3931,8 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 	};
 	static const char* s_resolution_options[] = {
 		FSUI_NSTR("Native (PS2)"),
-		FSUI_NSTR("1.25x Native (~450px)"),
-		FSUI_NSTR("1.5x Native (~540px)"),
-		FSUI_NSTR("1.75x Native (~630px)"),
 		FSUI_NSTR("2x Native (~720px/HD)"),
-		FSUI_NSTR("2.5x Native (~900px/HD+)"),
 		FSUI_NSTR("3x Native (~1080px/FHD)"),
-		FSUI_NSTR("3.5x Native (~1260px)"),
 		FSUI_NSTR("4x Native (~1440px/QHD)"),
 		FSUI_NSTR("5x Native (~1800px/QHD+)"),
 		FSUI_NSTR("6x Native (~2160px/4K UHD)"),
@@ -3950,13 +3945,8 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 	};
 	static const char* s_resolution_values[] = {
 		"1",
-		"1.25",
-		"1.5",
-		"1.75",
 		"2",
-		"2.5",
 		"3",
-		"3.5",
 		"4",
 		"5",
 		"6",
@@ -7955,13 +7945,8 @@ TRANSLATE_NOOP("FullscreenUI", "Blend (Bottom Field First, Half FPS)");
 TRANSLATE_NOOP("FullscreenUI", "Adaptive (Top Field First)");
 TRANSLATE_NOOP("FullscreenUI", "Adaptive (Bottom Field First)");
 TRANSLATE_NOOP("FullscreenUI", "Native (PS2)");
-TRANSLATE_NOOP("FullscreenUI", "1.25x Native (~450px)");
-TRANSLATE_NOOP("FullscreenUI", "1.5x Native (~540px)");
-TRANSLATE_NOOP("FullscreenUI", "1.75x Native (~630px)");
 TRANSLATE_NOOP("FullscreenUI", "2x Native (~720px/HD)");
-TRANSLATE_NOOP("FullscreenUI", "2.5x Native (~900px/HD+)");
 TRANSLATE_NOOP("FullscreenUI", "3x Native (~1080px/FHD)");
-TRANSLATE_NOOP("FullscreenUI", "3.5x Native (~1260px)");
 TRANSLATE_NOOP("FullscreenUI", "4x Native (~1440px/QHD)");
 TRANSLATE_NOOP("FullscreenUI", "5x Native (~1800px/QHD+)");
 TRANSLATE_NOOP("FullscreenUI", "6x Native (~2160px/4K UHD)");
