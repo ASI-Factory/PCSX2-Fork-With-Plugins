@@ -21,11 +21,11 @@ if [ "${INSTALLDIR:0:1}" != "/" ]; then
 fi
 
 FREETYPE=2.13.3
-HARFBUZZ=10.0.1
-SDL=SDL3-3.2.10
+HARFBUZZ=11.2.0
+SDL=SDL3-3.2.12
 ZSTD=1.5.7
-LZ4=b8fd2d15309dd4e605070bd4486e26b6ef814e29
-LIBPNG=1.6.45
+LZ4=1.10.0
+LIBPNG=1.6.48
 LIBJPEGTURBO=3.1.0
 LIBWEBP=1.5.0
 FFMPEG=6.0
@@ -58,11 +58,11 @@ CMAKE_COMMON=(
 
 cat > SHASUMS <<EOF
 0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289  freetype-$FREETYPE.tar.xz
-e7358ea86fe10fb9261931af6f010d4358dac64f7074420ca9bc94aae2bdd542  harfbuzz-$HARFBUZZ.tar.gz
-f87be7b4dec66db4098e9c167b2aa34e2ca10aeb5443bdde95ae03185ed513e0  $SDL.tar.gz
+16c0204704f3ebeed057aba100fe7db18d71035505cb10e595ea33d346457fc8  harfbuzz-$HARFBUZZ.tar.gz
+9734f308e130c64a2b4df6bca5884c5aca577ee6c7c77ab3379474ea85e51f96  $SDL.tar.gz
 eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3  zstd-$ZSTD.tar.gz
-0728800155f3ed0a0c87e03addbd30ecbe374f7b080678bbca1506051d50dec3  $LZ4.tar.gz
-926485350139ffb51ef69760db35f78846c805fef3d59bfdcb2fba704663f370  libpng-$LIBPNG.tar.xz
+537512904744b35e232912055ccf8ec66d768639ff3abe5788d90d792ec5f48b  lz4-$LZ4.tar.gz
+46fd06ff37db1db64c0dc288d78a3f5efd23ad9ac41561193f983e20937ece03  libpng-$LIBPNG.tar.xz
 7d6fab70cf844bf6769077bd5d7a74893f8ffd4dfb42861745750c63c2a5c92c  libwebp-$LIBWEBP.tar.gz
 9564c72b1dfd1d6fe6274c5f95a8d989b59854575d4bbee44ade7bc17aa9bc93  libjpeg-turbo-$LIBJPEGTURBO.tar.gz
 57be87c22d9b49c112b6d24bc67d42508660e6b718b3db89c44e47e289137082  ffmpeg-$FFMPEG.tar.xz
@@ -86,7 +86,7 @@ curl -L \
 	-o "harfbuzz-$HARFBUZZ.tar.gz" "https://github.com/harfbuzz/harfbuzz/archive/refs/tags/$HARFBUZZ.tar.gz" \
 	-O "https://libsdl.org/release/$SDL.tar.gz" \
 	-O "https://github.com/facebook/zstd/releases/download/v$ZSTD/zstd-$ZSTD.tar.gz" \
-	-O "https://github.com/lz4/lz4/archive/$LZ4.tar.gz" \
+	-O "https://github.com/lz4/lz4/releases/download/v$LZ4/lz4-$LZ4.tar.gz" \
 	-O "https://downloads.sourceforge.net/project/libpng/libpng16/$LIBPNG/libpng-$LIBPNG.tar.xz" \
 	-O "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/$LIBJPEGTURBO/libjpeg-turbo-$LIBJPEGTURBO.tar.gz" \
 	-O "https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-$LIBWEBP.tar.gz" \
@@ -146,7 +146,7 @@ cd ..
 
 echo "Installing LZ4..."
 rm -fr "lz4-$LZ4"
-tar xf "$LZ4.tar.gz"
+tar xf "lz4-$LZ4.tar.gz"
 cd "lz4-$LZ4"
 cmake "${CMAKE_COMMON[@]}" -DBUILD_SHARED_LIBS=ON -DLZ4_BUILD_CLI=OFF -DLZ4_BUILD_LEGACY_LZ4C=OFF -B build-dir build/cmake
 make -C build-dir "-j$NPROCS"
