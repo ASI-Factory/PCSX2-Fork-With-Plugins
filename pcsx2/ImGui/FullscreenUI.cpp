@@ -244,6 +244,7 @@ namespace FullscreenUI
 	void DrawSvgTexture(GSTexture* padded_texture, ImVec2 unpadded_size);
 	void DrawCachedSvgTexture(const std::string& path, ImVec2 size, SvgScaling mode);
 	void DrawCachedSvgTextureAsync(const std::string& path, ImVec2 size, SvgScaling mode);
+	void DrawListSvgTexture(ImDrawList* drawList, GSTexture* padded_texture, const ImVec2& p_min, const ImVec2& p_unpadded_max);
 
 	static MainWindowType s_current_main_window = MainWindowType::None;
 	static PauseSubMenu s_current_pause_submenu = PauseSubMenu::None;
@@ -269,6 +270,7 @@ namespace FullscreenUI
 
 	static std::array<std::shared_ptr<GSTexture>, static_cast<u32>(GameDatabaseSchema::Compatibility::Perfect)>
 		s_game_compatibility_textures;
+	static std::shared_ptr<GSTexture> s_banner_texture;
 	static std::shared_ptr<GSTexture> s_fallback_disc_texture;
 	static std::shared_ptr<GSTexture> s_fallback_exe_texture;
 	static std::vector<std::unique_ptr<GSTexture>> s_cleanup_textures;
@@ -715,6 +717,23 @@ void FullscreenUI::DrawCachedSvgTextureAsync(const std::string& path, ImVec2 siz
 	DrawSvgTexture(GetCachedSvgTextureAsync(path, size, mode), size);
 }
 
+// p_unpadded_max should be equal to p_min + unpadded_size
+void FullscreenUI::DrawListSvgTexture(ImDrawList* drawList, GSTexture* padded_texture, const ImVec2& p_min, const ImVec2& p_unpadded_max)
+{
+	const ImVec2 unpadded_size = p_unpadded_max - p_min;
+	if (padded_texture != GetPlaceholderTexture().get())
+	{
+		const ImVec2 padded_size(padded_texture->GetWidth(), padded_texture->GetHeight());
+		const ImVec2 uv1 = unpadded_size / padded_size;
+		drawList->AddImage(reinterpret_cast<ImTextureID>(padded_texture->GetNativeHandle()), p_min, p_unpadded_max, ImVec2(0.0f, 0.0f), uv1);
+	}
+	else
+	{
+		// Placeholder is a png file and should be scaled by ImGui
+		drawList->AddImage(reinterpret_cast<ImTextureID>(padded_texture->GetNativeHandle()), p_min, p_unpadded_max);
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Main
 //////////////////////////////////////////////////////////////////////////
@@ -1096,6 +1115,8 @@ bool FullscreenUI::LoadResources()
 
 bool FullscreenUI::LoadSvgResources()
 {
+	s_banner_texture = LoadSvgTexture("icons/AppBanner.svg", LayoutScale(500.0f, 76.0f), SvgScaling::Fit);
+
 	for (u32 i = static_cast<u32>(GameDatabaseSchema::Compatibility::Nothing);
 		 i <= static_cast<u32>(GameDatabaseSchema::Compatibility::Perfect); i++)
 	{
@@ -1109,6 +1130,7 @@ void FullscreenUI::DestroyResources()
 {
 	s_fallback_exe_texture.reset();
 	s_fallback_disc_texture.reset();
+	s_banner_texture.reset();
 	for (auto& tex : s_game_compatibility_textures)
 		tex.reset();
 	for (auto& tex : s_cleanup_textures)
@@ -7017,7 +7039,7 @@ void FullscreenUI::OpenAboutWindow()
 
 void FullscreenUI::DrawAboutWindow()
 {
-	ImGui::SetNextWindowSize(LayoutScale(1000.0f, 580.0f));
+	ImGui::SetNextWindowSize(LayoutScale(1000.0f, 600.0f));
 	ImGui::SetNextWindowPos(ImGui::GetIO().DisplaySize * 0.5f, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 	ImGui::OpenPopup(FSUI_CSTR("About PCSX2"));
 
@@ -7027,20 +7049,23 @@ void FullscreenUI::DrawAboutWindow()
 
 	if (ImGui::BeginPopupModal(FSUI_CSTR("About PCSX2"), &s_about_window_open, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
 	{
+		const ImVec2 image_size = LayoutScale(500.0f, 76.0f);
+		const ImRect image_bb(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(ImGui::GetCurrentWindow()->WorkRect.GetWidth(), image_size.y));
+		const ImRect image_rect(CenterImage(image_bb, image_size));
+
+		DrawListSvgTexture(ImGui::GetWindowDrawList(), s_banner_texture.get(), image_rect.Min, image_rect.Max);
+
+		const float indent = image_size.y + LayoutScale(12.0f);
+		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + indent);
 		ImGui::TextWrapped("%s", FSUI_CSTR(
 									 "PCSX2 is a free and open-source PlayStation 2 (PS2) emulator. Its purpose is to emulate the PS2's hardware, using a "
 									 "combination of MIPS CPU Interpreters, Recompilers and a Virtual Machine which manages hardware states and PS2 system memory. "
 									 "This allows you to play PS2 games on your PC, with many additional features and benefits."));
 		ImGui::NewLine();
 
-		ImGui::TextWrapped(FSUI_CSTR("Version: %s"), BuildVersion::GitRev);
-		ImGui::NewLine();
-
 		ImGui::TextWrapped("%s",
 			FSUI_CSTR("PlayStation 2 and PS2 are registered trademarks of Sony Interactive Entertainment. This application is not "
 					  "affiliated in any way with Sony Interactive Entertainment."));
-
-		ImGui::NewLine();
 
 		BeginMenuButtons();
 
@@ -7067,6 +7092,10 @@ void FullscreenUI::DrawAboutWindow()
 		}
 
 		EndMenuButtons();
+
+		const float alignment = image_size.x + image_size.y;
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + alignment);
+		ImGui::TextWrapped(FSUI_CSTR("Version: %s"), BuildVersion::GitRev);
 
 		ImGui::EndPopup();
 	}
@@ -7803,8 +7832,8 @@ TRANSLATE_NOOP("FullscreenUI", "Identifies any new files added to the game direc
 TRANSLATE_NOOP("FullscreenUI", "Forces a full rescan of all games previously identified.");
 TRANSLATE_NOOP("FullscreenUI", "About PCSX2");
 TRANSLATE_NOOP("FullscreenUI", "PCSX2 is a free and open-source PlayStation 2 (PS2) emulator. Its purpose is to emulate the PS2's hardware, using a combination of MIPS CPU Interpreters, Recompilers and a Virtual Machine which manages hardware states and PS2 system memory. This allows you to play PS2 games on your PC, with many additional features and benefits.");
-TRANSLATE_NOOP("FullscreenUI", "Version: %s");
 TRANSLATE_NOOP("FullscreenUI", "PlayStation 2 and PS2 are registered trademarks of Sony Interactive Entertainment. This application is not affiliated in any way with Sony Interactive Entertainment.");
+TRANSLATE_NOOP("FullscreenUI", "Version: %s");
 TRANSLATE_NOOP("FullscreenUI", "When enabled and logged in, PCSX2 will scan for achievements on startup.");
 TRANSLATE_NOOP("FullscreenUI", "\"Challenge\" mode for achievements, including leaderboard tracking. Disables save state, cheats, and slowdown functions.");
 TRANSLATE_NOOP("FullscreenUI", "Displays popup messages on events such as achievement unlocks and leaderboard submissions.");
