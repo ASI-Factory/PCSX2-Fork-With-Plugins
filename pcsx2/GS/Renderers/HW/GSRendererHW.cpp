@@ -2859,7 +2859,8 @@ void GSRendererHW::Draw()
 		if (!no_rt && GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].bpp == 16 && GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].bpp >= 16 &&
 			(m_vt.m_primclass == GS_SPRITE_CLASS || (m_vt.m_primclass == GS_TRIANGLE_CLASS && (m_index.tail % 6) == 0 && TrianglesAreQuads(true) && m_index.tail > 6)))
 		{
-			if (GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].bpp == 16)
+			// Tail check is to make sure we have enough strips to go all the way across the page, or if it's using a region clamp could be used to draw strips.
+			if (GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].bpp == 16 && (m_index.tail >= (m_cached_ctx.TEX0.TBW * 2) || m_cached_ctx.CLAMP.WMS > CLAMP_CLAMP || m_cached_ctx.CLAMP.WMT > CLAMP_CLAMP))
 			{
 				const GSVertex* v = &m_vertex.buff[0];
 
@@ -3351,6 +3352,7 @@ void GSRendererHW::Draw()
 				// Z isn't offset but RT is, so we need a temp Z to align it, hopefully nothing will ever write to the Z too, right??
 				if (ds && vertical_offset && (m_cached_ctx.ZBUF.Block() - ds->m_TEX0.TBP0) != (m_cached_ctx.FRAME.Block() - rt->m_TEX0.TBP0))
 				{
+					m_using_temp_z = true;
 					const int z_vertical_offset = ((static_cast<int>(m_cached_ctx.ZBUF.Block() - ds->m_TEX0.TBP0) / 32) / std::max(rt->m_TEX0.TBW, 1U)) * GSLocalMemory::m_psm[m_cached_ctx.ZBUF.PSM].pgs.y;
 					if (g_texture_cache->GetTemporaryZ() != nullptr)
 					{
@@ -3372,19 +3374,24 @@ void GSRendererHW::Draw()
 					if (g_texture_cache->GetTemporaryZ() == nullptr)
 					{
 						m_temp_z_full_copy = false;
-						u32 vertical_size = std::max(rt->m_unscaled_size.y, ds->m_unscaled_size.y);
-						GL_CACHE("HW: RT in RT Z copy on draw %d z_vert_offset %d z_offset %d", s_n, z_vertical_offset, vertical_offset);
-						GSVector4i dRect = GSVector4i(0, vertical_offset * ds->m_scale, ds->m_unscaled_size.x * ds->m_scale, (vertical_offset + ds->m_unscaled_size.y - z_vertical_offset) * ds->m_scale);
+						const u32 vertical_size = std::max(rt->m_unscaled_size.y, ds->m_unscaled_size.y);
+						const GSVector4i dRect = GSVector4i(0, vertical_offset * ds->m_scale, ds->m_unscaled_size.x * ds->m_scale, (vertical_offset + ds->m_unscaled_size.y - z_vertical_offset) * ds->m_scale);
 						const int new_height = std::max(static_cast<int>(vertical_size * ds->m_scale), dRect.w);
-						GSTexture* tex = g_gs_device->CreateDepthStencil(ds->m_unscaled_size.x * ds->m_scale, new_height, GSTexture::Format::DepthStencil, true);
-						g_gs_device->StretchRect(ds->m_texture, GSVector4(0.0f, z_vertical_offset / static_cast<float>(ds->m_unscaled_size.y), 1.0f, (ds->m_unscaled_size.y - z_vertical_offset) / static_cast<float>(ds->m_unscaled_size.y)), tex, GSVector4(dRect), ShaderConvert::DEPTH_COPY, false);
-						g_perfmon.Put(GSPerfMon::TextureCopies, 1);
-						g_texture_cache->SetTemporaryZ(tex);
-						g_texture_cache->SetTemporaryZInfo(ds->m_TEX0.TBP0, vertical_offset - z_vertical_offset);
-						t_size.y = std::max(new_height, t_size.y);
+						if (GSTexture* tex = g_gs_device->CreateDepthStencil(ds->m_unscaled_size.x * ds->m_scale, new_height, GSTexture::Format::DepthStencil, true))
+						{
+							GL_CACHE("HW: RT in RT Z copy on draw %d z_vert_offset %d z_offset %d", s_n, z_vertical_offset, vertical_offset);
+							g_gs_device->StretchRect(ds->m_texture, GSVector4(0.0f, z_vertical_offset / static_cast<float>(ds->m_unscaled_size.y), 1.0f, (ds->m_unscaled_size.y - z_vertical_offset) / static_cast<float>(ds->m_unscaled_size.y)), tex, GSVector4(dRect), ShaderConvert::DEPTH_COPY, false);
+							g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+							g_texture_cache->SetTemporaryZ(tex);
+							g_texture_cache->SetTemporaryZInfo(ds->m_TEX0.TBP0, vertical_offset - z_vertical_offset);
+							t_size.y = std::max(new_height, t_size.y);
+						}
+						else
+						{
+							DevCon.Warning("HW: Temporary depth buffer creation failed.");
+							m_using_temp_z = false;
+						}
 					}
-					m_using_temp_z = true;
-
 				}
 			}
 			// Don't resize if the BPP don't match.
@@ -3686,7 +3693,7 @@ void GSRendererHW::Draw()
 				m_vt.m_min.t *= 0.5f;
 				m_vt.m_max.t *= 0.5f;
 
-				tmm = GetTextureMinMax(MIP_TEX0, MIP_CLAMP, m_vt.IsLinear(), false);
+				tmm = GetTextureMinMax(MIP_TEX0, MIP_CLAMP, m_vt.IsLinear(), true);
 
 				src->UpdateLayer(MIP_TEX0, tmm.coverage, layer - m_lod.x);
 			}
@@ -3881,7 +3888,7 @@ void GSRendererHW::Draw()
 			const bool new_rect = rt->m_valid.rempty();
 			const bool new_height = new_h > rt->GetUnscaledHeight();
 			const int old_height = rt->m_texture->GetHeight();
-
+			bool merge_targets = false;
 			pxAssert(rt->GetScale() == target_scale);
 			if (rt->GetUnscaledWidth() != new_w || rt->GetUnscaledHeight() != new_h)
 				GL_INS("HW: Resize RT from %dx%d to %dx%d", rt->GetUnscaledWidth(), rt->GetUnscaledHeight(), new_w, new_h);
@@ -3904,7 +3911,10 @@ void GSRendererHW::Draw()
 					g_texture_cache->AddDirtyRectTarget(rt, height_dirty_rect, rt->m_TEX0.PSM, rt->m_TEX0.TBW, mask);
 				}
 			}*/
-			
+
+			if ((new_w > rt->m_unscaled_size.x || new_h > rt->m_unscaled_size.y) && GSConfig.UserHacks_TextureInsideRt >= GSTextureInRtMode::InsideTargets)
+				merge_targets = true;
+
 			rt->ResizeTexture(new_w, new_h);
 
 			if (!m_texture_shuffle && !m_channel_shuffle)
@@ -3935,6 +3945,8 @@ void GSRendererHW::Draw()
 			rt->UpdateValidity(update_rect, !frame_masked && (rt_update || (m_r.w <= (resolution.y * 2) && !m_texture_shuffle)));
 			rt->UpdateDrawn(update_rect, !frame_masked && (rt_update || (m_r.w <= (resolution.y * 2) && !m_texture_shuffle)));
 
+			if (merge_targets)
+				g_texture_cache->CombineAlignedInsideTargets(rt, src);
 			// Probably changing to double buffering, so invalidate any old target that was next to it.
 			// This resolves an issue where the PCRTC will find the old target in FMV's causing flashing.
 			// Grandia Xtreme, Onimusha Warlord.
@@ -3979,13 +3991,16 @@ void GSRendererHW::Draw()
 
 				if (z_width != new_w || z_height != new_h)
 				{
-					GSVector4i dRect = GSVector4i(0, 0, g_texture_cache->GetTemporaryZ()->GetWidth(), g_texture_cache->GetTemporaryZ()->GetHeight());
-
-					GSTexture* tex = g_gs_device->CreateDepthStencil(new_w * ds->m_scale, new_h * ds->m_scale, GSTexture::Format::DepthStencil, true);
-					g_gs_device->StretchRect(g_texture_cache->GetTemporaryZ(), GSVector4(0.0f, 0.0f, 1.0f, 1.0f), tex, GSVector4(dRect), ShaderConvert::DEPTH_COPY, false);
-					g_perfmon.Put(GSPerfMon::TextureCopies, 1);
-					g_texture_cache->InvalidateTemporaryZ();
-					g_texture_cache->SetTemporaryZ(tex);
+					if (GSTexture* tex = g_gs_device->CreateDepthStencil(new_w * ds->m_scale, new_h * ds->m_scale, GSTexture::Format::DepthStencil, true))
+					{
+						const GSVector4i dRect = GSVector4i(0, 0, g_texture_cache->GetTemporaryZ()->GetWidth(), g_texture_cache->GetTemporaryZ()->GetHeight());
+						g_gs_device->StretchRect(g_texture_cache->GetTemporaryZ(), GSVector4(0.0f, 0.0f, 1.0f, 1.0f), tex, GSVector4(dRect), ShaderConvert::DEPTH_COPY, false);
+						g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+						g_texture_cache->InvalidateTemporaryZ();
+						g_texture_cache->SetTemporaryZ(tex);
+					}
+					else
+						DevCon.Warning("HW: Temporary depth buffer creation failed.");
 				}
 			}
 			if (!m_texture_shuffle && !m_channel_shuffle)
@@ -5923,9 +5938,6 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 
 	m_conf.cb_ps.ScaleFactor = GSVector4(scale_factor * (1.0f / 16.0f), 1.0f / scale_factor, scale_rt, 0.0f);
 
-	if ((m_conf.ps.tex_is_fb && rt->m_rt_alpha_scale) || (tex->m_target && tex->m_from_target && tex->m_target_direct && tex->m_from_target->m_rt_alpha_scale))
-		m_conf.ps.rta_source_correction = 1;
-
 	// Warning fetch the texture PSM format rather than the context format. The latter could have been corrected in the texture cache for depth.
 	//const GSLocalMemory::psm_t &psm = GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM];
 	const GSLocalMemory::psm_t& psm = GSLocalMemory::m_psm[tex->m_TEX0.PSM];
@@ -6296,56 +6308,58 @@ __ri void GSRendererHW::HandleTextureHazards(const GSTextureCache::Target* rt, c
 
 	// Detect framebuffer read that will need special handling
 	const GSTextureCache::Target* src_target = nullptr;
-
-	if (rt && m_conf.tex == m_conf.rt && !(m_channel_shuffle && tex && (tex_diff != frame_diff || target_region)))
+	if (!m_downscale_source || !tex->m_from_target)
 	{
-		// Can we read the framebuffer directly? (i.e. sample location matches up).
-		if (CanUseTexIsFB(rt, tex, tmm))
+		if (rt && m_conf.tex == m_conf.rt && !(m_channel_shuffle && tex && (tex_diff != frame_diff || target_region)))
 		{
-			m_conf.tex = nullptr;
-			m_conf.ps.tex_is_fb = true;
-			if (m_prim_overlap == PRIM_OVERLAP_NO || !g_gs_device->Features().texture_barrier)
-				m_conf.require_one_barrier = true;
-			else
-				m_conf.require_full_barrier = true;
+			// Can we read the framebuffer directly? (i.e. sample location matches up).
+			if (CanUseTexIsFB(rt, tex, tmm))
+			{
+				m_conf.tex = nullptr;
+				m_conf.ps.tex_is_fb = true;
+				if (m_prim_overlap == PRIM_OVERLAP_NO || !g_gs_device->Features().texture_barrier)
+					m_conf.require_one_barrier = true;
+				else
+					m_conf.require_full_barrier = true;
 
-			unscaled_size = rt->GetUnscaledSize();
-			scale = rt->GetScale();
+				unscaled_size = rt->GetUnscaledSize();
+				scale = rt->GetScale();
+				return;
+			}
+
+			GL_CACHE("HW: Source is render target, taking copy.");
+			src_target = rt;
+		}
+		// Be careful of single page channel shuffles where depth is the source but it's not going to the same place, we can't read this directly.
+		else if (ds && m_conf.tex == m_conf.ds && (!m_channel_shuffle || static_cast<int>(m_cached_ctx.FRAME.Block() - rt->m_TEX0.TBP0) == static_cast<int>(m_cached_ctx.ZBUF.Block() - ds->m_TEX0.TBP0)))
+		{
+			// GL, Vulkan (in General layout), not DirectX!
+			const bool can_read_current_depth_buffer = g_gs_device->Features().test_and_sample_depth;
+
+			// If this is our current Z buffer, we might not be able to read it directly if it's being written to.
+			// Rather than leaving the backend to do it, we'll check it here.
+			if (can_read_current_depth_buffer && (m_cached_ctx.ZBUF.ZMSK || m_cached_ctx.TEST.ZTST == ZTST_NEVER))
+			{
+				// Safe to read!
+				GL_CACHE("HW: Source is depth buffer, not writing, safe to read.");
+				unscaled_size = ds->GetUnscaledSize();
+				scale = ds->GetScale();
+				return;
+			}
+
+			// Can't safely read the depth buffer, so we need to take a copy of it.
+			GL_CACHE("HW: Source is depth buffer, unsafe to read, taking copy.");
+			src_target = ds;
+		}
+		else if (m_channel_shuffle && tex->m_from_target && tex_diff != frame_diff)
+		{
+			src_target = tex->m_from_target;
+		}
+		else
+		{
+			// No match.
 			return;
 		}
-
-		GL_CACHE("HW: Source is render target, taking copy.");
-		src_target = rt;
-	}
-	// Be careful of single page channel shuffles where depth is the source but it's not going to the same place, we can't read this directly.
-	else if (ds && m_conf.tex == m_conf.ds && (!m_channel_shuffle || static_cast<int>(m_cached_ctx.FRAME.Block() - rt->m_TEX0.TBP0) ==  static_cast<int>(m_cached_ctx.ZBUF.Block() - ds->m_TEX0.TBP0)))
-	{
-		// GL, Vulkan (in General layout), not DirectX!
-		const bool can_read_current_depth_buffer = g_gs_device->Features().test_and_sample_depth;
-
-		// If this is our current Z buffer, we might not be able to read it directly if it's being written to.
-		// Rather than leaving the backend to do it, we'll check it here.
-		if (can_read_current_depth_buffer && (m_cached_ctx.ZBUF.ZMSK || m_cached_ctx.TEST.ZTST == ZTST_NEVER))
-		{
-			// Safe to read!
-			GL_CACHE("HW: Source is depth buffer, not writing, safe to read.");
-			unscaled_size = ds->GetUnscaledSize();
-			scale = ds->GetScale();
-			return;
-		}
-
-		// Can't safely read the depth buffer, so we need to take a copy of it.
-		GL_CACHE("HW: Source is depth buffer, unsafe to read, taking copy.");
-		src_target = ds;
-	}
-	else if (m_channel_shuffle && tex->m_from_target && tex_diff != frame_diff)
-	{
-		src_target = tex->m_from_target;
-	}
-	else if (!m_downscale_source || !tex->m_from_target)
-	{
-		// No match.
-		return;
 	}
 	else
 		src_target = tex->m_from_target;
@@ -6630,7 +6644,7 @@ bool GSRendererHW::CanUseTexIsFB(const GSTextureCache::Target* rt, const GSTextu
 		const GSLocalMemory::psm_t& rt_psm = GSLocalMemory::m_psm[rt->m_TEX0.PSM];
 		if (tex_psm.pal > 0 && tex_psm.bpp < rt_psm.bpp)
 		{
-			GL_CACHE("HW: Disabling tex-is-fb due to palette conversion.");
+			GL_CACHE("HW: Enabling tex-is-fb for palette conversion.");
 			return true;
 		}
 
@@ -7115,6 +7129,19 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		new_scale_rt_alpha = rt->m_rt_alpha_scale;
 	}
 
+	GSDevice::RecycledTexture tex_copy;
+	if (tex)
+	{
+		EmulateTextureSampler(rt, ds, tex, tmm, tex_copy);
+	}
+	else
+	{
+		const float scale_factor = rt ? rt->GetScale() : ds->GetScale();
+		m_conf.cb_ps.ScaleFactor = GSVector4(scale_factor * (1.0f / 16.0f), 1.0f / scale_factor, scale_factor, 0.0f);
+
+		m_conf.ps.tfx = 4;
+	}
+
 	// AA1: Set alpha source to coverage 128 when there is no alpha blending.
 	m_conf.ps.fixed_one_a = IsCoverageAlpha();
 
@@ -7137,6 +7164,9 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 			new_scale_rt_alpha = full_cover || rt->m_last_draw >= s_n;
 		}
 	}
+
+	if ((m_conf.ps.tex_is_fb && rt && rt->m_rt_alpha_scale) || (tex && tex->m_from_target && tex->m_target_direct && tex->m_from_target->m_rt_alpha_scale))
+		m_conf.ps.rta_source_correction = 1;
 
 	if (req_src_update && tex->m_texture != rt->m_texture)
 		tex->m_texture = rt->m_texture;
@@ -7270,8 +7300,25 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	if (m_conf.destination_alpha >= GSHWDrawConfig::DestinationAlphaMode::Stencil &&
 		m_conf.destination_alpha <= GSHWDrawConfig::DestinationAlphaMode::StencilOne && !m_conf.ds)
 	{
-		temp_ds.reset(g_gs_device->CreateDepthStencil(m_conf.rt->GetWidth(), m_conf.rt->GetHeight(), GSTexture::Format::DepthStencil, false));
-		m_conf.ds = temp_ds.get();
+		const bool is_one_barrier = (m_conf.require_full_barrier && (m_prim_overlap == PRIM_OVERLAP_NO || m_conf.ps.shuffle || m_channel_shuffle));
+		if ((temp_ds.reset(g_gs_device->CreateDepthStencil(m_conf.rt->GetWidth(), m_conf.rt->GetHeight(), GSTexture::Format::DepthStencil, false)), temp_ds))
+		{
+			m_conf.ds = temp_ds.get();
+		}
+		else if (features.primitive_id && !(m_conf.ps.scanmsk & 2) && (!m_conf.require_full_barrier || is_one_barrier))
+		{
+			DATE_one = false;
+			DATE_PRIMID = true;
+			m_conf.destination_alpha = GSHWDrawConfig::DestinationAlphaMode::PrimIDTracking;
+			DevCon.Warning("HW: Depth buffer creation failed for Stencil Date. Fallback to PrimIDTracking.");
+		}
+		else
+		{
+			DATE = false;
+			DATE_one = false;
+			m_conf.destination_alpha = GSHWDrawConfig::DestinationAlphaMode::Off;
+			DevCon.Warning("HW: Depth buffer creation failed for Stencil Date.");
+		}
 	}
 
 	// vs
@@ -7404,18 +7451,7 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		m_conf.cb_ps.FogColor_AREF = fc.blend32<8>(m_conf.cb_ps.FogColor_AREF);
 	}
 
-	GSDevice::RecycledTexture tex_copy;
-	if (tex)
-	{
-		EmulateTextureSampler(rt, ds, tex, tmm, tex_copy);
-	}
-	else
-	{
-		const float scale_factor = rt ? rt->GetScale() : ds->GetScale();
-		m_conf.cb_ps.ScaleFactor = GSVector4(scale_factor * (1.0f / 16.0f), 1.0f / scale_factor, scale_factor, 0.0f);
 
-		m_conf.ps.tfx = 4;
-	}
 
 	// Update RT scaled alpha flag, nothing's going to read it anymore.
 	if (rt)
