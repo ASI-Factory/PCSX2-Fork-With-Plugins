@@ -2920,9 +2920,9 @@ void GSRendererHW::Draw()
 		}
 		else
 		{
-			src = tex_psm.depth ? g_texture_cache->LookupDepthSource(true, TEX0, env.TEXA, MIP_CLAMP, tmm.coverage, possible_shuffle, m_vt.IsLinear(), m_cached_ctx.FRAME.Block(), req_color, req_alpha) :
+			src = tex_psm.depth ? g_texture_cache->LookupDepthSource(true, TEX0, env.TEXA, MIP_CLAMP, tmm.coverage, possible_shuffle, m_vt.IsLinear(), m_cached_ctx.FRAME, req_color, req_alpha) :
 								  g_texture_cache->LookupSource(true, TEX0, env.TEXA, MIP_CLAMP, tmm.coverage, (GSConfig.HWMipmap || GSConfig.TriFilter == TriFiltering::Forced) ? &hash_lod_range : nullptr,
-					possible_shuffle, m_vt.IsLinear(), m_cached_ctx.FRAME.Block(), req_color, req_alpha);
+					possible_shuffle, m_vt.IsLinear(), m_cached_ctx.FRAME, req_color, req_alpha);
 
 			if (!src) [[unlikely]]
 			{
@@ -3212,7 +3212,7 @@ void GSRendererHW::Draw()
 				CleanupDraw(true);
 				return;
 			}
-			else if (IsPageCopy() && src->m_from_target && m_cached_ctx.TEX0.TBP0 >= src->m_from_target->m_TEX0.TBP0)
+			else if (IsPageCopy() && src->m_from_target && m_cached_ctx.TEX0.TBP0 >= src->m_from_target->m_TEX0.TBP0 && m_cached_ctx.FRAME.FBW < ((src->m_from_target->m_TEX0.TBW + 1) >> 1))
 			{
 				FRAME_TEX0.TBW = src->m_from_target->m_TEX0.TBW;
 			}
