@@ -2507,15 +2507,17 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 		{
 			config.colclip_update_area = config.drawarea;
 
-			const GSVector4 dRect = GSVector4((config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertOnly) ? GSVector4i::loadh(rtsize) : config.drawarea);
-			const GSVector4 sRect = dRect / GSVector4(rtsize.x, rtsize.y).xyxy();
 			colclip_rt = CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::ColorClip);
 			if (!colclip_rt)
+			{
+				Console.Warning("D3D11: Failed to allocate ColorClip render target, aborting draw.");
 				return;
+			}
 
 			g_gs_device->SetColorClipTexture(colclip_rt);
-			// Warning: StretchRect must be called before BeginScene otherwise
-			// vertices will be overwritten. Trust me you don't want to do that.
+
+			const GSVector4 dRect = GSVector4((config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertOnly) ? GSVector4i::loadh(rtsize) : config.drawarea);
+			const GSVector4 sRect = dRect / GSVector4(rtsize.x, rtsize.y).xyxy();
 			StretchRect(config.rt, sRect, colclip_rt, dRect, ShaderConvert::COLCLIP_INIT, false);
 			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 		}
@@ -2526,7 +2528,10 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 	{
 		primid_tex = CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::PrimID, false);
 		if (!primid_tex)
+		{
+			Console.WriteLn("D3D11: Failed to allocate DATE image, aborting draw.");
 			return;
+		}
 
 		StretchRect(colclip_rt ? colclip_rt : config.rt, GSVector4(config.drawarea) / GSVector4(rtsize).xyxy(),
 			primid_tex, GSVector4(config.drawarea), m_date.primid_init_ps[static_cast<u8>(config.datm)].get(), nullptr, false);
@@ -2617,6 +2622,9 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 			if (config.tex && config.tex == config.rt)
 				PSSetShaderResource(0, draw_rt_clone);
 		}
+		else
+			Console.Warning("D3D11: Failed to allocate temp texture for RT copy.");
+
 	}
 
 	GSTexture* draw_ds_clone = nullptr;
@@ -2630,6 +2638,8 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 			CopyRect(config.ds, draw_ds_clone, config.drawarea, config.drawarea.left, config.drawarea.top);
 			PSSetShaderResource(0, draw_ds_clone);
 		}
+		else
+			Console.Warning("D3D11: Failed to allocate temp texture for DS copy.");
 	}
 
 	SetupVS(config.vs, &config.cb_vs);

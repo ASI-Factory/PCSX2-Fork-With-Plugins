@@ -128,12 +128,16 @@ namespace
 			const int pix_width = static_cast<int>(pix.width() / pix.devicePixelRatio());
 			const int pix_height = static_cast<int>(pix.height() / pix.devicePixelRatio());
 
+			// Clip the pixmaps so they don't extend outside the column
+			painter->save();
+			painter->setClipRect(option.rect);
+
 			// Draw the icon, using code derived from QItemDelegate::drawDecoration()
 			const bool enabled = option.state & QStyle::State_Enabled;
 			const QPoint p = QPoint((r.width() - pix_width) / 2, (r.height() - pix_height) / 2);
 			if (option.state & QStyle::State_Selected)
 			{
-				// See QItemDelegate::selectedPixmap()		
+				// See QItemDelegate::selectedPixmap()
 				QString key = QString::fromStdString(fmt::format("{:016X}-{:d}", pix.cacheKey(), enabled));
 				QPixmap pm;
 				if (!QPixmapCache::find(key, &pm))
@@ -159,6 +163,9 @@ namespace
 			{
 				painter->drawPixmap(r.topLeft() + p, pix);
 			}
+
+			// Restore the old clip path.
+			painter->restore();
 		}
 	};
 } // namespace
@@ -181,15 +188,20 @@ void GameListWidget::initialize()
 	m_sort_model->setSourceModel(m_model);
 
 	m_ui.setupUi(this);
+
 	for (u32 type = 0; type < static_cast<u32>(GameList::EntryType::Count); type++)
 	{
-		m_ui.filterType->addItem(GameListModel::getIconForType(static_cast<GameList::EntryType>(type)),
-			qApp->translate("GameList", GameList::EntryTypeToDisplayString(static_cast<GameList::EntryType>(type))));
+		if (type != static_cast<u32>(GameList::EntryType::Invalid))
+		{
+			m_ui.filterType->addItem(GameListModel::getIconForType(static_cast<GameList::EntryType>(type)),
+				GameList::EntryTypeToString(static_cast<GameList::EntryType>(type), true));
+		}
 	}
+
 	for (u32 region = 0; region < static_cast<u32>(GameList::Region::Count); region++)
 	{
 		m_ui.filterRegion->addItem(GameListModel::getIconForRegion(static_cast<GameList::Region>(region)),
-			qApp->translate("GameList", GameList::RegionToString(static_cast<GameList::Region>(region))));
+			GameList::RegionToString(static_cast<GameList::Region>(region), true));
 	}
 
 	connect(m_ui.viewGameList, &QPushButton::clicked, this, &GameListWidget::showGameList);

@@ -2424,7 +2424,7 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 			const GSVector4 dRect(config.colclip_update_area);
 			const GSVector4 sRect = dRect / GSVector4(size.x, size.y).xyxy();
 			StretchRect(colclip_rt, sRect, config.rt, dRect, ShaderConvert::COLCLIP_RESOLVE, false);
-
+			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 			Recycle(colclip_rt);
 
 			g_gs_device->SetColorClipTexture(nullptr);
@@ -2444,6 +2444,14 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 			config.colclip_update_area = config.drawarea;
 
 			colclip_rt = CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::ColorClip, false);
+
+			if (!colclip_rt)
+			{
+				Console.Warning("GL: Failed to allocate ColorClip render target, aborting draw.");
+
+				return;
+			}
+
 			OMSetRenderTargets(colclip_rt, config.ds, nullptr);
 
 			g_gs_device->SetColorClipTexture(colclip_rt);
@@ -2451,6 +2459,7 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 			const GSVector4 dRect = GSVector4((config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertOnly) ? GSVector4i::loadh(rtsize) : config.drawarea);
 			const GSVector4 sRect = dRect / GSVector4(rtsize.x, rtsize.y).xyxy();
 			StretchRect(config.rt, sRect, colclip_rt, dRect, ShaderConvert::COLCLIP_INIT, false);
+			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 		}
 	}
 
@@ -2462,6 +2471,11 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 			break; // No setup
 		case GSHWDrawConfig::DestinationAlphaMode::PrimIDTracking:
 			primid_texture = InitPrimDateTexture(colclip_rt ? colclip_rt : config.rt, config.drawarea, config.datm);
+			if (!primid_texture)
+			{
+				Console.WriteLn("GL: Failed to allocate DATE image, aborting draw.");
+				return;
+			}
 			break;
 		case GSHWDrawConfig::DestinationAlphaMode::StencilOne:
 			if (m_features.texture_barrier)
@@ -2498,6 +2512,8 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 				config.drawarea.width(), config.drawarea.height());
 			CopyRect(colclip_rt ? colclip_rt : config.rt, draw_rt_clone, config.drawarea, config.drawarea.left, config.drawarea.top);
 		}
+		else
+			Console.Warning("GL: Failed to allocate temp texture for RT copy.");
 	}
 
 	IASetVertexBuffer(config.verts, config.nverts);
@@ -2713,7 +2729,7 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 			const GSVector4 dRect(config.colclip_update_area);
 			const GSVector4 sRect = dRect / GSVector4(size.x, size.y).xyxy();
 			StretchRect(colclip_rt, sRect, config.rt, dRect, ShaderConvert::COLCLIP_RESOLVE, false);
-
+			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 			Recycle(colclip_rt);
 
 			g_gs_device->SetColorClipTexture(nullptr);

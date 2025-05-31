@@ -621,9 +621,12 @@ void GSTextureCache::DirtyRectByPage(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVe
 	if (!(src_info->bpp == dst_info->bpp))
 	{
 		const int src_bpp = src_info->bpp;
+		const bool column_align = !block_offset && src_r.z <= src_info->cs.x && src_r.w <= src_info->cs.y && src_info->depth == dst_info->depth;
 
 		if (block_offset)
 			in_rect = in_rect.ralign<Align_Outside>(src_info->bs);
+		else if (column_align)
+			in_rect = in_rect.ralign<Align_Outside>(src_info->cs);
 		else
 			in_rect = in_rect.ralign<Align_Outside>(src_info->pgs);
 
@@ -639,7 +642,10 @@ void GSTextureCache::DirtyRectByPage(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVe
 
 		// Translate back to the new(dst) format.
 		in_rect = GSVector4i(in_pages.x * src_info->pgs.x, in_pages.y * src_info->pgs.y, in_pages.z * src_info->pgs.x, in_pages.w * src_info->pgs.y);
-		in_rect += GSVector4i(in_blocks.x * src_info->bs.x, in_blocks.y * src_info->bs.y, in_blocks.z * src_info->bs.x, in_blocks.w * src_info->bs.y);
+		if (column_align)
+			in_rect += GSVector4i(in_blocks.x * src_info->cs.x, in_blocks.y * src_info->cs.y, in_blocks.z * src_info->cs.x, in_blocks.w * src_info->cs.y);
+		else
+			in_rect += GSVector4i(in_blocks.x * src_info->bs.x, in_blocks.y * src_info->bs.y, in_blocks.z * src_info->bs.x, in_blocks.w * src_info->bs.y);
 
 		if (in_rect.rempty())
 			return;
@@ -1588,14 +1594,14 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 					//	DevCon.Warning("Expected %x Got %x shuffle %d draw %d", psm, t_psm, possible_shuffle, GSState::s_n);
 					if (match)
 					{
-						// It is a complex to convert the code in shader. As a reference, let's do it on the CPU, it will be slow but
-						// 1/ it just works :)
-						// 2/ even with upscaling
-						// 3/ for both Direct3D and OpenGL
-						if (psm == PSMT4 || (GSConfig.UserHacks_CPUFBConversion && psm == PSMT8))
+						// It is a complex to convert the code in shader. As a reference, let's do it on the CPU,
+						// it will be slow but can work even with upscaling, also fine tune it so it's not enabled when not needed.
+						if (psm == PSMT4 || (GSConfig.UserHacks_CPUFBConversion && psm == PSMT8 && (!possible_shuffle || GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp != 32)) ||
+							(psm == PSMT8H && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == 16))
 						{
 							// Forces 4-bit and 8-bit frame buffer conversion to be done on the CPU instead of the GPU, but performance will be slower.
-							// There is no dedicated shader to handle 4-bit conversion (Stuntman has been confirmed to use 4-bit).
+							// There is no dedicated shader to handle 4-bit conversion (Beyond Good and Evil and Stuntman).
+							// Note: Stuntman no longer hits the PSMT4 code path.
 							// Direct3D10/11 and OpenGL support 8-bit fb conversion but don't render some corner cases properly (Harry Potter games).
 							// The hack can fix glitches in some games.
 							if (!t->m_drawn_since_read.rempty())
