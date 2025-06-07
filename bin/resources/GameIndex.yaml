@@ -22086,6 +22086,8 @@ SLES-53099:
 SLES-53100:
   name: "Scooby-Doo! Unmasked"
   region: "PAL-M4"
+  gsHWFixes:
+    nativeScaling: 2 # Fixes post processing position.
 SLES-53104:
   name: "Tom Clancy's Rainbow Six - Lockdown"
   region: "PAL-M5"
@@ -59136,6 +59138,8 @@ SLPS-25581:
   name-sort: "しんぷる2000しりーず Vol.  92 THE のろいのげーむ"
   name-en: "Simple 2000 Series Vol. 92 - The Game of a Curse"
   region: "NTSC-J"
+  gsHWFixes:
+    cpuCLUTRender: 1 # Fixes corrupted and missing graphics.
 SLPS-25582:
   name: "アストロ球団 決戦！！ビクトリー球団編"
   name-sort: "あすとろきゅうだん けっせん！！びくとりーきゅうだんへん"
@@ -68231,6 +68235,8 @@ SLUS-21091:
   name: "Scooby-Doo! Unmasked"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    nativeScaling: 2 # Fixes post processing position.
 SLUS-21093:
   name: "Worms Forts - Under Siege"
   region: "NTSC-U"
