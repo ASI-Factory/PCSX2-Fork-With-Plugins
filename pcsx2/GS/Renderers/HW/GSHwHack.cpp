@@ -184,40 +184,6 @@ bool GSHwHack::GSC_NamcoGames(GSRendererHW& r, int& skip)
 {
 	if (skip == 0)
 	{
-		if (r.IsPossibleChannelShuffle() && !(RTBP0 & 31))
-		{
-			GSVertex* v = &r.m_vertex.buff[0];
-
-			// Make sure we're detecting the right effect.
-			if (((v[1].XYZ.X - v[0].XYZ.X) >> 4) != 8 || ((v[1].XYZ.Y - v[0].XYZ.Y) >> 4) != 14)
-				return false;
-
-			GSTextureCache::Target* rt = g_texture_cache->LookupTarget(GIFRegTEX0::Create(RTBP0, RFBW, RFPSM),
-				GSVector2i(1, 1), r.GetTextureScaleFactor(), GSTextureCache::RenderTarget);
-			if (!rt)
-				return false;
-
-			GL_INS("GSC_NamcoGames(): HLE channel shuffle");
-
-			// have to set up the palette ourselves too, since GSC executes before it does
-			r.m_mem.m_clut.Read32(RTEX0, r.m_draw_env->TEXA);
-			std::shared_ptr<GSTextureCache::Palette> palette =
-				g_texture_cache->LookupPaletteObject(r.m_mem.m_clut, GSLocalMemory::m_psm[RTEX0.PSM].pal, true);
-			if (!palette)
-				return false;
-
-			GSHWDrawConfig& conf = r.BeginHLEHardwareDraw(
-				rt->GetTexture(), nullptr, rt->GetScale(), rt->GetTexture(), rt->GetScale(), rt->GetUnscaledRect());
-			conf.pal = palette->GetPaletteGSTexture();
-			conf.ps.channel = ChannelFetch_RGB;
-			conf.colormask.wa = false;
-			r.EndHLEHardwareDraw(false);
-
-			// 12 pages: 2 calls by channel, 3 channels, 1 blit
-			skip = 12 * (3 + 3 + 1);
-			return true;
-		}
-
 		if (!s_nativeres && r.PRIM->PRIM == GS_SPRITE && RTME && RTEX0.TFX == 1 && RFPSM == RTPSM && RTPSM == PSMCT32 && RFBMSK == 0xFF000000 && r.m_index.tail > 2)
 		{
 			GSVertex* v = &r.m_vertex.buff[0];
@@ -431,31 +397,6 @@ bool GSHwHack::GSC_TalesOfLegendia(GSRendererHW& r, int& skip)
 	return true;
 }
 
-bool GSHwHack::GSC_Kunoichi(GSRendererHW& r, int& skip)
-{
-	if (skip == 0)
-	{
-		if (!RTME && (RFBP == 0x0 || RFBP == 0x00700 || RFBP == 0x00800) && RFPSM == PSMCT32 && RFBMSK == 0x00FFFFFF)
-		{
-			// Removes depth effects(shadows) not rendered correctly on all renders.
-			skip = 3;
-		}
-		if (RTME && (RFBP == 0x0700 || RFBP == 0) && RTBP0 == 0x0e00 && RTPSM == 0 && RFBMSK == 0)
-		{
-			skip = 1; // Removes black screen (not needed anymore maybe)?
-		}
-	}
-	else
-	{
-		if (RTME && (RFBP == 0x0e00) && RFPSM == PSMCT32 && RFBMSK == 0xFF000000)
-		{
-			skip = 0;
-		}
-	}
-
-	return true;
-}
-
 bool GSHwHack::GSC_ZettaiZetsumeiToshi2(GSRendererHW& r, int& skip)
 {
 	if (skip == 0)
@@ -499,27 +440,6 @@ bool GSHwHack::GSC_ZettaiZetsumeiToshi2(GSRendererHW& r, int& skip)
 		if (RTME && RTPSM == PSMCT16S && (RFBP == 0x1180))
 		{
 			skip = 2;
-		}
-	}
-
-	return true;
-}
-
-bool GSHwHack::GSC_SakuraWarsSoLongMyLove(GSRendererHW& r, int& skip)
-{
-	if (skip == 0)
-	{
-		if (RTME == 0 && RFBP != RTBP0 && RTBP0 && RFBMSK == 0x00FFFFFF)
-		{
-			skip = 3; // Remove darkness
-		}
-		else if (RTME == 0 && RFBP == RTBP0 && (RTBP0 == 0x1200 || RTBP0 == 0x1180 || RTBP0 == 0) && RFBMSK == 0x00FFFFFF)
-		{
-			skip = 3; // Remove darkness
-		}
-		else if (RTME && (RFBP == 0 || RFBP == 0x1180) && RFPSM == PSMCT32 && RTBP0 == 0x3F3F && RTPSM == PSMT8)
-		{
-			skip = 1; // Floodlight
 		}
 	}
 
@@ -1393,12 +1313,10 @@ bool GSHwHack::MV_Ico(GSRendererHW& r)
 #define CRC_F(name) { #name, &GSHwHack::name }
 
 const GSHwHack::Entry<GSRendererHW::GSC_Ptr> GSHwHack::s_get_skip_count_functions[] = {
-	CRC_F(GSC_Kunoichi),
 	CRC_F(GSC_Manhunt2),
 	CRC_F(GSC_MidnightClub3),
 	CRC_F(GSC_SacredBlaze),
 	CRC_F(GSC_GuitarHero),
-	CRC_F(GSC_SakuraWarsSoLongMyLove),
 	CRC_F(GSC_SFEX3),
 	CRC_F(GSC_DTGames),
 	CRC_F(GSC_TalesOfLegendia),
