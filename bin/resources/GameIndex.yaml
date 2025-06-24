@@ -2409,6 +2409,7 @@ SCAJ-20179:
     autoFlush: 1 # Fixes shadows.
     halfPixelOffset: 4 # Fixes lighting misalignment.
     nativeScaling: 2 # Fixes lighting smoothness.
+    textureInsideRT: 1 # Fixes broken crystalline surface textures.
 SCAJ-20180:
   name: "Xenosaga Episode III - Also Sprach Zarathustra [Disc 2 of 2]"
   region: "NTSC-Unk"
@@ -2416,6 +2417,7 @@ SCAJ-20180:
     autoFlush: 1 # Fixes shadows.
     halfPixelOffset: 4 # Fixes lighting misalignment.
     nativeScaling: 2 # Fixes lighting smoothness.
+    textureInsideRT: 1 # Fixes broken crystalline surface textures.
 SCAJ-20181:
   name: "Minna no Tennis"
   region: "NTSC-Unk"
@@ -35734,6 +35736,7 @@ SLPM-61147:
     autoFlush: 1 # Fixes shadows.
     halfPixelOffset: 4 # Fixes lighting misalignment.
     nativeScaling: 2 # Fixes lighting smoothness.
+    textureInsideRT: 1 # Fixes broken crystalline surface textures.
 SLPM-61148:
   name: "グローランサーⅤ ジェネレーションズ [体験版]"
   name-sort: "ぐろーらんさー5 じぇねれーしょんず [たいけんばん]"
@@ -59562,6 +59565,7 @@ SLPS-25640:
     autoFlush: 1 # Fixes shadows.
     halfPixelOffset: 4 # Fixes lighting misalignment.
     nativeScaling: 2 # Fixes lighting smoothness.
+    textureInsideRT: 1 # Fixes broken crystalline surface textures.
   memcardFilters: # Allows import of Xenosaga II save data.
     - "SLPS-25640"
     - "SLPS-25368"
@@ -59575,6 +59579,7 @@ SLPS-25641:
     autoFlush: 1 # Fixes shadows.
     halfPixelOffset: 4 # Fixes lighting misalignment.
     nativeScaling: 2 # Fixes lighting smoothness.
+    textureInsideRT: 1 # Fixes broken crystalline surface textures.
   memcardFilters:
     - "SLPS-25640"
     - "SLPS-25368"
@@ -69974,6 +69979,11 @@ SLUS-21338:
     halfPixelOffset: 2 # Corrects shadow alignment and reduces blurriness.
     recommendedBlendingLevel: 3 # Fixes level and map menu brightness.
     preloadFrameData: 1 # Fixes glowing emblems.
+  memcardFilters: # Convert savegames from AC: Nexus and AC: Nine Breaker.
+    - "SLUS-21338"
+    - "SLUS-21200"
+    - "SLUS-20986"
+    - "SLUS-21079"
 SLUS-21339:
   name: "Puzzle Challenge - Crosswords and More!"
   region: "NTSC-U"
@@ -70356,6 +70366,7 @@ SLUS-21389:
     autoFlush: 1 # Fixes shadows.
     halfPixelOffset: 4 # Fixes lighting misalignment.
     nativeScaling: 2 # Fixes lighting smoothness.
+    textureInsideRT: 1 # Fixes broken crystalline surface textures.
   memcardFilters: # Allows import of Xenosaga II save data.
     - "SLUS-21389"
     - "SLUS-20892"
@@ -70525,6 +70536,7 @@ SLUS-21417:
     autoFlush: 1 # Fixes shadows.
     halfPixelOffset: 4 # Fixes lighting misalignment.
     nativeScaling: 2 # Fixes lighting smoothness.
+    textureInsideRT: 1 # Fixes broken crystalline surface textures.
   memcardFilters:
     - "SLUS-21389"
     - "SLUS-20892"

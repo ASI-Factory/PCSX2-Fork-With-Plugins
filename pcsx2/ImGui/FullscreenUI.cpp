@@ -3379,7 +3379,7 @@ void FullscreenUI::DrawSummarySettingsPage()
 
 			for (const std::string& name : Pad::GetInputProfileNames())
 			{
-				options.emplace_back(fmt::format(FSUI_FSTR(name)), (value.has_value() && !value->empty() && value == name) ? true : false);
+				options.emplace_back(name, (value.has_value() && !value->empty() && value == name) ? true : false);
 				names.push_back(std::move(name));
 			}
 
@@ -7010,6 +7010,8 @@ void FullscreenUI::DrawGameCover(const GameList::Entry* entry, const ImVec2& siz
 		GSTexture* const icon_texture = GetTextureForGameListEntryType(entry->type, image_square);
 
 		const ImRect image_rect(CenterImage(size, image_square));
+
+		ImGui::SetCursorPos(origin + image_rect.Min);
 		DrawSvgTexture(icon_texture, image_square);
 	}
 	// Pretend the image we drew was the the size passed to us
@@ -7052,6 +7054,8 @@ void FullscreenUI::DrawFallbackCover(const ImVec2& size)
 	GSTexture* const icon_texture = GetTextureForGameListEntryType(GameList::EntryType::PS2Disc, image_square);
 
 	const ImRect image_rect(CenterImage(size, image_square));
+
+	ImGui::SetCursorPos(origin + image_rect.Min);
 	DrawSvgTexture(icon_texture, image_square);
 
 	// Pretend the image we drew was the the size passed to us
