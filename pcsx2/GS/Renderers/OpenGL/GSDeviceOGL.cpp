@@ -1911,7 +1911,7 @@ void GSDeviceOGL::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* ver
 
 	OMSetRenderTargets(nullptr, ds, &GLState::scissor);
 	{
-		const GLint clear_color = 0;
+		constexpr GLint clear_color = 0;
 		glClearBufferiv(GL_STENCIL, 0, &clear_color);
 	}
 	m_convert.ps[SetDATMShader(datm)].Bind();
@@ -1919,10 +1919,8 @@ void GSDeviceOGL::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* ver
 	// om
 
 	OMSetDepthStencilState(m_date.dss);
-	if (GLState::blend)
-	{
-		glDisable(GL_BLEND);
-	}
+	OMSetBlendState(false);
+	OMSetColorMaskState();
 
 	// ia
 
@@ -1930,18 +1928,12 @@ void GSDeviceOGL::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* ver
 	IASetVertexBuffer(vertices, 4);
 	IASetPrimitiveTopology(GL_TRIANGLE_STRIP);
 
-
 	// Texture
 
 	PSSetShaderResource(0, rt);
 	PSSetSamplerState(m_convert.pt);
 
 	DrawPrimitive();
-
-	if (GLState::blend)
-	{
-		glEnable(GL_BLEND);
-	}
 }
 
 void GSDeviceOGL::IASetVAO(GLuint vao)
@@ -2628,7 +2620,6 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 		psel.ps.date = 3;
 		config.alpha_second_pass.ps.date = 3;
 		SetupPipeline(psel);
-		PSSetShaderResource(3, primid_texture);
 	}
 
 	if (config.blend.IsEffective(config.colormask))
@@ -2658,6 +2649,10 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	}
 
 	OMSetRenderTargets(draw_rt, draw_ds, &config.scissor);
+
+	if (primid_texture)
+		PSSetShaderResource(3, primid_texture);
+
 	OMSetColorMaskState(config.colormask);
 	SetupOM(config.depth);
 

@@ -20736,6 +20736,9 @@ SLES-52676:
 SLES-52678:
   name: "Viewtiful Joe"
   region: "PAL-M5"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes post processing alignment.
+    nativeScaling: 2 # Aligns post processing.
 SLES-52680:
   name: "Intellivision Lives - The History of Video Gaming"
   region: "PAL-E"
@@ -22974,6 +22977,9 @@ SLES-53452:
 SLES-53457:
   name: "Evil Dead - Regeneration"
   region: "PAL-E"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes post processing alignment.
+    nativeScaling: 1 # Aligns post processing.
 SLES-53458:
   name: "Shin Megami Tensei - Digital Devil Saga"
   region: "PAL-E"
@@ -26239,20 +26245,35 @@ SLES-54448:
   name: "World Series of Poker - Tournament of Champions"
   region: "PAL-E"
 SLES-54449:
-  name: "Chicken Little - Ace in Action"
+  name: "Disney's Chicken Little - Ace in Action"
   region: "PAL-E"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes post processing alignment.
+    nativeScaling: 1 # Aligns post processing.
 SLES-54450:
-  name: "Chicken Little - Aventures Intergalactiques"
+  name: "Disney Chicken Little - Aventures Intergalactiques"
   region: "PAL-F"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes post processing alignment.
+    nativeScaling: 1 # Aligns post processing.
 SLES-54451:
-  name: "Himmel und Huhn - Ace in Action"
+  name: "Disneys Himmel und Huhn - Ace in Action"
   region: "PAL-G"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes post processing alignment.
+    nativeScaling: 1 # Aligns post processing.
 SLES-54452:
   name: "Disney Chicken Little - As en Acción"
   region: "PAL-S"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes post processing alignment.
+    nativeScaling: 1 # Aligns post processing.
 SLES-54453:
-  name: "Chicken Little - Asso Spaziale!"
+  name: "Disney Chicken Little - Asso Spaziale!"
   region: "PAL-I"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes post processing alignment.
+    nativeScaling: 1 # Aligns post processing.
 SLES-54454:
   name: "Disgaea 2 - Cursed Memories"
   region: "PAL-E"
@@ -27042,7 +27063,8 @@ SLES-54711:
   region: "PAL-E"
   compat: 5
   gsHWFixes:
-    roundSprite: 2 # Fixes font artifacts and reduces text box artifacts.
+    halfPixelOffset: 5 # Fixes shadow positioning.
+    nativeScaling: 2 # Aligns post processing and bloom.
 SLES-54712:
   name: "Action Man A.T.O.M. - Alpha Teens on Machines"
   region: "PAL-PL"
@@ -30129,14 +30151,16 @@ SLES-82030:
   name: "Shadow Hearts - Covenant [Disc 1 of 2]"
   region: "PAL-M3"
   gsHWFixes:
-    halfPixelOffset: 4 # Fixes shadow positioning.
+    halfPixelOffset: 5 # Fixes shadow positioning.
     autoFlush: 2 # Makes the shadow monsters appear.
+    nativeScaling: 2 # Aligns post processing and bloom.
 SLES-82031:
   name: "Shadow Hearts - Covenant [Disc 2 of 2]"
   region: "PAL-M3"
   gsHWFixes:
-    halfPixelOffset: 4 # Fixes shadow positioning.
+    halfPixelOffset: 5 # Fixes shadow positioning.
     autoFlush: 2 # Makes the shadow monsters appear.
+    nativeScaling: 2 # Aligns post processing and bloom.
   memcardFilters:
     - "SLES-82030"
 SLES-82032:
@@ -31394,8 +31418,12 @@ SLKA-25219:
   gsHWFixes:
     maximumBlendingLevel: 0 # Fixes unnecessary load on the GPU.
 SLKA-25220:
-  name: "Viewtiful Joe - A New Hope"
+  name: "뷰티플 죠 새로운 희망"
+  name-en: "Viewtiful Joe - A New Hope"
   region: "NTSC-K"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes post processing alignment.
+    nativeScaling: 2 # Aligns post processing.
 SLKA-25221:
   name: "Busin 0 - Wizardry Alternative Neo"
   region: "NTSC-K"
@@ -31768,8 +31796,12 @@ SLKA-25305:
   name: "Taito Memories - Gekan"
   region: "NTSC-K"
 SLKA-25306:
-  name: "Evil Dead - Regeneration"
+  name: "이블데드 - 리제너레이션"
+  name-en: "Evil Dead - Regeneration"
   region: "NTSC-K"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes post processing alignment.
+    nativeScaling: 1 # Aligns post processing.
 SLKA-25307:
   name: "Dragon Ball Z - Sparking!"
   region: "NTSC-K"
@@ -32439,8 +32471,12 @@ SLKA-25451:
   name: "WWE SmackDown! vs. Raw 2008"
   region: "NTSC-K"
 SLKA-25452:
-  name: "Viewtiful Joe - A New Hope"
+  name: "뷰티플 죠 새로운 희망"
+  name-en: "Viewtiful Joe - A New Hope [BigHit Series]"
   region: "NTSC-K"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes post processing alignment.
+    nativeScaling: 2 # Aligns post processing.
 SLKA-25453:
   name: "Shin Onimusha - Dawn of Dreams [Disc 1 of 2]"
   region: "NTSC-K"
@@ -34651,8 +34687,9 @@ SLPM-60214:
   name-en: "Shadow Hearts II [Trial]"
   region: "NTSC-J"
   gsHWFixes:
-    halfPixelOffset: 4 # Fixes shadow positioning.
+    halfPixelOffset: 5 # Fixes shadow positioning.
     autoFlush: 2 # Makes the shadow monsters appear.
+    nativeScaling: 2 # Aligns post processing and bloom.
 SLPM-60215:
   name: "電撃PS2 / 電撃PlayStation D63"
   name-sort: "でんげき PS2 でんげきPlayStation D63"
@@ -34685,8 +34722,9 @@ SLPM-60219:
   name-en: "Shadow Hearts II [Appendix Version]"
   region: "NTSC-J"
   gsHWFixes:
-    halfPixelOffset: 4 # Fixes shadow positioning.
+    halfPixelOffset: 5 # Fixes shadow positioning.
     autoFlush: 2 # Makes the shadow monsters appear.
+    nativeScaling: 2 # Aligns post processing and bloom.
 SLPM-60220:
   name: "はじめの一歩2 VICTORIOUS ROAD [体験版]"
   name-sort: "はじめのいっぽ2 VICTORIOUS ROAD [たいけんばん]"
@@ -34703,8 +34741,9 @@ SLPM-60226:
   name-en: "Shadow Hearts II [Trial]"
   region: "NTSC-J"
   gsHWFixes:
-    halfPixelOffset: 4 # Fixes shadow positioning.
+    halfPixelOffset: 5 # Fixes shadow positioning.
     autoFlush: 2 # Makes the shadow monsters appear.
+    nativeScaling: 2 # Aligns post processing and bloom.
 SLPM-60228:
   name: "街道バトル2 CHAIN REACTION [体験版]"
   name-sort: "かいどうばとる2 CHAIN REACTION [たいけんばん]"
@@ -34884,6 +34923,9 @@ SLPM-60264:
   name-sort: "しゃどうはーつ ふろむ・ざ・にゅー・わーるど [たいけんばん]"
   name-en: "Shadow Hearts - From the New World [Trial]"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes shadow positioning.
+    nativeScaling: 2 # Aligns post processing and bloom.
 SLPM-60265:
   name: "スチームボーイ [体験版]"
   name-sort: "すちーむぼーい [たいけんばん]"
@@ -43943,6 +43985,9 @@ SLPM-65699:
   name-en: "Viewtiful Joe - Aratanaru Kibo"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes post processing alignment.
+    nativeScaling: 2 # Aligns post processing.
 SLPM-65700:
   name: "剣豪3"
   name-sort: "けんごう3"
@@ -46100,7 +46145,8 @@ SLPM-66070:
   name-en: "Shadow Hearts - From the New World [PREMIUM BOX]"
   region: "NTSC-J"
   gsHWFixes:
-    roundSprite: 2 # Fixes font artifacts and reduces text box artifacts.
+    halfPixelOffset: 5 # Fixes shadow positioning.
+    nativeScaling: 2 # Aligns post processing and bloom.
 SLPM-66071:
   name: "シャドウハーツ フロム・ザ・ニュー・ワールド"
   name-sort: "しゃどうはーつ ふろむ・ざ・にゅー・わーるど"
@@ -46108,7 +46154,8 @@ SLPM-66071:
   region: "NTSC-J"
   compat: 5
   gsHWFixes:
-    roundSprite: 2 # Fixes font artifacts and reduces text box artifacts.
+    halfPixelOffset: 5 # Fixes shadow positioning.
+    nativeScaling: 2 # Aligns post processing and bloom.
 SLPM-66072:
   name: "ファイトナイト ラウンド2"
   name-sort: "ふぁいとないと らうんど2"
@@ -57617,16 +57664,18 @@ SLPS-25317:
   name-en: "Shadow Hearts II [Deluxe Pack] [Disc 1 of 2]"
   region: "NTSC-J"
   gsHWFixes:
-    halfPixelOffset: 4 # Fixes shadow positioning.
+    halfPixelOffset: 5 # Fixes shadow positioning.
     autoFlush: 2 # Makes the shadow monsters appear.
+    nativeScaling: 2 # Aligns post processing and bloom.
 SLPS-25318:
   name: "シャドウハーツⅡ [DXパック] [ディスク2/2]"
   name-sort: "しゃどうはーつ2 [DXぱっく] [でぃすく2/2]"
   name-en: "Shadow Hearts II [Deluxe Pack] [Disc 2 of 2]"
   region: "NTSC-J"
   gsHWFixes:
-    halfPixelOffset: 4 # Fixes shadow positioning.
+    halfPixelOffset: 5 # Fixes shadow positioning.
     autoFlush: 2 # Makes the shadow monsters appear.
+    nativeScaling: 2 # Aligns post processing and bloom.
   memcardFilters:
     - "SLPS-25317"
 SLPS-25319:
@@ -57704,16 +57753,18 @@ SLPS-25334:
   name-en: "Shadow Hearts II [Standard Edition] [Disc 1 of 2]"
   region: "NTSC-J"
   gsHWFixes:
-    halfPixelOffset: 4 # Fixes shadow positioning.
+    halfPixelOffset: 5 # Fixes shadow positioning.
     autoFlush: 2 # Makes the shadow monsters appear.
+    nativeScaling: 2 # Aligns post processing and bloom.
 SLPS-25335:
   name: "シャドウハーツⅡ [通常版] [ディスク2/2]"
   name-sort: "しゃどうはーつ2 [つうじょうばん] [でぃすく2/2]"
   name-en: "Shadow Hearts II [Standard Edition] [Disc 2 of 2]"
   region: "NTSC-J"
   gsHWFixes:
-    halfPixelOffset: 4 # Fixes shadow positioning.
+    halfPixelOffset: 5 # Fixes shadow positioning.
     autoFlush: 2 # Makes the shadow monsters appear.
+    nativeScaling: 2 # Aligns post processing and bloom.
   memcardFilters:
     - "SLPS-25334"
 SLPS-25336:
@@ -61980,16 +62031,18 @@ SLPS-73214:
   name-en: "Shadow Hearts II [Director's Cut] [PlayStation2 the Best] [Disc 1 of 2]"
   region: "NTSC-J"
   gsHWFixes:
-    halfPixelOffset: 4 # Fixes shadow positioning.
+    halfPixelOffset: 5 # Fixes shadow positioning.
     autoFlush: 2 # Makes the shadow monsters appear.
+    nativeScaling: 2 # Aligns post processing and bloom.
 SLPS-73215:
   name: "シャドウハーツⅡ ディレクターズカット [PlayStation2 the Best] [ディスク2/2]"
   name-sort: "しゃどうはーつ2 でぃれくたーずかっと [PlayStation2 the Best] [でぃすく2/2]"
   name-en: "Shadow Hearts II [Director's Cut] [PlayStation2 the Best] [Disc 2 of 2]"
   region: "NTSC-J"
   gsHWFixes:
-    halfPixelOffset: 4 # Fixes shadow positioning.
+    halfPixelOffset: 5 # Fixes shadow positioning.
     autoFlush: 2 # Makes the shadow monsters appear.
+    nativeScaling: 2 # Aligns post processing and bloom.
   memcardFilters:
     - "SLPS-73214"
 SLPS-73216:
@@ -67469,6 +67522,9 @@ SLUS-20951:
   name: "Viewtiful Joe"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes post processing alignment.
+    nativeScaling: 2 # Aligns post processing.
 SLUS-20952:
   name: "Tak 2 - The Staff of Dreams"
   region: "NTSC-U"
@@ -68077,8 +68133,9 @@ SLUS-21041:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
-    halfPixelOffset: 4 # Fixes shadow positioning.
+    halfPixelOffset: 5 # Fixes shadow positioning.
     autoFlush: 2 # Makes the shadow monsters appear.
+    nativeScaling: 2 # Aligns post processing and bloom.
 SLUS-21042:
   name: "Darkwatch"
   region: "NTSC-U"
@@ -68094,8 +68151,9 @@ SLUS-21044:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
-    halfPixelOffset: 4 # Fixes shadow positioning.
+    halfPixelOffset: 5 # Fixes shadow positioning.
     autoFlush: 2 # Makes the shadow monsters appear.
+    nativeScaling: 2 # Aligns post processing and bloom.
   memcardFilters:
     - "SLUS-21041"
 SLUS-21045:
@@ -68116,6 +68174,9 @@ SLUS-21048:
   name: "Evil Dead - Regeneration"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes post processing alignment.
+    nativeScaling: 1 # Aligns post processing.
 SLUS-21049:
   name: "Outlaw Volleyball Remixed"
   region: "NTSC-U"
@@ -69921,7 +69982,8 @@ SLUS-21326:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
-    roundSprite: 2 # Fixes font artifacts and reduces text box artifacts.
+    halfPixelOffset: 5 # Fixes shadow positioning.
+    nativeScaling: 2 # Aligns post processing and bloom.
 SLUS-21327:
   name: "Atelier Iris 2 - The Azoth of Destiny"
   region: "NTSC-U"
@@ -70595,6 +70657,9 @@ SLUS-21419:
 SLUS-21420:
   name: "Disney's Chicken Little - Ace in Action"
   region: "NTSC-U"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes post processing alignment.
+    nativeScaling: 1 # Aligns post processing.
 SLUS-21421:
   name: "Spy Hunter - Nowhere to Run"
   region: "NTSC-U"
