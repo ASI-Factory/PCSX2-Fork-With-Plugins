@@ -163,12 +163,16 @@ void GSTextureCache::AddDirtyRectTarget(Target* target, GSVector4i rect, u32 psm
 				skipdirty = true;
 				break;
 			}
-			const GSVector4i valid_rect = rect.rintersect(target->m_valid);
-			const GSVector4i dirty_rect = it[0].r.rintersect(target->m_valid);
+			const GSVector4i new_dirty_rect = rect.rintersect(target->m_valid);
+			const GSVector4i existing_dirty_rect = it[0].r.rintersect(target->m_valid);
+			const int dirty_overlap_top = existing_dirty_rect.wwww().ge32(new_dirty_rect.yyyy()).mask() & existing_dirty_rect.yyyy().lt32(new_dirty_rect.yyyy()).mask();
+			const int dirty_overlap_bottom = existing_dirty_rect.yyyy().le32(new_dirty_rect.wwww()).mask() & existing_dirty_rect.wwww().gt32(new_dirty_rect.wwww()).mask();
+			const int dirty_overlap_left = existing_dirty_rect.zzzz().ge32(new_dirty_rect.xxxx()).mask() & existing_dirty_rect.xxxx().lt32(new_dirty_rect.xxxx()).mask();
+			const int dirty_overlap_right = existing_dirty_rect.xxxx().le32(new_dirty_rect.zzzz()).mask() & existing_dirty_rect.zzzz().gt32(new_dirty_rect.zzzz()).mask();
 			// Edges lined up so just expand the dirty rect
-			if ((dirty_rect.xzxz().eq(valid_rect.xzxz()) && (dirty_rect.wwww().eq(valid_rect.yyyy()) || dirty_rect.yyyy().eq(valid_rect.wwww()))) ||
-				(dirty_rect.ywyw().eq(valid_rect.ywyw()) && (dirty_rect.zzzz().eq(valid_rect.xxxx()) || dirty_rect.xxxx().eq(valid_rect.zzzz()))) ||
-				dirty_rect.rintersect(valid_rect).eq(dirty_rect)) // If the new rect completely envelops the old one.
+			if ((existing_dirty_rect.xzxz().eq(new_dirty_rect.xzxz()) && (dirty_overlap_top == 0xFFFF || dirty_overlap_bottom == 0xFFFF)) ||
+				(existing_dirty_rect.ywyw().eq(new_dirty_rect.ywyw()) && (dirty_overlap_left == 0xFFFF || dirty_overlap_right == 0xFFFF)) ||
+				existing_dirty_rect.rintersect(new_dirty_rect).eq(existing_dirty_rect)) // If the new rect completely envelops the old one.
 			{
 				rect = rect.runion(it[0].r);
 				it = target->m_dirty.erase(it);
@@ -4509,7 +4513,7 @@ void GSTextureCache::InvalidateLocalMem(const GSOffset& off, const GSVector4i& r
 
 				// Check the offset of the read, if they're not pointing at or inside this texture, it's probably not what we want.
 				//const bool expecting_this_tex = ((bp <= t->m_TEX0.TBP0 && read_start >= t->m_TEX0.TBP0) || bp >= t->m_TEX0.TBP0) && read_end <= t->m_end_block;
-				const bool bpp_match = GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == GSLocalMemory::m_psm[psm].bpp;
+				const bool bpp_match = GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == GSLocalMemory::m_psm[psm].bpp && GSUtil::GetChannelMask(psm) & GSUtil::GetChannelMask(t->m_TEX0.PSM);
 				const u32 page_mask = ((1 << 5) - 1);
 				const bool expecting_this_tex = bpp_match && (((read_start & ~page_mask) == t->m_TEX0.TBP0) || (bp >= t->m_TEX0.TBP0 && ((read_end + page_mask) & ~page_mask) <= ((t->m_end_block + page_mask) & ~page_mask)));
 				if (!expecting_this_tex)
@@ -4635,7 +4639,7 @@ void GSTextureCache::InvalidateLocalMem(const GSOffset& off, const GSVector4i& r
 			if (pass == 0)
 			{
 				// Check exact match first
-				const bool bpp_match = GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == GSLocalMemory::m_psm[psm].bpp;
+				const bool bpp_match = GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == GSLocalMemory::m_psm[psm].bpp && GSUtil::GetChannelMask(psm) & GSUtil::GetChannelMask(t->m_TEX0.PSM);
 				const u32 page_mask = ((1 << 5) - 1);
 				const bool exact_mem_match = (read_start & ~page_mask) == (t->m_TEX0.TBP0 & ~page_mask) && ((read_end + (page_mask - 1)) & ~page_mask) <= t->m_end_block;
 				const bool expecting_this_tex = exact_mem_match || (bpp_match && bw == t->m_TEX0.TBW && (((read_start & ~page_mask) == t->m_TEX0.TBP0) || (bp >= t->m_TEX0.TBP0 && ((read_end + page_mask) & ~page_mask) <= ((t->m_end_block + page_mask) & ~page_mask))));

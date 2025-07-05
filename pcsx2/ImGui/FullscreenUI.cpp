@@ -1118,7 +1118,17 @@ void FullscreenUI::ReturnToPreviousWindow()
 void FullscreenUI::ReturnToMainWindow()
 {
 	ClosePauseMenu();
-	s_current_main_window = VMManager::HasValidVM() ? MainWindowType::None : (ShouldDefaultToGameList() ? MainWindowType::GameList : MainWindowType::Landing);
+
+	if (VMManager::HasValidVM())
+	{
+		s_current_main_window = MainWindowType::None;
+		return;
+	}
+
+	if (ShouldDefaultToGameList())
+		SwitchToGameList();
+	else
+		SwitchToLanding();
 }
 
 bool FullscreenUI::LoadResources()
@@ -3175,7 +3185,12 @@ void FullscreenUI::DrawSettingsWindow()
 		}
 
 		if (NavButton(ICON_PF_BACKWARD, true, true))
-			SwitchToLanding();
+		{
+			if (VMManager::HasValidVM())
+				ReturnToPreviousWindow();
+			else
+				SwitchToLanding();
+		}
 
 		if (s_game_settings_entry)
 		{
@@ -8195,7 +8210,7 @@ TRANSLATE_NOOP("FullscreenUI", "PCSX2 is a free and open-source PlayStation 2 (P
 TRANSLATE_NOOP("FullscreenUI", "PlayStation 2 and PS2 are registered trademarks of Sony Interactive Entertainment. This application is not affiliated in any way with Sony Interactive Entertainment.");
 TRANSLATE_NOOP("FullscreenUI", "Version: %s");
 TRANSLATE_NOOP("FullscreenUI", "RetroAchievements");
-TRANSLATE_NOOP("FullscreenUI", "Please enter your user name and password for retroachievements.org below. Your password will not be saved in PCSX2, an access token will be generated and used instead.");
+TRANSLATE_NOOP("FullscreenUI", "Please enter your user name and password for retroachievements.org below. \n\n Your password will not be saved in PCSX2, an access token will be generated and used instead.");
 TRANSLATE_NOOP("FullscreenUI", "Username");
 TRANSLATE_NOOP("FullscreenUI", "Password");
 TRANSLATE_NOOP("FullscreenUI", "Logging in...");
