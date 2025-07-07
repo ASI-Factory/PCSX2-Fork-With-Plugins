@@ -15195,7 +15195,9 @@ SLES-50479:
   region: "PAL-M4"
   compat: 5
   gsHWFixes:
+    halfPixelOffset: 2 # Fixes depth/fog lines.
     textureInsideRT: 1 # Fixes underwater levels.
+    getSkipCount: "GSC_Turok"
 SLES-50480:
   name: "Aggressive Inline"
   region: "PAL-M4"
@@ -16704,7 +16706,9 @@ SLES-51124:
   region: "PAL-G"
   compat: 5
   gsHWFixes:
+    halfPixelOffset: 2 # Fixes depth/fog lines.
     textureInsideRT: 1 # Fixes underwater levels.
+    getSkipCount: "GSC_Turok"
 SLES-51125:
   name: "Sega Soccer Slam"
   region: "PAL-E"
@@ -49990,8 +49994,8 @@ SLPM-66671:
   gameFixes:
     - DMABusyHack
 SLPM-66672:
-  name: "スプリンターセル 二重スパイ"
-  name-sort: "すぷりんたーせる にじゅうすぱい"
+  name: "トム・クランシーシリーズ スプリンターセル 二重スパイ"
+  name-sort: "とむくらんしーしりーず すぷりんたーせる にじゅうすぱい"
   name-en: "Tom Clancy's Splinter Cell - Double Agent"
   region: "NTSC-J"
   gsHWFixes:
@@ -51189,8 +51193,8 @@ SLPM-66867:
   name-en: "MotoGP '07"
   region: "NTSC-J"
 SLPM-66868:
-  name: "スプリンターセル 二重スパイ [UBISOFT BEST]"
-  name-sort: "すぷりんたーせる にじゅうすぱい [UBISOFT BEST]"
+  name: "トム・クランシーシリーズ スプリンターセル 二重スパイ [UBISOFT BEST]"
+  name-sort: "とむくらんしーしりーず すぷりんたーせる にじゅうすぱい [UBISOFT BEST]"
   name-en: "Tom Clancy's Splinter Cell - Double Agent [Ubisoft Best]"
   region: "NTSC-J"
   gsHWFixes:
@@ -64136,7 +64140,9 @@ SLUS-20333:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
+    halfPixelOffset: 2 # Fixes depth/fog lines.
     textureInsideRT: 1 # Fixes underwater levels.
+    getSkipCount: "GSC_Turok"
 SLUS-20334:
   name: "Kelly Slater's Pro Surfer"
   region: "NTSC-U"
