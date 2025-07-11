@@ -302,13 +302,7 @@ bool GSDeviceOGL::Create(GSVSyncMode vsync_mode, bool allow_present_throttle)
 			glGenBuffers(1, &m_expand_ibo);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_expand_ibo);
 			glBufferData(GL_ELEMENT_ARRAY_BUFFER, EXPAND_BUFFER_SIZE, expand_data.get(), GL_STATIC_DRAW);
-
-			// We can bind it once when using gl_BaseVertexARB.
-			if (GLAD_GL_ARB_shader_draw_parameters)
-			{
-				glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 2, m_vertex_stream_buffer->GetGLBufferId(),
-					0, VERTEX_BUFFER_SIZE);
-			}
+			glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 2, m_vertex_stream_buffer->GetGLBufferId(), 0, VERTEX_BUFFER_SIZE);
 		}
 	}
 
@@ -747,20 +741,12 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 	m_features.stencil_buffer = true;
 	m_features.test_and_sample_depth = m_features.texture_barrier;
 
-	// NVIDIA GPUs prior to Kepler appear to have broken vertex shader buffer loading.
-	// Use bindless textures (introduced in Kepler) to differentiate.
-	const bool buggy_vs_expand =
-		vendor_id_nvidia && (!GLAD_GL_ARB_bindless_texture && !GLAD_GL_NV_bindless_texture);
-	if (buggy_vs_expand)
-		Console.Warning("GL: Disabling vertex shader expand due to broken NVIDIA driver.");
-
 	if (GLAD_GL_ARB_shader_storage_buffer_object)
 	{
 		GLint max_vertex_ssbos = 0;
 		glGetIntegerv(GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &max_vertex_ssbos);
 		DevCon.WriteLn("GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS: %d", max_vertex_ssbos);
-		m_features.vs_expand = (!GSConfig.DisableVertexShaderExpand && !buggy_vs_expand && max_vertex_ssbos > 0 &&
-								GLAD_GL_ARB_gpu_shader5);
+		m_features.vs_expand = (!GSConfig.DisableVertexShaderExpand && max_vertex_ssbos > 0 && GLAD_GL_ARB_gpu_shader5);
 	}
 	if (!m_features.vs_expand)
 		Console.Warning("GL: Vertex expansion is not supported. This will reduce performance.");
@@ -1295,8 +1281,6 @@ std::string GSDeviceOGL::GenGlslHeader(const std::string_view entry, GLenum type
 			header += "#extension GL_ARB_shader_storage_buffer_object: require\n";
 	}
 
-	if (GLAD_GL_ARB_shader_draw_parameters)
-		header += "#extension GL_ARB_shader_draw_parameters : require\n";
 	if (m_features.framebuffer_fetch && GLAD_GL_EXT_shader_framebuffer_fetch)
 		header += "#extension GL_EXT_shader_framebuffer_fetch : require\n";
 
@@ -1945,12 +1929,12 @@ void GSDeviceOGL::IASetVAO(GLuint vao)
 	glBindVertexArray(vao);
 }
 
-void GSDeviceOGL::IASetVertexBuffer(const void* vertices, size_t count)
+void GSDeviceOGL::IASetVertexBuffer(const void* vertices, size_t count, size_t align_multiplier)
 {
 	const u32 size = static_cast<u32>(count) * sizeof(GSVertexPT1);
-	auto res = m_vertex_stream_buffer->Map(sizeof(GSVertexPT1), size);
+	auto res = m_vertex_stream_buffer->Map(sizeof(GSVertexPT1) * align_multiplier, size);
 	std::memcpy(res.pointer, vertices, size);
-	m_vertex.start = res.index_aligned;
+	m_vertex.start = res.index_aligned * align_multiplier;
 	m_vertex.count = count;
 	m_vertex_stream_buffer->Unmap(size);
 }
@@ -2510,14 +2494,8 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 			Console.Warning("GL: Failed to allocate temp texture for RT copy.");
 	}
 
-	IASetVertexBuffer(config.verts, config.nverts);
-	if (config.vs.expand != GSHWDrawConfig::VSExpand::None && !GLAD_GL_ARB_shader_draw_parameters)
-	{
-		// Need to offset the buffer.
-		glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 2, m_vertex_stream_buffer->GetGLBufferId(),
-			m_vertex.start * sizeof(GSVertex), config.nverts * sizeof(GSVertex));
-		m_vertex.start = 0;
-	}
+	IASetVertexBuffer(config.verts, config.nverts, GetVertexAlignment(config.vs.expand));
+	m_vertex.start *= GetExpansionFactor(config.vs.expand);
 
 	if (config.vs.UseExpandIndexBuffer())
 	{
