@@ -384,7 +384,7 @@ __ri void ImGuiManager::DrawPerformanceOverlay(float& position_y, float scale, f
 			}
 
 			if (GetIsThrottlerTempDisabled())
-				DRAW_LINE(standard_font, ICON_FA_FORWARD, IM_COL32(255, 0, 0, 255));
+				DRAW_LINE(standard_font, font_size, ICON_FA_FORWARD, IM_COL32(255, 0, 0, 255));
 		}
 
 		if (GSConfig.OsdShowFrameTimes)
@@ -1340,14 +1340,14 @@ void DrawPluginsOverlay()
 			ImVec2 text_size;
 			text.reserve(255);
 
-#define DRAW_LINE(font, text, color) \
+#define DRAW_LINE(font, size, text, color) \
 	do \
 	{ \
-		text_size = font->CalcTextSizeA(font->FontSize, std::numeric_limits<float>::max(), -1.0f, (text), nullptr, nullptr); \
-		dl->AddText(font, font->FontSize, \
+		text_size = font->CalcTextSizeA(size, std::numeric_limits<float>::max(), -1.0f, (text), nullptr, nullptr); \
+		dl->AddText(font, size, \
 			ImVec2(margin + shadow_offset, position_y + shadow_offset), \
 			IM_COL32(0, 0, 0, 100), (text)); \
-		dl->AddText(font, font->FontSize, ImVec2(margin, position_y), color, (text)); \
+		dl->AddText(font, size, ImVec2(margin, position_y), color, (text)); \
 		position_y += text_size.y + spacing; \
 	} while (0)
 
@@ -1356,6 +1356,7 @@ void DrawPluginsOverlay()
 			if (!paused)
 			{
 				ImFont* const fixed_font = ImGuiManager::GetFixedFont();
+				const float font_size = ImGuiManager::GetFontSizeStandard();
 				for (size_t i = 0; i < GetOSDVectorSize(); i++)
 				{
 					std::string_view s(GetOSDVectorData(i), 255);
@@ -1363,7 +1364,7 @@ void DrawPluginsOverlay()
 					{
 						text.clear();
 						fmt::format_to(std::back_inserter(text), "{}", s);
-						DRAW_LINE(fixed_font, text.c_str(), IM_COL32(255, 255, 255, 255));
+						DRAW_LINE(fixed_font, font_size, text.c_str(), IM_COL32(255, 255, 255, 255));
 					}
 				}
 			}
