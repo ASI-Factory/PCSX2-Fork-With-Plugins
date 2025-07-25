@@ -130,11 +130,12 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(SettingsWindow* dialog, QWidget* 
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.osdShowHardwareInfo, "EmuCore/GS", "OsdShowHardwareInfo", false);
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.osdShowVideoCapture, "EmuCore/GS", "OsdShowVideoCapture", true);
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.osdShowInputRec, "EmuCore/GS", "OsdShowInputRec", true);
-	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.osdWarnAboutUnsafeSettings, "EmuCore", "osdWarnAboutUnsafeSettings", true);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.osdWarnAboutUnsafeSettings, "EmuCore", "OsdWarnAboutUnsafeSettings", true);
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.fxaa, "EmuCore/GS", "fxaa", false);
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.shadeBoost, "EmuCore/GS", "ShadeBoost", false);
 	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.shadeBoostBrightness, "EmuCore/GS", "ShadeBoost_Brightness", false);
 	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.shadeBoostContrast, "EmuCore/GS", "ShadeBoost_Contrast", false);
+	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.shadeBoostGamma, "EmuCore/GS", "ShadeBoost_Gamma", false);
 	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.shadeBoostSaturation, "EmuCore/GS", "ShadeBoost_Saturation", false);
 	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.tvShader, "EmuCore/GS", "TVShader", DEFAULT_TV_SHADER_MODE);
 	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.casMode, "EmuCore/GS", "CASMode", static_cast<int>(GSCASMode::Disabled));
@@ -254,6 +255,8 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(SettingsWindow* dialog, QWidget* 
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.disableVertexShaderExpand, "EmuCore/GS", "DisableVertexShaderExpand", false);
 	SettingWidgetBinder::BindWidgetToIntSetting(
 		sif, m_ui.gsDownloadMode, "EmuCore/GS", "HWDownloadMode", static_cast<int>(GSHardwareDownloadMode::Enabled));
+	SettingWidgetBinder::BindWidgetToFloatSetting(sif, m_ui.ntscFrameRate, "EmuCore/GS", "FrameRateNTSC", 59.94f);
+	SettingWidgetBinder::BindWidgetToFloatSetting(sif, m_ui.palFrameRate, "EmuCore/GS", "FrameRatePAL", 50.00f);
 
 	//////////////////////////////////////////////////////////////////////////
 	// SW Settings
@@ -392,6 +395,8 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(SettingsWindow* dialog, QWidget* 
 		m_ui.useBlitSwapChain = nullptr;
 		m_ui.disableMailboxPresentation = nullptr;
 		m_ui.extendedUpscales = nullptr;
+		m_ui.ntscFrameRate = nullptr;
+		m_ui.palFrameRate = nullptr;
 		m_ui.spinCPUDuringReadbacks = nullptr;
 		m_ui.spinGPUDuringReadbacks = nullptr;
 		m_ui.overrideTextureBarriers = nullptr;
@@ -723,6 +728,8 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(SettingsWindow* dialog, QWidget* 
 
 		dialog->registerWidgetHelp(m_ui.shadeBoostContrast, tr("Contrast"), tr("50"), tr("Adjusts contrast. 50 is normal."));
 
+		dialog->registerWidgetHelp(m_ui.shadeBoostGamma, tr("Gamma"), tr("50"), tr("Adjusts gamma. 50 is normal."));
+
 		dialog->registerWidgetHelp(m_ui.shadeBoostSaturation, tr("Saturation"), tr("50"), tr("Adjusts saturation. 50 is normal."));
 
 		dialog->registerWidgetHelp(m_ui.tvShader, tr("TV Shader"), tr("None (Default)"),
@@ -857,6 +864,12 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(SettingsWindow* dialog, QWidget* 
 			tr("Skips synchronizing with the GS thread and host GPU for GS downloads. "
 			   "Can result in a large speed boost on slower systems, at the cost of many broken graphical effects. "
 			   "If games are broken and you have this option enabled, please disable it first."));
+
+		dialog->registerWidgetHelp(m_ui.ntscFrameRate, tr("NTSC Frame Rate"), tr("59.94 Hz"),
+			tr("Determines what frame rate NTSC games run at."));
+
+		dialog->registerWidgetHelp(m_ui.palFrameRate, tr("PAL Frame Rate"), tr("50.00 Hz"),
+			tr("Determines what frame rate PAL games run at."));
 	}
 }
 
@@ -934,6 +947,7 @@ void GraphicsSettingsWidget::onShadeBoostChanged()
 	const bool enabled = m_dialog->getEffectiveBoolValue("EmuCore/GS", "ShadeBoost", false);
 	m_ui.shadeBoostBrightness->setEnabled(enabled);
 	m_ui.shadeBoostContrast->setEnabled(enabled);
+	m_ui.shadeBoostGamma->setEnabled(enabled);
 	m_ui.shadeBoostSaturation->setEnabled(enabled);
 }
 

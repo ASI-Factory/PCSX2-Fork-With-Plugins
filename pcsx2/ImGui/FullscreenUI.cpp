@@ -367,12 +367,9 @@ namespace FullscreenUI
 	static void DrawIntSpinBoxSetting(SettingsInterface* bsi, const char* title, const char* summary, const char* section, const char* key,
 		int default_value, int min_value, int max_value, int step_value, const char* format = "%d", bool enabled = true,
 		float height = ImGuiFullscreen::LAYOUT_MENU_BUTTON_HEIGHT, std::pair<ImFont*, float> font = g_large_font, std::pair<ImFont*, float> summary_font = g_medium_font);
-#if 0
-	// Unused as of now
 	static void DrawFloatRangeSetting(SettingsInterface* bsi, const char* title, const char* summary, const char* section, const char* key,
 		float default_value, float min_value, float max_value, const char* format = "%f", float multiplier = 1.0f, bool enabled = true,
 		float height = ImGuiFullscreen::LAYOUT_MENU_BUTTON_HEIGHT, std::pair<ImFont*, float> font = g_large_font, std::pair<ImFont*, float> summary_font = g_medium_font);
-#endif
 	static void DrawFloatSpinBoxSetting(SettingsInterface* bsi, const char* title, const char* summary, const char* section,
 		const char* key, float default_value, float min_value, float max_value, float step_value, float multiplier,
 		const char* format = "%f", bool enabled = true, float height = ImGuiFullscreen::LAYOUT_MENU_BUTTON_HEIGHT,
@@ -2217,8 +2214,6 @@ void FullscreenUI::DrawIntSpinBoxSetting(SettingsInterface* bsi, const char* tit
 	ImGui::PopFont();
 }
 
-#if 0
-// Unused as of now
 void FullscreenUI::DrawFloatRangeSetting(SettingsInterface* bsi, const char* title, const char* summary, const char* section,
 	const char* key, float default_value, float min_value, float max_value, const char* format, float multiplier, bool enabled,
 	float height, std::pair<ImFont*, float> font, std::pair<ImFont*, float> summary_font)
@@ -2275,7 +2270,6 @@ void FullscreenUI::DrawFloatRangeSetting(SettingsInterface* bsi, const char* tit
 	ImGui::PopStyleVar(4);
 	ImGui::PopFont();
 }
-#endif
 
 void FullscreenUI::DrawFloatSpinBoxSetting(SettingsInterface* bsi, const char* title, const char* summary, const char* section,
 	const char* key, float default_value, float min_value, float max_value, float step_value, float multiplier, const char* format,
@@ -4409,12 +4403,14 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 	{
 		const bool shadeboost_active = GetEffectiveBoolSetting(bsi, "EmuCore/GS", "ShadeBoost", false);
 
-		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_GEM, "Shade Boost"), FSUI_CSTR("Enables brightness/contrast/saturation adjustment."), "EmuCore/GS",
+		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_GEM, "Shade Boost"), FSUI_CSTR("Enables brightness/contrast/gamma/saturation adjustment."), "EmuCore/GS",
 			"ShadeBoost", false);
 		DrawIntRangeSetting(bsi, FSUI_ICONSTR(ICON_FA_SUN, "Shade Boost Brightness"), FSUI_CSTR("Adjusts brightness. 50 is normal."), "EmuCore/GS",
 			"ShadeBoost_Brightness", 50, 1, 100, "%d", shadeboost_active);
 		DrawIntRangeSetting(bsi, FSUI_ICONSTR(ICON_FA_LIGHTBULB, "Shade Boost Contrast"), FSUI_CSTR("Adjusts contrast. 50 is normal."), "EmuCore/GS",
 			"ShadeBoost_Contrast", 50, 1, 100, "%d", shadeboost_active);
+		DrawIntRangeSetting(bsi, FSUI_CSTR("Shade Boost Gamma"), FSUI_CSTR("Adjusts gamma. 50 is normal."), "EmuCore/GS",
+			"ShadeBoost_Gamma", 50, 1, 100, "%d", shadeboost_active);
 		DrawIntRangeSetting(bsi, FSUI_ICONSTR(ICON_FA_DROPLET, "Shade Boost Saturation"), FSUI_CSTR("Adjusts saturation. 50 is normal."), "EmuCore/GS",
 			"ShadeBoost_Saturation", 50, 1, 100, "%d", shadeboost_active);
 
@@ -4479,6 +4475,10 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 				"Uploads full textures to the GPU on use, rather than only the utilized regions. Can improve performance in some games."),
 			"EmuCore/GS", "texture_preloading", static_cast<int>(TexturePreloadingLevel::Off), s_preloading_options,
 			std::size(s_preloading_options), true);
+		DrawFloatRangeSetting(bsi, FSUI_CSTR("NTSC Frame Rate"), FSUI_CSTR("Determines what frame rate NTSC games run at."),
+							  "EmuCore/GS", "FrameRateNTSC", 59.94f, 10.0f, 300.0f, "%.2f Hz");
+		DrawFloatRangeSetting(bsi, FSUI_CSTR("PAL Frame Rate"), FSUI_CSTR("Determines what frame rate PAL games run at."),
+							  "EmuCore/GS", "FrameRatePAL", 50.0f, 10.0f, 300.0f, "%.2f Hz");
 	}
 
 	EndMenuButtons();
@@ -8172,9 +8172,11 @@ TRANSLATE_NOOP("FullscreenUI", "Enables FXAA post-processing shader.");
 TRANSLATE_NOOP("FullscreenUI", "Enables FidelityFX Contrast Adaptive Sharpening.");
 TRANSLATE_NOOP("FullscreenUI", "Determines the intensity the sharpening effect in CAS post-processing.");
 TRANSLATE_NOOP("FullscreenUI", "Filters");
-TRANSLATE_NOOP("FullscreenUI", "Enables brightness/contrast/saturation adjustment.");
+TRANSLATE_NOOP("FullscreenUI", "Enables brightness/contrast/gamma/saturation adjustment.");
 TRANSLATE_NOOP("FullscreenUI", "Adjusts brightness. 50 is normal.");
 TRANSLATE_NOOP("FullscreenUI", "Adjusts contrast. 50 is normal.");
+TRANSLATE_NOOP("FullscreenUI", "Shade Boost Gamma");
+TRANSLATE_NOOP("FullscreenUI", "Adjusts gamma. 50 is normal.");
 TRANSLATE_NOOP("FullscreenUI", "Adjusts saturation. 50 is normal.");
 TRANSLATE_NOOP("FullscreenUI", "Applies a shader which replicates the visual effects of different styles of television set.");
 TRANSLATE_NOOP("FullscreenUI", "Advanced");
@@ -8200,6 +8202,10 @@ TRANSLATE_NOOP("FullscreenUI", "Disable Vertex Shader Expand");
 TRANSLATE_NOOP("FullscreenUI", "Falls back to the CPU for expanding sprites/lines.");
 TRANSLATE_NOOP("FullscreenUI", "Texture Preloading");
 TRANSLATE_NOOP("FullscreenUI", "Uploads full textures to the GPU on use, rather than only the utilized regions. Can improve performance in some games.");
+TRANSLATE_NOOP("FullscreenUI", "NTSC Frame Rate");
+TRANSLATE_NOOP("FullscreenUI", "Determines what frame rate NTSC games run at.");
+TRANSLATE_NOOP("FullscreenUI", "PAL Frame Rate");
+TRANSLATE_NOOP("FullscreenUI", "Determines what frame rate PAL games run at.");
 TRANSLATE_NOOP("FullscreenUI", "Audio Control");
 TRANSLATE_NOOP("FullscreenUI", "Controls the volume of the audio played on the host.");
 TRANSLATE_NOOP("FullscreenUI", "Controls the volume of the audio played on the host when fast forwarding.");
