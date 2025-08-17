@@ -1007,7 +1007,7 @@ void FullscreenUI::Render()
 	ImGuiFullscreen::BeginLayout();
 
 	// Primed achievements must come first, because we don't want the pause screen to be behind them.
-	if (s_current_main_window == MainWindowType::None && EmuConfig.Achievements.Overlays)
+	if (s_current_main_window == MainWindowType::None && (EmuConfig.Achievements.Overlays || EmuConfig.Achievements.LBOverlays))
 		Achievements::DrawGameOverlays();
 
 	switch (s_current_main_window)
@@ -1530,19 +1530,16 @@ void FullscreenUI::DrawLandingWindow()
 			QueueResetFocus(FocusResetType::WindowChanged);
 		}
 	}
-	EndHorizontalMenu();
-
 	ImGui::PopStyleColor();
 
-	if (!AreAnyDialogsOpen())
-	{
-		if (ImGui::IsKeyPressed(ImGuiKey_GamepadBack, false) || ImGui::IsKeyPressed(ImGuiKey_F1, false))
-			OpenAboutWindow();
-		if (ImGui::IsKeyPressed(ImGuiKey_NavGamepadInput, false) || ImGui::IsKeyPressed(ImGuiKey_Space, false))
-			SwitchToGameList();
-		else if (ImGui::IsKeyPressed(ImGuiKey_NavGamepadMenu, false) || ImGui::IsKeyPressed(ImGuiKey_F11, false))
-			DoToggleFullscreen();
-	}
+	if (ImGui::Shortcut(ImGuiKey_GamepadBack) || ImGui::Shortcut(ImGuiKey_F1))
+		OpenAboutWindow();
+	if (ImGui::Shortcut(ImGuiKey_NavGamepadInput) || ImGui::Shortcut(ImGuiKey_Space))
+		SwitchToGameList();
+	else if (ImGui::Shortcut(ImGuiKey_NavGamepadMenu) || ImGui::Shortcut(ImGuiKey_F11))
+		DoToggleFullscreen();
+
+	EndHorizontalMenu();
 
 	if (IsGamepadInputSource())
 	{
@@ -1607,15 +1604,13 @@ void FullscreenUI::DrawStartGameWindow()
 			QueueResetFocus(FocusResetType::WindowChanged);
 		}
 	}
-	EndHorizontalMenu();
 
 	ImGui::PopStyleColor();
 
-	if (!AreAnyDialogsOpen())
-	{
-		if (ImGui::IsKeyPressed(ImGuiKey_NavGamepadMenu, false) || ImGui::IsKeyPressed(ImGuiKey_F1, false))
-			OpenSaveStateSelector(true);
-	}
+	if (ImGui::Shortcut(ImGuiKey_NavGamepadMenu) || ImGui::Shortcut(ImGuiKey_F1))
+		OpenSaveStateSelector(true);
+
+	EndHorizontalMenu();
 
 	if (IsGamepadInputSource())
 	{
@@ -1838,7 +1833,7 @@ void FullscreenUI::DrawInputBindingButton(
 	{
 		BeginInputBinding(bsi, type, section, name, display_name);
 	}
-	else if (ImGui::IsItemClicked(ImGuiMouseButton_Right) || ImGui::IsKeyPressed(ImGuiKey_NavGamepadMenu, false))
+	else if (hovered && (ImGui::IsItemClicked(ImGuiMouseButton_Right) || ImGui::Shortcut(ImGuiKey_NavGamepadMenu)))
 	{
 		bsi->DeleteValue(section, name);
 		SetSettingsChanged(bsi);
@@ -3686,7 +3681,7 @@ void FullscreenUI::DrawInterfaceSettingsPage()
 	static constexpr const char* s_osd_position_values[] = {
 		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
 	};
-	
+
 	DrawStringListSetting(bsi, FSUI_ICONSTR(ICON_FA_COMMENT, "OSD Messages Position"),
 		FSUI_CSTR("Determines where on-screen display messages are positioned."), "EmuCore/GS", "OsdMessagesPos", "1",
 		s_osd_position_options, s_osd_position_values, std::size(s_osd_position_options), true);
@@ -6106,7 +6101,6 @@ void FullscreenUI::DrawSaveStateSelector(bool is_loading)
 			(static_cast<float>(ImGui::GetWindowWidth()) - (item_width_with_spacing * static_cast<float>(grid_count_x))) * 0.5f;
 
 		u32 grid_x = 0;
-		ImGui::SetCursorPos(ImVec2(start_x, 0.0f));
 		for (u32 i = 0; i < s_save_state_selector_slots.size();)
 		{
 			if (i == 0)
@@ -6229,6 +6223,17 @@ void FullscreenUI::DrawSaveStateSelector(bool is_loading)
 				continue;
 			}
 
+			if (grid_x == grid_count_x)
+			{
+				grid_x = 0;
+				ImGui::SetCursorPosX(start_x);
+				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + item_spacing);
+			}
+			else
+			{
+				ImGui::SameLine(start_x + static_cast<float>(grid_x) * (item_width + item_spacing));
+			}
+
 			const SaveStateListEntry& entry = s_save_state_selector_slots[i];
 			const ImGuiID id = window->GetID(static_cast<int>(i));
 			const ImVec2 pos(window->DC.CursorPos);
@@ -6288,25 +6293,14 @@ void FullscreenUI::DrawSaveStateSelector(bool is_loading)
 					ReturnToMainWindow();
 					break;
 				}
-				else if (hovered && (ImGui::IsItemClicked(ImGuiMouseButton_Right) || ImGui::IsKeyPressed(ImGuiKey_NavGamepadMenu, false) ||
-										ImGui::IsKeyPressed(ImGuiKey_F1, false)))
+				else if (hovered && (ImGui::IsItemClicked(ImGuiMouseButton_Right) || ImGui::Shortcut(ImGuiKey_NavGamepadMenu) ||
+										ImGui::Shortcut(ImGuiKey_F1)))
 				{
 					s_save_state_selector_submenu_index = static_cast<s32>(i);
 				}
 			}
 
 			grid_x++;
-			if (grid_x == grid_count_x)
-			{
-				grid_x = 0;
-				ImGui::SetCursorPosX(start_x);
-				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + item_spacing);
-			}
-			else
-			{
-				ImGui::SameLine(start_x + static_cast<float>(grid_x) * (item_width + item_spacing));
-			}
-
 			i++;
 		}
 
@@ -6741,8 +6735,8 @@ void FullscreenUI::DrawGameList(const ImVec2& heading_size)
 				selected_entry = entry;
 
 			if (selected_entry &&
-				(ImGui::IsItemClicked(ImGuiMouseButton_Right) || ImGui::IsKeyPressed(ImGuiKey_NavGamepadMenu, false) ||
-					ImGui::IsKeyPressed(ImGuiKey_F3, false)))
+				(ImGui::IsItemClicked(ImGuiMouseButton_Right) || ImGui::Shortcut(ImGuiKey_NavGamepadMenu) ||
+					ImGui::Shortcut(ImGuiKey_F3)))
 			{
 				HandleGameListOptions(selected_entry);
 			}
@@ -6967,8 +6961,8 @@ void FullscreenUI::DrawGameGrid(const ImVec2& heading_size)
 			{
 				HandleGameListActivate(entry);
 			}
-			else if (hovered && (ImGui::IsItemClicked(ImGuiMouseButton_Right) || ImGui::IsKeyPressed(ImGuiKey_NavGamepadMenu, false) ||
-									ImGui::IsKeyPressed(ImGuiKey_F3, false)))
+			else if (hovered && (ImGui::IsItemClicked(ImGuiMouseButton_Right) || ImGui::Shortcut(ImGuiKey_NavGamepadMenu) ||
+									ImGui::Shortcut(ImGuiKey_F3)))
 			{
 				HandleGameListOptions(entry);
 			}
@@ -7788,9 +7782,12 @@ void FullscreenUI::DrawAchievementsSettingsPage(std::unique_lock<std::mutex>& se
 		FSUI_CSTR("Plays sound effects for events such as achievement unlocks and leaderboard submissions."), "Achievements",
 		"SoundEffects", true, enabled);
 	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_PF_HEARTBEAT_ALT, "Enable In-Game Overlays"),
-		FSUI_CSTR("Shows icons in the lower-right corner of the screen when a challenge/primed achievement is active."), "Achievements",
+		FSUI_CSTR("Shows icons in the screen when a challenge/primed achievement is active."), "Achievements",
 		"Overlays", true, enabled);
-	
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_PF_HEARTBEAT_ALT, "Enable In-Game Leaderboard Overlays"),
+		FSUI_CSTR("Shows icons in the screen when leaderboard tracking is active."), "Achievements",
+		"LBOverlays", true, enabled);
+
 	if (enabled)
 	{
 		const char* alignment_options[] = {
@@ -7804,17 +7801,17 @@ void FullscreenUI::DrawAchievementsSettingsPage(std::unique_lock<std::mutex>& se
 			TRANSLATE_NOOP("FullscreenUI", "Bottom Center"),
 			TRANSLATE_NOOP("FullscreenUI", "Bottom Right")
 		};
-		
+
 		DrawIntListSetting(bsi, FSUI_ICONSTR(ICON_FA_ALIGN_CENTER, "Overlay Position"),
-			FSUI_CSTR("Determines where achievement overlays are positioned on the screen."), "Achievements", "OverlayPosition", 
+			FSUI_CSTR("Determines where achievement/leaderboard overlays are positioned on the screen."), "Achievements", "OverlayPosition",
 			8, alignment_options, std::size(alignment_options), true, 0, enabled);
-			
+
 		const bool notifications_enabled = GetEffectiveBoolSetting(bsi, "Achievements", "Notifications", true) ||
 											GetEffectiveBoolSetting(bsi, "Achievements", "LeaderboardNotifications", true);
 		if (notifications_enabled)
 		{
 			DrawIntListSetting(bsi, FSUI_ICONSTR(ICON_FA_BELL, "Notification Position"),
-				FSUI_CSTR("Determines where achievement notification popups are positioned on the screen."), "Achievements", "NotificationPosition", 
+				FSUI_CSTR("Determines where achievement/leaderboard notification popups are positioned on the screen."), "Achievements", "NotificationPosition",
 				2, alignment_options, std::size(alignment_options), true, 0, enabled);
 		}
 	}
@@ -8914,4 +8911,3 @@ TRANSLATE_NOOP("FullscreenUI", "Card Name");
 TRANSLATE_NOOP("FullscreenUI", "Eject Card");
 // TRANSLATION-STRING-AREA-END
 #endif
-
