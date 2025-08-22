@@ -2987,6 +2987,7 @@ SCED-50642:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SCED-50660:
   name: "Dropship - United Peace Force"
   region: "PAL-A"
@@ -4859,6 +4860,7 @@ SCES-50490:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SCES-50491:
   name: "Final Fantasy X"
   region: "PAL-F"
@@ -4873,12 +4875,13 @@ SCES-50491:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SCES-50492:
   name: "Final Fantasy X"
   region: "PAL-G"
-  compat: 5
   gameFixes:
     - SoftwareRendererFMVHack # Fixes interlacing.
+  compat: 5
   roundModes:
     eeRoundMode: 2 # Fixes cutscene animations while slightly dislocating a few select meshes. Setting round mode to Chop/Zero or Nearest fixes the issues with meshes at the cost of breaking important cutscenes.
   clampModes:
@@ -4888,6 +4891,7 @@ SCES-50492:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SCES-50493:
   name: "Final Fantasy X"
   region: "PAL-I"
@@ -4902,6 +4906,7 @@ SCES-50493:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SCES-50494:
   name: "Final Fantasy X"
   region: "PAL-S"
@@ -4916,6 +4921,7 @@ SCES-50494:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SCES-50499:
   name: "Ecco the Dolphin - Defender of the Future"
   region: "PAL-M5"
@@ -13862,7 +13868,7 @@ SLED-53731:
   name: "Battlefield 2 - Modern Combat [Demo]"
   region: "PAL-E"
   gsHWFixes:
-    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    recommendedBlendingLevel: 4 # Fixes ground texture rendering.
     autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
     texturePreloading: 1 # Improves performance.
@@ -24110,7 +24116,7 @@ SLES-53729:
   name: "Battlefield 2 - Modern Combat"
   region: "PAL-M4"
   gsHWFixes:
-    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    recommendedBlendingLevel: 4 # Fixes ground texture rendering.
     autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
     texturePreloading: 1 # Improves performance.
@@ -24120,7 +24126,7 @@ SLES-53730:
   name: "Battlefield 2 - Modern Combat"
   region: "PAL-M3"
   gsHWFixes:
-    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    recommendedBlendingLevel: 4 # Fixes ground texture rendering.
     autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
     texturePreloading: 1 # Improves performance.
@@ -31429,6 +31435,7 @@ SLKA-25214:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SLKA-25215:
   name: "Shining Wind"
   region: "NTSC-K"
@@ -32877,7 +32884,7 @@ SLPM-55034:
   name-en: "Battlefield 2 - Modern Combat [EA:SY! 1980]"
   region: "NTSC-J"
   gsHWFixes:
-    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    recommendedBlendingLevel: 4 # Fixes ground texture rendering.
     autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
     texturePreloading: 1 # Improves performance.
@@ -40700,6 +40707,7 @@ SLPM-65115:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SLPM-65116:
   name: "リリーのアトリエ プラス ～ザールブルグの錬金術士3～"
   name-sort: "りりーのあとりえ ぷらす ～ざーるぶるぐのれんきんじゅつし3～"
@@ -46597,6 +46605,7 @@ SLPM-66124:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SLPM-66125:
   name: "ファイナルファンタジーⅩ-2 [Ultimate Hits]"
   name-sort: "ふぁいなるふぁんたじー10-2 [Ultimate Hits]"
@@ -47103,7 +47112,7 @@ SLPM-66206:
   name-en: "Battlefield 2 - Modern Combat"
   region: "NTSC-J"
   gsHWFixes:
-    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    recommendedBlendingLevel: 4 # Fixes ground texture rendering.
     autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
     texturePreloading: 1 # Improves performance.
@@ -49916,7 +49925,7 @@ SLPM-66651:
   name-en: "Battlefield 2 - Modern Combat [EA Best Hits]"
   region: "NTSC-J"
   gsHWFixes:
-    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    recommendedBlendingLevel: 4 # Fixes ground texture rendering.
     autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
     texturePreloading: 1 # Improves performance.
@@ -50118,6 +50127,7 @@ SLPM-66677:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SLPM-66678:
   name: "ファイナルファンタジーⅩ-2 インターナショナル+ラストミッション [Ultimate Hits]"
   name-sort: "ふぁいなるふぁんたじー10-2 いんたーなしょなる+らすとみっしょん [Ultimate Hits]"
@@ -52180,6 +52190,7 @@ SLPM-67513:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SLPM-67514:
   name: "Kessen"
   region: "NTSC-K"
@@ -56218,6 +56229,7 @@ SLPS-25050:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SLPS-25051:
   name: "Missing Blue [通常版]"
   name-sort: "みっしんぐ ぶるー [つうじょうばん]"
@@ -56446,6 +56458,7 @@ SLPS-25088:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SLPS-25089:
   name: "SALT LAKE 2002"
   name-sort: "そるとれいく 2002"
@@ -61871,6 +61884,7 @@ SLPS-72501:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SLPS-72502:
   name: "テイルズ オブ デスティニー2 [MEGA HITS!]"
   name-sort: "ているず おぶ ですてぃにー2 [MEGA HITS!]"
@@ -64098,6 +64112,7 @@ SLUS-20312:
     recommendedBlendingLevel: 4 # Fixes missing effect on the magus sisters.
     roundSprite: 2 # Fixes font artifacts.
     autoFlush: 1 # Fixes blur effect on attacks.
+    preloadFrameData: 1 # Fixes an issue that causes FMVs to flicker black when subtitles appear on screen.
 SLUS-20313:
   name: "Wave Rally"
   region: "NTSC-U"
@@ -68092,7 +68107,7 @@ SLUS-21026:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
-    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    recommendedBlendingLevel: 4 # Fixes ground texture rendering.
     autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
     texturePreloading: 1 # Improves performance.
@@ -74173,7 +74188,7 @@ SLUS-29117:
   name: "Battlefield 2 - Modern Combat [Public Beta Vol.1.0]"
   region: "NTSC-U"
   gsHWFixes:
-    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    recommendedBlendingLevel: 4 # Fixes ground texture rendering.
     autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
     texturePreloading: 1 # Improves performance.
@@ -74329,7 +74344,7 @@ SLUS-29152:
   name: "Battlefield 2 - Modern Combat [Regular Demo]"
   region: "NTSC-U"
   gsHWFixes:
-    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    recommendedBlendingLevel: 4 # Fixes ground texture rendering.
     autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
     texturePreloading: 1 # Improves performance.
@@ -74446,7 +74461,7 @@ SLUS-29172:
   name: "Battlefield 2 - Modern Combat [Demo]"
   region: "NTSC-U"
   gsHWFixes:
-    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    recommendedBlendingLevel: 4 # Fixes ground texture rendering.
     autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
     texturePreloading: 1 # Improves performance.
