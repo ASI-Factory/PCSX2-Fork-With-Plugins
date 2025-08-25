@@ -7691,14 +7691,18 @@ SCKA-20086:
   name: "Shin Onimusha - Dawn of Dreams [Disc 1 of 2]"
   region: "NTSC-K"
   gsHWFixes:
-    halfPixelOffset: 4 # Mostly aligns post-processing.
+    recommendedBlendingLevel: 2 # Improves brightness.
+    halfPixelOffset: 5 # Mostly aligns post-processing.
     nativeScaling: 2 # Fixes post-processing smoothness and position.
+    bilinearUpscale: 2 # Attempts to sharpen blurry text in menus.
 SCKA-20087:
   name: "Shin Onimusha - Dawn of Dreams [Disc 2 of 2]"
   region: "NTSC-K"
   gsHWFixes:
-    halfPixelOffset: 4 # Mostly aligns post-processing.
+    recommendedBlendingLevel: 2 # Improves brightness.
+    halfPixelOffset: 5 # Mostly aligns post-processing.
     nativeScaling: 2 # Fixes post-processing smoothness and position.
+    bilinearUpscale: 2 # Attempts to sharpen blurry text in menus.
   memcardFilters:
     - "SCKA-20086"
 SCKA-20088:
@@ -26518,8 +26522,11 @@ SLES-54508:
   name: "National Geographic - Safari Adventures Africa"
   region: "PAL-M6"
 SLES-54510:
-  name: "Meet the Robinsons"
+  name: "Walt Disney Pictures Presents Meet the Robinsons"
   region: "PAL-M3"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes bloom alignment.
+    nativeScaling: 1 # Fixes bloom effects.
 SLES-54511:
   name: "UEFA Champions League 2006-2007"
   region: "PAL-E"
@@ -27042,8 +27049,11 @@ SLES-54677:
   region: "PAL-E"
   compat: 5
 SLES-54679:
-  name: "Metal Slug - Anthology"
+  name: "Walt Disney Pictures Presents Meet the Robinsons"
   region: "PAL-M3"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes bloom alignment.
+    nativeScaling: 1 # Fixes bloom effects.
 SLES-54681:
   name: "Burnout Dominator"
   region: "PAL-E"
@@ -30247,15 +30257,19 @@ SLES-82038:
   region: "PAL-M5"
   compat: 5
   gsHWFixes:
-    halfPixelOffset: 4 # Mostly aligns post-processing.
+    recommendedBlendingLevel: 2 # Improves brightness.
+    halfPixelOffset: 5 # Mostly aligns post-processing.
     nativeScaling: 2 # Fixes post-processing smoothness and position.
+    bilinearUpscale: 2 # Attempts to sharpen blurry text in menus.
 SLES-82039:
   name: "Onimusha - Dawn of Dreams [Disc 2 of 2]"
   region: "PAL-M5"
   compat: 5
   gsHWFixes:
-    halfPixelOffset: 4 # Mostly aligns post-processing.
+    recommendedBlendingLevel: 2 # Improves brightness.
+    halfPixelOffset: 5 # Mostly aligns post-processing.
     nativeScaling: 2 # Fixes post-processing smoothness and position.
+    bilinearUpscale: 2 # Attempts to sharpen blurry text in menus.
   memcardFilters:
     - "SLES-82038"
 SLES-82042:
@@ -47587,8 +47601,10 @@ SLPM-66275:
   region: "NTSC-J"
   compat: 5
   gsHWFixes:
-    halfPixelOffset: 4 # Mostly aligns post-processing.
+    recommendedBlendingLevel: 2 # Improves brightness.
+    halfPixelOffset: 5 # Mostly aligns post-processing.
     nativeScaling: 2 # Fixes post-processing smoothness and position.
+    bilinearUpscale: 2 # Attempts to sharpen blurry text in menus.
 SLPM-66276:
   name: "新 鬼武者 DAWN OF DREAMS [ディスク2/2]"
   name-sort: "しん おにむしゃ DAWN OF DREAMS [でぃすく2/2]"
@@ -47596,8 +47612,10 @@ SLPM-66276:
   region: "NTSC-J"
   compat: 5
   gsHWFixes:
-    halfPixelOffset: 4 # Mostly aligns post-processing.
+    recommendedBlendingLevel: 2 # Improves brightness.
+    halfPixelOffset: 5 # Mostly aligns post-processing.
     nativeScaling: 2 # Fixes post-processing smoothness and position.
+    bilinearUpscale: 2 # Attempts to sharpen blurry text in menus.
   memcardFilters:
     - "SLPM-66275"
 SLPM-66277:
@@ -51066,8 +51084,11 @@ SLPM-66829:
 SLPM-66830:
   name: "ルイスと未来泥棒"
   name-sort: "るいすとみらいどろぼう"
-  name-en: "Lewis and the Future Thief"
+  name-en: "Walt Disney Pictures Presents Lewis to Mirai Dorobou - Wilbur no Kiken na Jikan Ryokou"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes bloom alignment.
+    nativeScaling: 1 # Fixes bloom effects.
 SLPM-66832:
   name: "テニスの王子様 ドキドキサバイバル 海辺のSecret [KONAMI The Best]"
   name-sort: "てにすのおうじさま どきどきさばいばる うみべのしーくれっと [KONAMI The Best]"
@@ -52807,8 +52828,10 @@ SLPM-74232:
   gameFixes:
     - SoftwareRendererFMVHack # Wrong white textures in FMV.
   gsHWFixes:
-    halfPixelOffset: 4 # Mostly aligns post-processing.
+    recommendedBlendingLevel: 2 # Improves brightness.
+    halfPixelOffset: 5 # Mostly aligns post-processing.
     nativeScaling: 2 # Fixes post-processing smoothness and position.
+    bilinearUpscale: 2 # Attempts to sharpen blurry text in menus.
   memcardFilters:
     - "SLPM-66275"
 SLPM-74233:
@@ -52817,8 +52840,10 @@ SLPM-74233:
   name-en: "Shin Onimusha - Dawn of Dreams [PlayStation2 the Best] [Disc 2 of 2]"
   region: "NTSC-J"
   gsHWFixes:
-    halfPixelOffset: 4 # Mostly aligns post-processing.
+    recommendedBlendingLevel: 2 # Improves brightness.
+    halfPixelOffset: 5 # Mostly aligns post-processing.
     nativeScaling: 2 # Fixes post-processing smoothness and position.
+    bilinearUpscale: 2 # Attempts to sharpen blurry text in menus.
   memcardFilters:
     - "SLPM-74232"
 SLPM-74234:
@@ -52966,8 +52991,10 @@ SLPM-74251:
   name-en: "Shin Onimusha - Dawn of Dreams [PlayStation 2 the Best - Reprint Disc 1]"
   region: "NTSC-J"
   gsHWFixes:
-    halfPixelOffset: 4 # Mostly aligns post-processing.
+    recommendedBlendingLevel: 2 # Improves brightness.
+    halfPixelOffset: 5 # Mostly aligns post-processing.
     nativeScaling: 2 # Fixes post-processing smoothness and position.
+    bilinearUpscale: 2 # Attempts to sharpen blurry text in menus.
   memcardFilters:
     - "SLPM-66275"
 SLPM-74252:
@@ -52976,8 +53003,10 @@ SLPM-74252:
   name-en: "Shin Onimusha - Dawn of Dreams [PlayStation 2 the Best - Reprint Disc 2]"
   region: "NTSC-J"
   gsHWFixes:
-    halfPixelOffset: 4 # Mostly aligns post-processing.
+    recommendedBlendingLevel: 2 # Improves brightness.
+    halfPixelOffset: 5 # Mostly aligns post-processing.
     nativeScaling: 2 # Fixes post-processing smoothness and position.
+    bilinearUpscale: 2 # Attempts to sharpen blurry text in menus.
   memcardFilters:
     - "SLPM-74251"
 SLPM-74253:
@@ -69000,8 +69029,10 @@ SLUS-21180:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
-    halfPixelOffset: 4 # Mostly aligns post-processing.
+    recommendedBlendingLevel: 2 # Improves brightness.
+    halfPixelOffset: 5 # Mostly aligns post-processing.
     nativeScaling: 2 # Fixes post-processing smoothness and position.
+    bilinearUpscale: 2 # Attempts to sharpen blurry text in menus.
 SLUS-21181:
   name: "D.I.C.E. - DNA Integrated Cybernetic Enterprises"
   region: "NTSC-U"
@@ -70348,8 +70379,10 @@ SLUS-21362:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
-    halfPixelOffset: 4 # Mostly aligns post-processing.
+    recommendedBlendingLevel: 2 # Improves brightness.
+    halfPixelOffset: 5 # Mostly aligns post-processing.
     nativeScaling: 2 # Fixes post-processing smoothness and position.
+    bilinearUpscale: 2 # Attempts to sharpen blurry text in menus.
   memcardFilters:
     - "SLUS-21180"
 SLUS-21363:
@@ -70964,9 +70997,12 @@ SLUS-21452:
     roundSprite: 1 # Fixes lines in transitions.
     autoFlush: 2 # Fixes shadow rendering in certain scenarios when using DirectX.
 SLUS-21453:
-  name: "Meet the Robinsons"
+  name: "Walt Disney Pictures Presents Meet the Robinsons"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 5 # Fixes bloom alignment.
+    nativeScaling: 1 # Fixes bloom effects.
 SLUS-21454:
   name: "DreamWorks Shrek the Third"
   region: "NTSC-U"

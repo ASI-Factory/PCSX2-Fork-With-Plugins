@@ -52,6 +52,7 @@
 #include "common/StringUtil.h"
 #include "common/Threading.h"
 #include "common/Timer.h"
+#include "common/emitter/x86emitter.h"
 
 #include "IconsFontAwesome6.h"
 #include "IconsPromptFont.h"
@@ -503,6 +504,10 @@ bool VMManager::Internal::CPUThreadInitialize()
 
 	if (!cpuinfo_initialize())
 		Console.Error("cpuinfo_initialize() failed.");
+
+#ifdef _M_X86
+	x86Emitter::use_avx = g_cpu.vectorISA >= ProcessorFeatures::VectorISA::AVX;
+#endif
 
 	LogCPUCapabilities();
 
@@ -2642,11 +2647,11 @@ void VMManager::LogCPUCapabilities()
 
 #ifdef _M_X86
 	std::string extensions;
-	if (cpuinfo_has_x86_avx())
+	if (g_cpu.vectorISA >= ProcessorFeatures::VectorISA::AVX)
 		extensions += "AVX ";
-	if (cpuinfo_has_x86_avx2())
+	if (g_cpu.vectorISA >= ProcessorFeatures::VectorISA::AVX2)
 		extensions += "AVX2 ";
-	if (cpuinfo_has_x86_avx512f())
+	if (g_cpu.vectorISA >= ProcessorFeatures::VectorISA::AVX512F)
 		extensions += "AVX512F ";
 #ifdef _M_ARM64
 	if (cpuinfo_has_arm_neon())
