@@ -55,7 +55,7 @@ GSDevice11::GSDevice11()
 	m_features.framebuffer_fetch = false;
 	m_features.stencil_buffer = true;
 	m_features.cas_sharpening = true;
-	m_features.test_and_sample_depth = false;
+	m_features.test_and_sample_depth = true;
 }
 
 GSDevice11::~GSDevice11() = default;
@@ -978,7 +978,7 @@ void GSDevice11::EndPresent()
 		KickTimestampQuery();
 
 	// clear out the swap chain view, it might get resized..
-	OMSetRenderTargets(nullptr, nullptr, nullptr);
+	OMSetRenderTargets(nullptr, nullptr, nullptr, nullptr);
 }
 
 bool GSDevice11::CreateTimestampQueries()
@@ -1233,18 +1233,17 @@ void GSDevice11::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r,
 
 	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 
-	D3D11_BOX box = {static_cast<UINT>(r.left), static_cast<UINT>(r.top), 0U, static_cast<UINT>(r.right), static_cast<UINT>(r.bottom), 1U};
-
 	// DX11 doesn't support partial depth copy so we need to
 	// either pass a nullptr D3D11_BOX for a full depth copy or use CopyResource instead.
-	// Alternatively use shader copy StretchRect, or full depth copy with
-	// adjusting the scissor and UVs in the shader.
-	const bool depth = (sTex->GetType() == GSTexture::Type::DepthStencil);
-	auto pBox = depth ? nullptr : &box;
-	const u32 x = depth ? 0 : destX;
-	const u32 y = depth ? 0 : destY;
+	// Optimization: Use CopyResource for depth copies, it's faster than CopySubresourceRegion.
+	if (sTex->GetType() == GSTexture::Type::DepthStencil)
+	{
+		m_ctx->CopyResource(*static_cast<GSTexture11*>(dTex), *static_cast<GSTexture11*>(sTex));
+		return;
+	}
 
-	m_ctx->CopySubresourceRegion(*(GSTexture11*)dTex, 0, x, y, 0, *(GSTexture11*)sTex, 0, pBox);
+	D3D11_BOX box = {static_cast<UINT>(r.left), static_cast<UINT>(r.top), 0U, static_cast<UINT>(r.right), static_cast<UINT>(r.bottom), 1U};
+	m_ctx->CopySubresourceRegion(*static_cast<GSTexture11*>(dTex), 0, destX, destY, 0, *static_cast<GSTexture11*>(sTex), 0, &box);
 }
 
 void GSDevice11::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderConvert shader, bool linear)
@@ -2453,7 +2452,7 @@ void GSDevice11::OMSetBlendState(ID3D11BlendState* bs, u8 bf)
 	}
 }
 
-void GSDevice11::OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVector4i* scissor)
+void GSDevice11::OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVector4i* scissor, ID3D11DepthStencilView* read_only_dsv)
 {
 	ID3D11RenderTargetView* rtv = nullptr;
 	ID3D11DepthStencilView* dsv = nullptr;
@@ -2463,7 +2462,11 @@ void GSDevice11::OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVector
 		CommitClear(rt);
 		rtv = *static_cast<GSTexture11*>(rt);
 	}
-	if (ds)
+	if (read_only_dsv)
+	{
+		dsv = read_only_dsv;
+	}
+	else if (ds)
 	{
 		CommitClear(ds);
 		dsv = *static_cast<GSTexture11*>(ds);
@@ -2698,23 +2701,13 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 
 	}
 
-	GSTexture* draw_ds_clone = nullptr;
-
-	if (config.tex && config.tex == config.ds)
-	{
-		// DX requires a copy when sampling the depth buffer.
-		draw_ds_clone = CreateDepthStencil(rtsize.x, rtsize.y, config.ds->GetFormat(), false);
-		if (draw_ds_clone)
-		{
-			CopyRect(config.ds, draw_ds_clone, config.drawarea, config.drawarea.left, config.drawarea.top);
-			PSSetShaderResource(0, draw_ds_clone);
-		}
-		else
-			Console.Warning("D3D11: Failed to allocate temp texture for DS copy.");
-	}
-
 	SetupVS(config.vs, &config.cb_vs);
 	SetupPS(config.ps, &config.cb_ps, config.sampler);
+
+	// Depth testing and sampling, bind resource as dsv read only and srv at the same time without the need of a copy.
+	ID3D11DepthStencilView* read_only_dsv = nullptr;
+	if (config.tex && config.tex == config.ds)
+		read_only_dsv = static_cast<GSTexture11*>(config.ds)->ReadOnlyDepthStencilView();
 
 	if (primid_texture)
 	{
@@ -2723,7 +2716,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 		const OMBlendSelector blend(GSHWDrawConfig::ColorMaskSelector(1),
 			GSHWDrawConfig::BlendState(true, CONST_ONE, CONST_ONE, 3 /* MIN */, CONST_ONE, CONST_ZERO, false, 0));
 		SetupOM(dss, blend, 0);
-		OMSetRenderTargets(primid_texture, config.ds, &config.scissor);
+		OMSetRenderTargets(primid_texture, config.ds, &config.scissor, read_only_dsv);
 		DrawIndexedPrimitive();
 
 		config.ps.date = 3;
@@ -2749,7 +2742,11 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 		draw_ds = m_state.cached_dsv;
 	}
 
-	OMSetRenderTargets(draw_rt, draw_ds, &config.scissor);
+	// Update again as it may have changed.
+	if (config.tex && config.tex == config.ds)
+		read_only_dsv = static_cast<GSTexture11*>(draw_ds)->ReadOnlyDepthStencilView();
+
+	OMSetRenderTargets(draw_rt, draw_ds, &config.scissor, read_only_dsv);
 	SetupOM(config.depth, OMBlendSelector(config.colormask, config.blend), config.blend.constant);
 	DrawIndexedPrimitive();
 
@@ -2781,9 +2778,6 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 
 	if (draw_rt_clone)
 		Recycle(draw_rt_clone);
-
-	if (draw_ds_clone)
-		Recycle(draw_ds_clone);
 
 	if (primid_texture)
 		Recycle(primid_texture);

@@ -173,6 +173,24 @@ GSTexture11::operator ID3D11UnorderedAccessView*()
 	return m_uav.get();
 }
 
+ID3D11DepthStencilView* GSTexture11::ReadOnlyDepthStencilView()
+{
+	if (!m_read_only_dsv)
+	{
+		if (m_desc.Format == DXGI_FORMAT_R32G8X24_TYPELESS || m_desc.Format == DXGI_FORMAT_D32_FLOAT_S8X24_UINT)
+		{
+			D3D11_DEPTH_STENCIL_VIEW_DESC desc = {};
+			desc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+			desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+			desc.Flags = D3D11_DSV_READ_ONLY_DEPTH;
+
+			GSDevice11::GetInstance()->GetD3DDevice()->CreateDepthStencilView(m_texture.get(), &desc, m_read_only_dsv.put());
+		}
+	}
+
+	return m_read_only_dsv.get();
+}
+
 GSDownloadTexture11::GSDownloadTexture11(wil::com_ptr_nothrow<ID3D11Texture2D> tex, u32 width, u32 height, GSTexture::Format format)
 	: GSDownloadTexture(width, height, format)
 	, m_texture(std::move(tex))
@@ -225,11 +243,13 @@ void GSDownloadTexture11::CopyFromTexture(
 	if (IsMapped())
 		Unmap();
 
-	// depth textures need to copy the whole thing..
+	// DX11 doesn't support partial depth copy so we need to
+	// either pass a nullptr D3D11_BOX for a full depth copy or use CopyResource instead.
+	// Optimization: Use CopyResource for depth copies, it's faster than CopySubresourceRegion.
 	if (m_format == GSTexture::Format::DepthStencil)
 	{
-		GSDevice11::GetInstance()->GetD3DContext()->CopySubresourceRegion(
-			m_texture.get(), 0, 0, 0, 0, *static_cast<GSTexture11*>(stex), src_level, nullptr);
+		GSDevice11::GetInstance()->GetD3DContext()->CopyResource(
+			m_texture.get(), *static_cast<GSTexture11*>(stex));
 	}
 	else
 	{
