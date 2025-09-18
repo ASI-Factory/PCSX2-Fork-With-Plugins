@@ -710,7 +710,8 @@ std::optional<bool> Pcsx2Config::GSOptions::TriStateToOptionalBoolean(int value)
 
 Pcsx2Config::GSOptions::GSOptions()
 {
-	bitset = 0;
+	bitset[0] = 0;
+	bitset[1] = 0;
 
 	PCRTCAntiBlur = true;
 	DisableInterlaceOffset = false;
