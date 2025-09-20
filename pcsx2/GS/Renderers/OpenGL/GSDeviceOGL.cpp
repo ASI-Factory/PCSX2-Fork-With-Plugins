@@ -1430,12 +1430,25 @@ void GSDeviceOGL::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r
 {
 	const GLuint& sid = static_cast<GSTextureOGL*>(sTex)->GetID();
 	const GLuint& did = static_cast<GSTextureOGL*>(dTex)->GetID();
-	CommitClear(sTex, false);
-	CommitClear(dTex, false);
+	const GSVector4i dst_rect(0, 0, dTex->GetWidth(), dTex->GetHeight());
+	const bool full_draw_copy = dst_rect.eq(r);
 
-	GL_PUSH("CopyRect from %d to %d", sid, did);
+	// Source is cleared, if destination is a render target, we can carry the clear forward.
+	if (sTex->GetState() == GSTexture::State::Cleared)
+	{
+		if (dTex->IsRenderTargetOrDepthStencil() && ProcessClearsBeforeCopy(sTex, dTex, full_draw_copy))
+			return;
+
+		// Commit clear for the source texture.
+		CommitClear(sTex, false);
+	}
 
 	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+	GL_PUSH("CopyRect from %d to %d", sid, did);
+
+	// Commit destination clear if partially overwritten (color only).
+	if (dTex->GetState() == GSTexture::State::Cleared && !full_draw_copy)
+		CommitClear(dTex, false);
 
 	if (GLAD_GL_VERSION_4_3 || GLAD_GL_ARB_copy_image)
 	{
@@ -1447,6 +1460,8 @@ void GSDeviceOGL::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r
 		glCopyImageSubDataEXT(sid, GL_TEXTURE_2D, 0, r.x, r.y, 0, did, GL_TEXTURE_2D,
 			0, destX, destY, 0, r.width(), r.height(), 1);
 	}
+
+	dTex->SetState(GSTexture::State::Dirty);
 }
 
 void GSDeviceOGL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderConvert shader, bool linear)

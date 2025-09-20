@@ -3981,7 +3981,7 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 #ifdef __APPLE__
 		FSUI_NSTR("Metal"),
 #endif
-		FSUI_NSTR("Software"),
+		FSUI_NSTR("Software Renderer"),
 		FSUI_NSTR("Null"),
 	};
 	static constexpr const char* s_renderer_values[] = {
@@ -4128,8 +4128,8 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 
 	BeginMenuButtons();
 
-	MenuHeading(FSUI_CSTR("Renderer"));
-	DrawStringListSetting(bsi, FSUI_ICONSTR(ICON_FA_PAINTBRUSH, "Renderer"), FSUI_CSTR("Selects the API used to render the emulated GS."), "EmuCore/GS",
+	MenuHeading(FSUI_CSTR("Graphics API"));
+	DrawStringListSetting(bsi, FSUI_ICONSTR(ICON_FA_PAINTBRUSH, "Graphics API"), FSUI_CSTR("Selects the API used to render the emulated GS."), "EmuCore/GS",
 		"Renderer", "-1", s_renderer_names, s_renderer_values, std::size(s_renderer_names), true);
 
 	MenuHeading(FSUI_CSTR("Display"));
@@ -8140,7 +8140,7 @@ TRANSLATE_NOOP("FullscreenUI", "Synchronize EE and GS threads after each frame. 
 TRANSLATE_NOOP("FullscreenUI", "Synchronizes frame presentation with host refresh.");
 TRANSLATE_NOOP("FullscreenUI", "Speeds up emulation so that the guest refresh rate matches the host.");
 TRANSLATE_NOOP("FullscreenUI", "Disables PCSX2's internal frame timing, and uses host vsync instead.");
-TRANSLATE_NOOP("FullscreenUI", "Renderer");
+TRANSLATE_NOOP("FullscreenUI", "Graphics API");
 TRANSLATE_NOOP("FullscreenUI", "Selects the API used to render the emulated GS.");
 TRANSLATE_NOOP("FullscreenUI", "Display");
 TRANSLATE_NOOP("FullscreenUI", "Selects the aspect ratio to display the game content at.");
@@ -8574,7 +8574,7 @@ TRANSLATE_NOOP("FullscreenUI", "Direct3D 12 (Not Recommended)");
 TRANSLATE_NOOP("FullscreenUI", "OpenGL");
 TRANSLATE_NOOP("FullscreenUI", "Vulkan");
 TRANSLATE_NOOP("FullscreenUI", "Metal");
-TRANSLATE_NOOP("FullscreenUI", "Software");
+TRANSLATE_NOOP("FullscreenUI", "Software Renderer");
 TRANSLATE_NOOP("FullscreenUI", "Null");
 TRANSLATE_NOOP("FullscreenUI", "Off");
 TRANSLATE_NOOP("FullscreenUI", "Bilinear (Smooth)");
