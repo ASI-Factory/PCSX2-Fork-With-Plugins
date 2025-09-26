@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0+
 
 #include "Host.h"
+#include "GS/GSGL.h"
 #include "GS/Renderers/Metal/GSMetalCPPAccessible.h"
 #include "GS/Renderers/Metal/GSDeviceMTL.h"
 #include "GS/Renderers/Metal/GSTextureMTL.h"
@@ -1471,6 +1472,13 @@ void GSDeviceMTL::ClearSamplerCache()
 
 void GSDeviceMTL::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY)
 { @autoreleasepool {
+	// Empty rect, abort copy.
+	if (r.rempty())
+	{
+		GL_INS("Metal: CopyRect rect empty.");
+		return;
+	}
+	
 	GSTextureMTL* sT = static_cast<GSTextureMTL*>(sTex);
 	GSTextureMTL* dT = static_cast<GSTextureMTL*>(dTex);
 	const GSVector4i dst_rect(0, 0, dT->GetWidth(), dT->GetHeight());

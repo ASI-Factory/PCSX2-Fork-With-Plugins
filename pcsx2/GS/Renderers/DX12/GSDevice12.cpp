@@ -1337,6 +1337,13 @@ std::unique_ptr<GSDownloadTexture> GSDevice12::CreateDownloadTexture(u32 width, 
 
 void GSDevice12::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY)
 {
+	// Empty rect, abort copy.
+	if (r.rempty())
+	{
+		GL_INS("D3D12: CopyRect rect empty.");
+		return;
+	}
+
 	GSTexture12* const sTex12 = static_cast<GSTexture12*>(sTex);
 	GSTexture12* const dTex12 = static_cast<GSTexture12*>(dTex);
 	const GSVector4i dst_rect(0, 0, dTex12->GetWidth(), dTex12->GetHeight());

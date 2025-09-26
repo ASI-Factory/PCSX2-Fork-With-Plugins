@@ -478,11 +478,13 @@ void GSState::DumpVertices(const std::string& filename)
 	constexpr const char* CLOSE_MAP = "}";
 	
 	constexpr int TRACE_INDEX_WIDTH = 10;
-	constexpr int XYUV_WIDTH = 9;
+	constexpr int XYUV_WIDTH = 10;
 	constexpr int Z_WIDTH = 10;
 	constexpr int RGBA_WIDTH = 3;
 	constexpr int SCI_FLOAT_WIDTH = 15;
 	constexpr int STQ_BITS_WIDTH = 10;
+
+	const int n = GSUtil::GetClassVertexCount(m_vt.m_primclass);
 
 	auto WriteVertexIndex = [&file](int index) {
 		file << std::left << std::dec << " # " << index;
@@ -550,6 +552,10 @@ void GSState::DumpVertices(const std::string& filename)
 		WriteRGBA_vec(vec);
 	};
 
+	auto WriteF = [&file](const int f) {
+		file << "F: " << std::setw(RGBA_WIDTH) << std::setfill(' ') << f;
+	};
+
 	auto WriteSTQ_vec = [&file](const GSVector4& v) {
 		file << std::defaultfloat << std::right;
 		file << "S: " << std::setw(SCI_FLOAT_WIDTH) << std::setfill(' ') << v.x << DEL;
@@ -589,12 +595,15 @@ void GSState::DumpVertices(const std::string& filename)
 	file << std::endl;
 
 	// Dump vertices
-	file << "vertex:" << std::endl;
+	file << "vertex: # " << GSUtil::GetPrimClassName(m_vt.m_primclass) << std::endl;
 	const u32 count = m_index.tail;
 	GSVertex* buffer = &m_vertex.buff[0];
 	for (u32 i = 0; i < count; ++i)
 	{
 		GSVertex v = buffer[m_index.buff[i]];
+
+		if ((n > 1) && (i > 0) && ((i % n) == 0))
+			file << std::endl;
 		
 		file << INDENT << LIST_ITEM << OPEN_MAP;
 		WriteXYZ_vert(v);
@@ -605,6 +614,11 @@ void GSState::DumpVertices(const std::string& filename)
 		}
 		file << DEL;
 		WriteRGBA_vert(v);
+		if (PRIM->FGE)
+		{
+			file << DEL;
+			WriteF(v.FOG);
+		}
 		file << CLOSE_MAP;
 
 		WriteVertexIndex(i);
@@ -617,9 +631,12 @@ void GSState::DumpVertices(const std::string& filename)
 	// Dump extra info for STQ
 	if (PRIM->TME && !PRIM->FST)
 	{
-		file << "vertex_stq:" << std::endl;
+		file << "vertex_stq: # " << GSUtil::GetPrimClassName(m_vt.m_primclass) << std::endl;
 		for (u32 i = 0; i < count; ++i)
 		{
+			if ((n > 1) && (i > 0) && ((i % n) == 0))
+				file << std::endl;
+
 			file << INDENT << LIST_ITEM << OPEN_MAP;
 			WriteSTQ_vert(buffer[m_index.buff[i]]);
 			file << CLOSE_MAP;
@@ -628,9 +645,9 @@ void GSState::DumpVertices(const std::string& filename)
 
 			file << std::endl;
 		}
+		
+		file << std::endl;
 	}
-
-	file << std::endl;
 
 	// Dump vertex trace
 	file << "vertex_trace:" << std::endl;
@@ -693,6 +710,21 @@ void GSState::DumpVertices(const std::string& filename)
 	WriteRGBA_vec(m_vt.m_max.c);
 	file << CLOSE_MAP << std::endl;
 
+	if (PRIM->FGE)
+	{
+		file << INDENT;
+		WriteTraceIndex("min_f: ");
+		file << OPEN_MAP;
+		WriteF(m_vt.m_min.p.w);
+		file << CLOSE_MAP << std::endl;
+
+		file << INDENT;
+		WriteTraceIndex("max_f: ");
+		file << OPEN_MAP;
+		WriteF(m_vt.m_max.p.w);
+		file << CLOSE_MAP << std::endl;
+	}
+
 	file << std::endl;
 
 	file << INDENT;
@@ -728,6 +760,15 @@ void GSState::DumpVertices(const std::string& filename)
 	file << OPEN_MAP;
 	WriteBools({"R", "G", "B", "A"}, {m_vt.m_eq.r, m_vt.m_eq.g, m_vt.m_eq.b, m_vt.m_eq.a});
 	file << CLOSE_MAP << std::endl;
+
+	if (PRIM->FGE)
+	{
+		file << INDENT;
+		WriteTraceIndex("eq_f: ");
+		file << OPEN_MAP;
+		WriteBools({"F"}, {m_vt.m_eq.f});
+		file << CLOSE_MAP << std::endl;
+	}
 }
 
 void GSState::DumpTransferList(const std::string& filename)
