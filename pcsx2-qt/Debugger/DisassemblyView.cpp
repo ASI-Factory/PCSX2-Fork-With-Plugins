@@ -21,6 +21,7 @@
 #include <QtWidgets/QInputDialog>
 #include <QtWidgets/QMessageBox>
 #include "SymbolTree/NewSymbolDialogs.h"
+#include "common/StringUtil.h"
 
 using namespace QtUtils;
 
@@ -104,6 +105,43 @@ void DisassemblyView::contextCopyInstructionHex()
 void DisassemblyView::contextCopyInstructionText()
 {
 	QGuiApplication::clipboard()->setText(FetchSelectionInfo(SelectionInfo::INSTRUCTIONTEXT));
+}
+
+void DisassemblyView::contextPasteInstructionText()
+{
+	if (!cpu().isCpuPaused())
+	{
+		QMessageBox::warning(this, tr("Assemble Error"), tr("Unable to change assembly while core is running"));
+		return;
+	}
+
+	// split text in clipboard by new lines
+	QString clipboardText = QApplication::clipboard()->text();
+	std::vector<std::string> newInstructions = StringUtil::splitOnNewLine(clipboardText.toLocal8Bit().constData());
+	int newInstructionsSize = newInstructions.size();
+
+	// validate new instructions before pasting them
+	std::vector<u32> encodedInstructions;
+	for (int instructionIdx = 0; instructionIdx < newInstructionsSize; instructionIdx++)
+	{
+		u32 replaceAddress = m_selectedAddressStart + instructionIdx * 4;
+		u32 encodedInstruction;
+		std::string errorText;
+		bool valid = MipsAssembleOpcode(newInstructions[instructionIdx].c_str(), &cpu(), replaceAddress, encodedInstruction, errorText);
+		if (!valid)
+		{
+			QMessageBox::warning(this, tr("Assemble Error"), QString("%1 %2").arg(errorText.c_str()).arg(newInstructions[instructionIdx].c_str()));
+			return;
+		}
+		encodedInstructions.push_back(encodedInstruction);
+	}
+
+	// paste validated instructions
+	for (int instructionIdx = 0; instructionIdx < newInstructionsSize; instructionIdx++)
+	{
+		u32 replaceAddress = m_selectedAddressStart + instructionIdx * 4;
+		setInstructions(replaceAddress, replaceAddress, encodedInstructions[instructionIdx]);
+	}
 }
 
 void DisassemblyView::contextAssembleInstruction()
@@ -705,6 +743,9 @@ void DisassemblyView::openContextMenu(QPoint pos)
 		QAction* copy_function_name_action = menu->addAction(tr("Copy Function Name"));
 		connect(copy_function_name_action, &QAction::triggered, this, &DisassemblyView::contextCopyFunctionName);
 	}
+
+	QAction* paste_instruction_text_action = menu->addAction(tr("Paste Instruction Text"));
+	connect(paste_instruction_text_action, &QAction::triggered, this, &DisassemblyView::contextPasteInstructionText);
 
 	menu->addSeparator();
 
