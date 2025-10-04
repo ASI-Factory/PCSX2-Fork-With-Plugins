@@ -736,6 +736,7 @@ Pcsx2Config::GSOptions::GSOptions()
 	OsdShowGSStats = false;
 	OsdShowIndicators = true;
 	OsdShowSettings = false;
+	OsdshowPatches = false;
 	OsdShowInputs = false;
 	OsdShowFrameTimes = false;
 	OsdShowVersion = false;
@@ -953,6 +954,7 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(OsdShowGSStats);
 	SettingsWrapBitBool(OsdShowIndicators);
 	SettingsWrapBitBool(OsdShowSettings);
+	SettingsWrapBitBool(OsdshowPatches);
 	SettingsWrapBitBool(OsdShowInputs);
 	SettingsWrapBitBool(OsdShowFrameTimes);
 	SettingsWrapBitBool(OsdShowVersion);
