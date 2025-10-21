@@ -1926,6 +1926,7 @@ Pcsx2Config::Pcsx2Config()
 	WarnAboutUnsafeSettings = true;
 	EnableDiscordPresence = false;
 	ManuallySetRealTimeClock = false;
+	UseSystemLocaleFormat = false;
 
 	// To be moved to FileMemoryCard pluign (someday)
 	for (uint slot = 0; slot < 8; ++slot)
@@ -1975,6 +1976,7 @@ void Pcsx2Config::LoadSaveCore(SettingsWrapper& wrap)
 	SettingsWrapBitBool(WarnAboutUnsafeSettings);
 
 	SettingsWrapBitBool(ManuallySetRealTimeClock);
+	SettingsWrapBitBool(UseSystemLocaleFormat);
 
 	// Process various sub-components:
 
