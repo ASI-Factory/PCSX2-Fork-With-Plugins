@@ -1841,6 +1841,25 @@ void FullscreenUI::DrawInputBindingButton(
 		bsi->DeleteValue(section, name);
 		SetSettingsChanged(bsi);
 	}
+	else
+	{
+		if (hovered)
+		{
+			if (ImGuiFullscreen::IsGamepadInputSource())
+			{
+				const bool swapNorthWest = ImGuiManager::IsGamepadNorthWestSwapped();
+				ImGuiFullscreen::QueueFooterHint(std::array{
+					std::make_pair(swapNorthWest ? ICON_PF_BUTTON_TRIANGLE : ICON_PF_BUTTON_SQUARE, FSUI_VSTR("Clear Binding")),
+				});
+			}
+			else
+			{
+				ImGuiFullscreen::QueueFooterHint(std::array{
+					std::make_pair(ICON_PF_RIGHT_CLICK, FSUI_VSTR("Clear Binding")),
+				});
+			}
+		}
+	}
 }
 
 void FullscreenUI::ClearInputBindingVariables()
@@ -8721,6 +8740,7 @@ TRANSLATE_NOOP("FullscreenUI", "About");
 TRANSLATE_NOOP("FullscreenUI", "Navigate");
 TRANSLATE_NOOP("FullscreenUI", "Toggle Fullscreen");
 TRANSLATE_NOOP("FullscreenUI", "Load Global State");
+TRANSLATE_NOOP("FullscreenUI", "Clear Binding");
 TRANSLATE_NOOP("FullscreenUI", "Default");
 TRANSLATE_NOOP("FullscreenUI", "Change Page");
 TRANSLATE_NOOP("FullscreenUI", "Frequency");
