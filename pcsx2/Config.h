@@ -456,6 +456,8 @@ enum class GSNativeScaling : u8
 	Off,
 	Normal,
 	Aggressive,
+	NormalUpscaled,
+	AggressiveUpscaled,
 	MaxCount
 };
 
@@ -1314,7 +1316,7 @@ struct Pcsx2Config
 		InhibitScreensaver : 1,
 		BackupSavestate : 1,
 		McdFolderAutoManage : 1,
-		ManuallySetRealTimeClock : 1,
+		ManuallySetRealTimeClock : 1, // passes user-set real-time clock information to cdvd at startup
 		UseSystemLocaleFormat : 1, // presents OS time format instead of yyyy-MM-dd HH:mm:ss for manual RTC
 
 		HostFs : 1,
