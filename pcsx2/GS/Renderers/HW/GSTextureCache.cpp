@@ -1347,6 +1347,11 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 	int x_offset = 0;
 	int y_offset = 0;
 
+	// Indicates that in looking for targets that match the source BP, we found a perfect BP match
+	// but the target's valid area was outside the required area for the source. In such cases
+	// we want to create a temporary source and load the data from memory.
+	bool target_bp_hit_outside_valid_area = false;
+
 #ifdef DISABLE_HW_TEXTURE_CACHE
 	if (0)
 #else
@@ -1723,8 +1728,17 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 						{
 							const bool outside_target = !t->Overlaps(bp, bw, psm, r);
 
-							if (!possible_shuffle && TEX0.PSM == PSMT8 && outside_target)
+							if (!possible_shuffle && outside_target)
 							{
+								// Hit a target but source required area outside the target's valid area.
+								target_bp_hit_outside_valid_area = true;
+								GL_CACHE(
+									"TC: LookupSource: Target BP match but outside valid area;"
+									" Source=(BP=%04x, BW=%d, PSM=%s, req=(%x,%x - %x,%x));"
+									" Target=(BP=%04x, BW=%d, PSM=%s, valid_area=(%x,%x - %x,%x))",
+									bp, bw, GSUtil::GetPSMName(psm), r.x, r.y, r.z, r.w,
+									t->m_TEX0.TBP0, t->m_TEX0.TBW, GSUtil::GetPSMName(t->m_TEX0.PSM),
+									t->m_valid.x, t->m_valid.y, t->m_valid.z, t->m_valid.w);
 								continue;
 							}
 							else
@@ -2034,7 +2048,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 		//
 		// Sigh... They don't help us.
 
-		if (!found_t && !dst && !GSConfig.UserHacks_DisableDepthSupport)
+		if (!found_t && !dst && !GSConfig.UserHacks_DisableDepthSupport && !target_bp_hit_outside_valid_area)
 		{
 			// Let's try a trick to avoid to use wrongly a depth buffer
 			// Unfortunately, I don't have any Arc the Lad testcase
@@ -2172,7 +2186,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 			}
 		}
 
-		src = CreateSource(src_TEX0, TEXA, dst, x_offset, y_offset, lod, &rect, gpu_clut, region);
+		src = CreateSource(src_TEX0, TEXA, dst, x_offset, y_offset, lod, &rect, gpu_clut, region, target_bp_hit_outside_valid_area && TEX0.PSM != PSMT8);
 		if (!src) [[unlikely]]
 			return nullptr;
 	}
@@ -4760,9 +4774,6 @@ void GSTextureCache::InvalidateLocalMem(const GSOffset& off, const GSVector4i& r
 		{
 			Target* t = *it;
 
-			if (t->m_32_bits_fmt && t->m_TEX0.PSM > PSMCT24)
-				t->m_TEX0.PSM = PSMCT32;
-
 			const bool exact_bp = t->m_TEX0.TBP0 == bp;
 			// pass 0 == Exact match, pass 1 == partial match
 			if (pass == 0)
@@ -5776,7 +5787,7 @@ void GSTextureCache::IncAge()
 }
 
 //Fixme: Several issues in here. Not handling depth stencil, pitch conversion doesnt work.
-GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, Target* dst, int x_offset, int y_offset, const GSVector2i* lod, const GSVector4i* src_range, GSTexture* gpu_clut, SourceRegion region)
+GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, Target* dst, int x_offset, int y_offset, const GSVector2i* lod, const GSVector4i* src_range, GSTexture* gpu_clut, SourceRegion region, bool force_temp)
 {
 	const GSLocalMemory::psm_t& psm = GSLocalMemory::m_psm[TEX0.PSM];
 	Source* src = new Source(TEX0, TEXA);
@@ -6242,7 +6253,7 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 	}
 	else
 	{
-		if (GSUtil::GetChannelMask(TEX0.PSM) == 0xf && TEX0.TBP0 != GSRendererHW::GetInstance()->GetCachedCtx()->FRAME.Block() && TEX0.TBP0 != GSRendererHW::GetInstance()->GetCachedCtx()->ZBUF.Block())
+		if (GSUtil::GetChannelMask(TEX0.PSM) == 0xf && TEX0.TBP0 != GSRendererHW::GetInstance()->GetCachedCtx()->FRAME.Block() && TEX0.TBP0 != GSRendererHW::GetInstance()->GetCachedCtx()->ZBUF.Block() && !force_temp)
 		{
 			// Kill any possible targets we missed, they might be wrong now.
 			g_texture_cache->InvalidateVideoMemType(GSTextureCache::RenderTarget, TEX0.TBP0, TEX0.PSM, GSRendererHW::GetInstance()->GetCachedCtx()->FRAME.FBMSK, true);
@@ -6250,7 +6261,7 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 		}
 
 		// kill source immediately after the draw if it's the RT, because that'll get invalidated immediately.
-		if (GSRendererHW::GetInstance()->IsTBPFrameOrZ(TEX0.TBP0, true) && GSRendererHW::GetInstance()->ChannelsSharedTEX0FRAME())
+		if (force_temp || (GSRendererHW::GetInstance()->IsTBPFrameOrZ(TEX0.TBP0, true) && GSRendererHW::GetInstance()->ChannelsSharedTEX0FRAME()))
 		{
 			GL_CACHE("TC: Source == RT before RT creation, invalidating after draw.");
 			m_temporary_source = src;
