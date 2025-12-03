@@ -743,6 +743,7 @@ Pcsx2Config::GSOptions::GSOptions()
 	OsdShowInputs = false;
 	OsdShowVideoCapture = true;
 	OsdShowInputRec = true;
+	OsdShowTextureReplacements = true;
 
 	HWDownloadMode = GSHardwareDownloadMode::Enabled;
 	HWSpinGPUForReadbacks = false;
@@ -962,6 +963,7 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(OsdShowHardwareInfo);
 	SettingsWrapBitBool(OsdShowVideoCapture);
 	SettingsWrapBitBool(OsdShowInputRec);
+	SettingsWrapBitBool(OsdShowTextureReplacements);
 
 	SettingsWrapBitBool(HWSpinGPUForReadbacks);
 	SettingsWrapBitBool(HWSpinCPUForReadbacks);
