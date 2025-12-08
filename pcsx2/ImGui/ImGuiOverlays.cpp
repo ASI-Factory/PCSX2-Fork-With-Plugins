@@ -431,7 +431,10 @@ __ri void ImGuiManager::DrawPerformanceOverlay(float& position_y, float scale, f
 				DRAW_LINE(fixed_font, font_size, s_gpu_usage_line.c_str(), white_color);
 
 			if (GetIsThrottlerTempDisabled())
-				DRAW_LINE(fixed_font, font_size, ICON_FA_FORWARD, IM_COL32(255, 0, 0, 255));
+			{
+				ImFont* const standard_font = ImGuiManager::GetStandardFont();
+				DRAW_LINE(standard_font, font_size, ICON_FA_FORWARD, IM_COL32(255, 0, 0, 255));
+			}
 		}
 
 		// Check every OSD frame because this is an animation.
