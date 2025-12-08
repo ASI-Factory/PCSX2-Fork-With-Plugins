@@ -675,7 +675,7 @@ const char* Pcsx2Config::GSOptions::DEFAULT_CAPTURE_CONTAINER = "mp4";
 
 const char* Pcsx2Config::AchievementsOptions::OverlayPositionNames[(size_t)AchievementOverlayPosition::MaxCount + 1] = {
 	"TopLeft",
-	"TopCenter", 
+	"TopCenter",
 	"TopRight",
 	"CenterLeft",
 	"Center",
@@ -743,7 +743,7 @@ Pcsx2Config::GSOptions::GSOptions()
 	OsdShowInputs = false;
 	OsdShowVideoCapture = true;
 	OsdShowInputRec = true;
-	OsdShowTextureReplacements = true;
+	OsdShowTextureReplacements = false;
 
 	HWDownloadMode = GSHardwareDownloadMode::Enabled;
 	HWSpinGPUForReadbacks = false;
@@ -1908,7 +1908,7 @@ void Pcsx2Config::AchievementsOptions::LoadSave(SettingsWrapper& wrap)
 
 bool Pcsx2Config::AchievementsOptions::operator==(const AchievementsOptions& right) const
 {
-	return OpEqu(bitset) && OpEqu(NotificationsDuration) && OpEqu(LeaderboardsDuration) && 
+	return OpEqu(bitset) && OpEqu(NotificationsDuration) && OpEqu(LeaderboardsDuration) &&
 		   OpEqu(OverlayPosition) && OpEqu(NotificationPosition);
 }
 
