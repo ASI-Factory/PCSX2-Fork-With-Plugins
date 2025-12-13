@@ -472,7 +472,7 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(SettingsWindow* settings_dialog, 
 
 		dialog()->registerWidgetHelp(m_display.interlacing, tr("Deinterlacing"), tr("Automatic (Default)"), tr("Determines the deinterlacing method to be used on the interlaced screen of the emulated console. Automatic should be able to correctly deinterlace most games, but if you see visibly shaky graphics, try one of the other options."));
 
-		dialog()->registerWidgetHelp(m_capture.screenshotSize, tr("Screenshot Resolution"), tr("Screen Resolution"),
+		dialog()->registerWidgetHelp(m_capture.screenshotSize, tr("Screenshot Resolution"), tr("Display Resolution"),
 			tr("Determines the resolution at which screenshots will be saved. Internal resolutions preserve more detail at the cost of "
 			   "file size."));
 
@@ -587,10 +587,10 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(SettingsWindow* settings_dialog, 
 		dialog()->registerWidgetHelp(m_fixes.gpuTargetCLUTMode, tr("GPU Target CLUT"), tr("Disabled"),
 			tr("Tries to detect when a game is drawing its own color palette and then renders it on the GPU with special handling."));
 
-		dialog()->registerWidgetHelp(m_fixes.skipDrawStart, tr("Skipdraw Range Start"), tr("0"),
+		dialog()->registerWidgetHelp(m_fixes.skipDrawStart, tr("Skip Draw Range Start"), tr("0"),
 			tr("Completely skips drawing surfaces from the surface in the left box up to the surface specified in the box on the right."));
 
-		dialog()->registerWidgetHelp(m_fixes.skipDrawEnd, tr("Skipdraw Range End"), tr("0"),
+		dialog()->registerWidgetHelp(m_fixes.skipDrawEnd, tr("Skip Draw Range End"), tr("0"),
 			tr("Completely skips drawing surfaces from the surface in the left box up to the surface specified in the box on the right."));
 
 		dialog()->registerWidgetHelp(m_fixes.hwAutoFlush, tr("Auto Flush"), tr("Unchecked"),
@@ -660,7 +660,7 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(SettingsWindow* settings_dialog, 
 			//: Wild Arms: name of a game series. Leave as-is or use an official translation.
 			tr("Lowers the GS precision to avoid gaps between pixels when upscaling. Fixes the text on Wild Arms games."));
 
-		dialog()->registerWidgetHelp(m_upscaling.bilinearHack, tr("Bilinear Upscale"), tr("Unchecked"),
+		dialog()->registerWidgetHelp(m_upscaling.bilinearHack, tr("Bilinear Dirty Upscale"), tr("Unchecked"),
 			tr("Can smooth out textures due to be bilinear filtered when upscaling. E.g. Brave sun glare."));
 
 		dialog()->registerWidgetHelp(m_upscaling.mergeSprite, tr("Merge Sprite"), tr("Unchecked"),
@@ -729,7 +729,7 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(SettingsWindow* settings_dialog, 
 			tr("Shows the number of internal video frames displayed per second by the system."));
 
 		dialog()->registerWidgetHelp(m_osd.showVPS, tr("Show VPS"), tr("Unchecked"),
-			tr("Shows the number of V-syncs performed per second by the system."));
+			tr("Shows the number of Vsyncs performed per second by the system."));
 
 		dialog()->registerWidgetHelp(m_osd.showResolution, tr("Show Resolution"), tr("Unchecked"),
 			tr("Shows the internal resolution of the game."));
@@ -765,10 +765,10 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(SettingsWindow* settings_dialog, 
 			tr("Shows the current controller state of the system in the bottom-left corner of the display."));
 
 		dialog()->registerWidgetHelp(m_osd.showVideoCapture, tr("Show Video Capture Status"), tr("Checked"),
-			tr("Shows the status of the currently active video capture in the top-right corner of the display.."));
+			tr("Shows the status of the currently active video capture in the top-right corner of the display."));
 
 		dialog()->registerWidgetHelp(m_osd.showInputRec, tr("Show Input Recording Status"), tr("Checked"),
-			tr("Shows the status of the currently active input recording in the top-right corner of the display.."));
+			tr("Shows the status of the currently active input recording in the top-right corner of the display."));
 
 		dialog()->registerWidgetHelp(m_osd.showTextureReplacements, tr("Show Texture Replacement Status"), tr("Unchecked"),
 			tr("Shows the status of the number of dumped and loaded texture replacements in the top-right corner of the display."));
