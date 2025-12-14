@@ -3427,6 +3427,9 @@ void GSDevice12::BeginRenderPass(D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE color_b
 	m_dirty_flags &= ~DIRTY_FLAG_RENDER_TARGET;
 	m_in_render_pass = true;
 
+	if (stencil_end == D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD)
+		GL_INS("D3D12: BeginRenderPass() end stencil is DISCARDED.");
+
 	D3D12_RENDER_PASS_RENDER_TARGET_DESC rt = {};
 	if (m_current_render_target)
 	{
@@ -4008,7 +4011,8 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 			draw_ds ? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS,
 			stencil_DATE ? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE :
 						   D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS,
-			stencil_DATE ? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD :
+			stencil_DATE ? (draw_rt_clone ? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE :
+											D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD) :
 						   D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS,
 			clear_color, draw_ds ? draw_ds->GetClearDepth() : 0.0f, 1);
 	}
