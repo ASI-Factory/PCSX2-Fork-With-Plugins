@@ -630,9 +630,9 @@ namespace FullscreenUI
 	static std::unique_ptr<GameList::Entry> s_game_settings_entry;
 	static std::vector<std::pair<std::string, bool>> s_game_list_directories_cache;
 	static std::vector<GSAdapterInfo> s_graphics_adapter_list_cache;
-	static Patch::PatchInfoList s_game_patch_list;
+	static std::vector<Patch::PatchInfo> s_game_patch_list;
 	static std::vector<std::string> s_enabled_game_patch_cache;
-	static Patch::PatchInfoList s_game_cheats_list;
+	static std::vector<Patch::PatchInfo> s_game_cheats_list;
 	static std::vector<std::string> s_enabled_game_cheat_cache;
 	static u32 s_game_cheat_unlabelled_count = 0;
 	static std::vector<const HotkeyInfo*> s_hotkey_list_cache;
@@ -670,7 +670,8 @@ namespace FullscreenUI
 	static void DrawSaveStateSelector(bool is_loading);
 	static bool OpenLoadStateSelectorForGameResume(const GameList::Entry* entry);
 	static void DrawResumeStateSelector();
-	static void DoLoadState(std::string path);
+	static void DoLoadState(std::string path, std::optional<s32> slot, bool backup);
+	static void DoSaveState(s32 slot);
 
 	static std::vector<SaveStateListEntry> s_save_state_selector_slots;
 	static std::string s_save_state_selector_game_path;
@@ -1220,7 +1221,7 @@ void FullscreenUI::Render()
 
 	// see if background setting changed
 	static std::string s_last_background_path;
-	std::string current_path = Host::GetBaseStringSettingValue("UI", "GameListBackgroundPath");
+	std::string current_path = Host::GetBaseStringSettingValue("UI", "FSUIBackgroundPath");
 	if (s_last_background_path != current_path)
 	{
 		s_last_background_path = current_path;
@@ -1239,7 +1240,8 @@ void FullscreenUI::Render()
 		s_current_main_window == MainWindowType::Exit ||
 		s_current_main_window == MainWindowType::GameList ||
 		s_current_main_window == MainWindowType::GameListSettings ||
-		s_current_main_window == MainWindowType::Settings) && s_custom_background_enabled && s_custom_background_texture;
+		s_current_main_window == MainWindowType::Settings) &&
+			!VMManager::HasValidVM() && s_custom_background_enabled && s_custom_background_texture;
 
 	ImVec4 original_background_color;
 	if (should_draw_background)
@@ -1690,7 +1692,7 @@ bool FullscreenUI::ShouldDefaultToGameList()
 
 void FullscreenUI::LoadCustomBackground()
 {
-	std::string path = Host::GetBaseStringSettingValue("UI", "GameListBackgroundPath");
+	std::string path = Host::GetBaseStringSettingValue("UI", "FSUIBackgroundPath");
 
 	if (path.empty())
 	{
@@ -1758,19 +1760,25 @@ void FullscreenUI::DrawCustomBackground()
 	const ImGuiIO& io = ImGui::GetIO();
 	const ImVec2 display_size = io.DisplaySize;
 
-	const float opacity = Host::GetBaseFloatSettingValue("UI", "GameListBackgroundOpacity", 100.0f) / 100.0f;
-	const std::string mode = Host::GetBaseStringSettingValue("UI", "GameListBackgroundMode", "fit");
+	const u8 alpha = static_cast<u8>(Host::GetBaseFloatSettingValue("UI", "FSUIBackgroundOpacity", 100.0f) * 2.55f);
+	const std::string mode = Host::GetBaseStringSettingValue("UI", "FSUIBackgroundMode", "fit");
 
 	const float tex_width = static_cast<float>(s_custom_background_texture->GetWidth());
 	const float tex_height = static_cast<float>(s_custom_background_texture->GetHeight());
 
-	ImVec2 img_min, img_max;
+	// Override the UIBackgroundColor that windows use
+	// We need to make windows transparent so our background image shows through
+	const ImVec4 transparent_bg = ImVec4(UIBackgroundColor.x, UIBackgroundColor.y, UIBackgroundColor.z, 0.0f);
+	ImGuiFullscreen::UIBackgroundColor = transparent_bg;
+
+	ImDrawList* bg_draw_list = ImGui::GetBackgroundDrawList();
+	const ImU32 col = IM_COL32(255, 255, 255, alpha);
+	const ImTextureID tex_id = reinterpret_cast<ImTextureID>(s_custom_background_texture->GetNativeHandle());
 
 	if (mode == "stretch")
 	{
 		// stretch to fill entire display (ignores aspect ratio)
-		img_min = ImVec2(0.0f, 0.0f);
-		img_max = display_size;
+		bg_draw_list->AddImage(tex_id, ImVec2(0.0f, 0.0f), display_size, ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), col);
 	}
 	else if (mode == "fill")
 	{
@@ -1795,8 +1803,64 @@ void FullscreenUI::DrawCustomBackground()
 		const float offset_x = (display_size.x - scaled_width) * 0.5f;
 		const float offset_y = (display_size.y - scaled_height) * 0.5f;
 
-		img_min = ImVec2(offset_x, offset_y);
-		img_max = ImVec2(offset_x + scaled_width, offset_y + scaled_height);
+		bg_draw_list->AddImage(tex_id,
+			ImVec2(offset_x, offset_y),
+			ImVec2(offset_x + scaled_width, offset_y + scaled_height),
+			ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), col);
+	}
+	else if (mode == "center")
+	{
+		// Center image at original size
+		const float offset_x = (display_size.x - tex_width) * 0.5f;
+		const float offset_y = (display_size.y - tex_height) * 0.5f;
+
+		bg_draw_list->AddImage(tex_id,
+			ImVec2(offset_x, offset_y),
+			ImVec2(offset_x + tex_width, offset_y + tex_height),
+			ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), col);
+	}
+	else if (mode == "tile")
+	{
+		// Tile image across entire display
+		// If the image is extremely small, this approach can generate millions of quads
+		// and overflow the backend stream buffer (e.g. Vulkan assertion in VKStreamBuffer).
+		// Since we cannot switch ImGui's sampler to wrap (yet), clamp the maximum number of quads
+		constexpr int MAX_TILE_QUADS = 16384;
+
+		float tile_width = tex_width;
+		float tile_height = tex_height;
+		int tiles_x = static_cast<int>(std::ceil(display_size.x / tile_width));
+		int tiles_y = static_cast<int>(std::ceil(display_size.y / tile_height));
+
+		const int total_tiles = tiles_x * tiles_y;
+		if (total_tiles > MAX_TILE_QUADS)
+		{
+			const float scale = std::sqrt(static_cast<float>(total_tiles) / static_cast<float>(MAX_TILE_QUADS));
+			tile_width *= scale;
+			tile_height *= scale;
+			tiles_x = static_cast<int>(std::ceil(display_size.x / tile_width));
+			tiles_y = static_cast<int>(std::ceil(display_size.y / tile_height));
+		}
+
+		for (int y = 0; y < tiles_y; y++)
+		{
+			for (int x = 0; x < tiles_x; x++)
+			{
+				const float tile_x = static_cast<float>(x) * tile_width;
+				const float tile_y = static_cast<float>(y) * tile_height;
+				const float tile_max_x = std::min(tile_x + tile_width, display_size.x);
+				const float tile_max_y = std::min(tile_y + tile_height, display_size.y);
+
+				// get uvs for partial tiles at edges
+				const float uv_max_x = (tile_max_x - tile_x) / tile_width;
+				const float uv_max_y = (tile_max_y - tile_y) / tile_height;
+
+				bg_draw_list->AddImage(tex_id,
+					ImVec2(tile_x, tile_y),
+					ImVec2(tile_max_x, tile_max_y),
+					ImVec2(0.0f, 0.0f), ImVec2(uv_max_x, uv_max_y), col);
+			}
+		}
 	}
 	else // "fit" or default
 	{
@@ -1821,19 +1885,11 @@ void FullscreenUI::DrawCustomBackground()
 		const float offset_x = (display_size.x - scaled_width) * 0.5f;
 		const float offset_y = (display_size.y - scaled_height) * 0.5f;
 
-		img_min = ImVec2(offset_x, offset_y);
-		img_max = ImVec2(offset_x + scaled_width, offset_y + scaled_height);
+		bg_draw_list->AddImage(tex_id,
+			ImVec2(offset_x, offset_y),
+			ImVec2(offset_x + scaled_width, offset_y + scaled_height),
+			ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), col);
 	}
-
-	// Override the UIBackgroundColor that windows use
-	// We need to make windows transparent so our background image shows through
-	const ImVec4 transparent_bg = ImVec4(UIBackgroundColor.x, UIBackgroundColor.y, UIBackgroundColor.z, 0.0f);
-	ImGuiFullscreen::UIBackgroundColor = transparent_bg;
-
-	ImDrawList* bg_draw_list = ImGui::GetBackgroundDrawList();
-	const ImU32 col = IM_COL32(255, 255, 255, static_cast<u8>(opacity * 255.0f));
-	bg_draw_list->AddImage(reinterpret_cast<ImTextureID>(s_custom_background_texture->GetNativeHandle()),
-		img_min, img_max, ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), col);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -3581,7 +3637,7 @@ void FullscreenUI::PopulateGameListDirectoryCache(SettingsInterface* si)
 
 void FullscreenUI::PopulatePatchesAndCheatsList(const std::string_view serial, u32 crc)
 {
-	constexpr auto sort_patches = [](Patch::PatchInfoList& list) {
+	constexpr auto sort_patches = [](std::vector<Patch::PatchInfo>& list) {
 		std::sort(list.begin(), list.end(), [](const Patch::PatchInfo& lhs, const Patch::PatchInfo& rhs) { return lhs.name < rhs.name; });
 	};
 
@@ -3629,7 +3685,7 @@ void FullscreenUI::DrawSettingsWindow()
 		ImVec2(io.DisplaySize.x, LayoutScale(LAYOUT_MENU_BUTTON_HEIGHT_NO_SUMMARY) +
 									 (LayoutScale(LAYOUT_MENU_BUTTON_Y_PADDING) * 2.0f) + LayoutScale(2.0f));
 
-	const bool using_custom_bg = s_custom_background_enabled && s_custom_background_texture;
+	const bool using_custom_bg = !VMManager::HasValidVM() && s_custom_background_enabled && s_custom_background_texture;
 	const float header_bg_alpha = VMManager::HasValidVM() ? 0.90f : 1.0f;
 	const float content_bg_alpha = using_custom_bg ? 0.0f : (VMManager::HasValidVM() ? 0.90f : 1.0f);
 	SettingsInterface* bsi = GetEditingSettingsInterface();
@@ -4052,21 +4108,19 @@ void FullscreenUI::DrawInterfaceSettingsPage()
 
 	MenuHeading(FSUI_CSTR("Background"));
 
-	std::string background_path = bsi->GetStringValue("UI", "GameListBackgroundPath", "");
-	const bool background_enabled = bsi->GetBoolValue("UI", "GameListBackgroundEnabled", false);
+	std::string background_path = bsi->GetStringValue("UI", "FSUIBackgroundPath", "");
 
 	std::string background_display = FSUI_STR("None");
-	if (!background_path.empty() && background_enabled)
+	if (!background_path.empty())
 	{
 		background_display = Path::GetFileName(background_path);
 	}
 
 	if (MenuButtonWithValue(FSUI_ICONSTR(ICON_FA_IMAGE, "Background Image"),
-			FSUI_CSTR("Select a custom background image to use in Big Picture Mode menus."),
+			FSUI_CSTR("Select a custom background image to use in Big Picture Mode menus.\n\nSupported formats: PNG, JPG, JPEG, BMP."),
 			background_display.c_str()))
 	{
-		OpenFileSelector(FSUI_ICONSTR(ICON_FA_IMAGE, "Select Background Image"), false,
-			[](const std::string& path) {
+		OpenFileSelector(FSUI_ICONSTR(ICON_FA_IMAGE, "Select Background Image"), false, [](const std::string& path) {
 				if (!path.empty())
 				{
 					{
@@ -4074,23 +4128,20 @@ void FullscreenUI::DrawInterfaceSettingsPage()
 						SettingsInterface* bsi = GetEditingSettingsInterface(false);
 
 						std::string relative_path = Path::MakeRelative(path, EmuFolders::DataRoot);
-						bsi->SetStringValue("UI", "GameListBackgroundPath", relative_path.c_str());
-						bsi->SetBoolValue("UI", "GameListBackgroundEnabled", true);
+						bsi->SetStringValue("UI", "FSUIBackgroundPath", relative_path.c_str());
+						bsi->SetBoolValue("UI", "FSUIBackgroundEnabled", true);
 						SetSettingsChanged(bsi);
 					}
 
 					LoadCustomBackground();
 				}
-				CloseFileSelector();
-			},
-			GetImageFileFilters());
+				CloseFileSelector(); }, GetImageFileFilters());
 	}
 
 	if (MenuButton(FSUI_ICONSTR(ICON_FA_XMARK, "Clear Background Image"),
 			FSUI_CSTR("Removes the custom background image.")))
 	{
-		bsi->DeleteValue("UI", "GameListBackgroundPath");
-		bsi->SetBoolValue("UI", "GameListBackgroundEnabled", false);
+		bsi->DeleteValue("UI", "FSUIBackgroundPath");
 		SetSettingsChanged(bsi);
 
 		s_custom_background_texture.reset();
@@ -4100,21 +4151,25 @@ void FullscreenUI::DrawInterfaceSettingsPage()
 
 	DrawIntRangeSetting(bsi, FSUI_ICONSTR(ICON_FA_DROPLET, "Background Opacity"),
 		FSUI_CSTR("Sets the transparency of the custom background image."),
-		"UI", "GameListBackgroundOpacity", 100, 0, 100, "%d%%");
+		"UI", "FSUIBackgroundOpacity", 100, 0, 100, "%d%%");
 
 	static constexpr const char* s_background_mode_names[] = {
 		FSUI_NSTR("Fit"),
 		FSUI_NSTR("Fill"),
 		FSUI_NSTR("Stretch"),
+		FSUI_NSTR("Center"),
+		FSUI_NSTR("Tile"),
 	};
 	static constexpr const char* s_background_mode_values[] = {
 		"fit",
 		"fill",
 		"stretch",
+		"center",
+		"tile",
 	};
 	DrawStringListSetting(bsi, FSUI_ICONSTR(ICON_FA_EXPAND, "Background Mode"),
 		FSUI_CSTR("Select how to display the background image."),
-		"UI", "GameListBackgroundMode", "fit", s_background_mode_names, s_background_mode_values, std::size(s_background_mode_names), true);
+		"UI", "FSUIBackgroundMode", "fit", s_background_mode_names, s_background_mode_values, std::size(s_background_mode_names), true);
 
 	MenuHeading(FSUI_CSTR("Behaviour"));
 	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_PF_SNOOZE, "Inhibit Screensaver"),
@@ -4129,6 +4184,8 @@ void FullscreenUI::DrawInterfaceSettingsPage()
 		FSUI_CSTR("Pauses the emulator when a controller with bindings is disconnected."), "UI", "PauseOnControllerDisconnection", false);
 	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_RECTANGLE_LIST, "Pause On Menu"),
 		FSUI_CSTR("Pauses the emulator when you open the quick menu, and unpauses when you close it."), "UI", "PauseOnMenu", true);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_FLOPPY_DISK, "Prompt On State Load/Save Failure"),
+		FSUI_CSTR("Display a modal dialog when a save state load/save operation fails."), "UI", "PromptOnStateLoadSaveFailure", true);
 	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_POWER_OFF, "Confirm Shutdown"),
 		FSUI_CSTR("Determines whether a prompt will be displayed to confirm shutting down the emulator/game when the hotkey is pressed."),
 		"UI", "ConfirmShutdown", true);
@@ -6633,7 +6690,7 @@ void FullscreenUI::DrawPatchesOrCheatsSettingsPage(bool cheats)
 {
 	SettingsInterface* bsi = GetEditingSettingsInterface();
 
-	const Patch::PatchInfoList& patch_list = cheats ? s_game_cheats_list : s_game_patch_list;
+	const std::vector<Patch::PatchInfo>& patch_list = cheats ? s_game_cheats_list : s_game_patch_list;
 	std::vector<std::string>& enable_list = cheats ? s_enabled_game_cheat_cache : s_enabled_game_patch_cache;
 	const char* section = cheats ? Patch::CHEATS_CONFIG_SECTION : Patch::PATCHES_CONFIG_SECTION;
 	const bool master_enable = cheats ? GetEffectiveBoolSetting(bsi, "EmuCore", "EnableCheats", false) : true;
@@ -7345,9 +7402,9 @@ void FullscreenUI::DrawSaveStateSelector(bool is_loading)
 							false, is_loading ? !Achievements::IsHardcoreModeActive() : true, LAYOUT_MENU_BUTTON_HEIGHT_NO_SUMMARY))
 					{
 						if (is_loading)
-							DoLoadState(std::move(entry.path));
+							DoLoadState(std::move(entry.path), entry.slot, false);
 						else
-							Host::RunOnCPUThread([slot = entry.slot]() { VMManager::SaveStateToSlot(slot); });
+							DoSaveState(entry.slot);
 
 						CloseSaveStateSelector();
 						ReturnToMainWindow();
@@ -7483,9 +7540,9 @@ void FullscreenUI::DrawSaveStateSelector(bool is_loading)
 				if (pressed)
 				{
 					if (is_loading)
-						DoLoadState(entry.path);
+						DoLoadState(entry.path, entry.slot, false);
 					else
-						Host::RunOnCPUThread([slot = entry.slot]() { VMManager::SaveStateToSlot(slot); });
+						DoSaveState(entry.slot);
 
 					CloseSaveStateSelector();
 					ReturnToMainWindow();
@@ -7639,19 +7696,16 @@ void FullscreenUI::DrawResumeStateSelector()
 	}
 }
 
-void FullscreenUI::DoLoadState(std::string path)
+void FullscreenUI::DoLoadState(std::string path, std::optional<s32> slot, bool backup)
 {
-	Host::RunOnCPUThread([boot_path = s_save_state_selector_game_path, path = std::move(path)]() {
+	std::string boot_path = s_save_state_selector_game_path;
+	Host::RunOnCPUThread([boot_path = std::move(boot_path), path = std::move(path), slot, backup]() {
 		if (VMManager::HasValidVM())
 		{
 			Error error;
 			if (!VMManager::LoadState(path.c_str(), &error))
 			{
-				MTGS::RunOnGSThread([error = std::move(error)]() {
-					ImGuiFullscreen::OpenInfoMessageDialog(
-						FSUI_ICONSTR(ICON_FA_TRIANGLE_EXCLAMATION, "Failed to Load State"),
-						error.GetDescription());
-				});
+				ReportStateLoadError(error.GetDescription(), slot, backup);
 				return;
 			}
 
@@ -7665,6 +7719,15 @@ void FullscreenUI::DoLoadState(std::string path)
 			params.save_state = std::move(path);
 			DoVMInitialize(params, false);
 		}
+	});
+}
+
+void FullscreenUI::DoSaveState(s32 slot)
+{
+	Host::RunOnCPUThread([slot]() {
+		VMManager::SaveStateToSlot(slot, true, [slot](const std::string& error) {
+			ReportStateSaveError(error, slot);
+		});
 	});
 }
 
@@ -9169,6 +9232,75 @@ void FullscreenUI::DrawAchievementsSettingsPage(std::unique_lock<std::mutex>& se
 	EndMenuButtons();
 }
 
+void FullscreenUI::ReportStateLoadError(const std::string& message, std::optional<s32> slot, bool backup)
+{
+	MTGS::RunOnGSThread([message, slot, backup]() {
+		const bool prompt_on_error = Host::GetBaseBoolSettingValue("UI", "PromptOnStateLoadSaveFailure", true);
+		if (!prompt_on_error || !ImGuiManager::InitializeFullscreenUI())
+		{
+			SaveState_ReportLoadErrorOSD(message, slot, backup);
+			return;
+		}
+
+		std::string title;
+		if (slot.has_value())
+		{
+			if (backup)
+				title = fmt::format(FSUI_FSTR("Failed to Load State From Backup Slot {}"), *slot);
+			else
+				title = fmt::format(FSUI_FSTR("Failed to Load State From Slot {}"), *slot);
+		}
+		else
+		{
+			title = FSUI_STR("Failed to Load State");
+		}
+
+		ImGuiFullscreen::InfoMessageDialogCallback callback;
+		if (VMManager::GetState() == VMState::Running)
+		{
+			Host::RunOnCPUThread([]() { VMManager::SetPaused(true); });
+			callback = []() {
+				Host::RunOnCPUThread([]() { VMManager::SetPaused(false); });
+			};
+		}
+
+		ImGuiFullscreen::OpenInfoMessageDialog(
+			fmt::format("{} {}", ICON_FA_TRIANGLE_EXCLAMATION, title),
+			std::move(message), std::move(callback));
+	});
+}
+
+void FullscreenUI::ReportStateSaveError(const std::string& message, std::optional<s32> slot)
+{
+	MTGS::RunOnGSThread([message, slot]() {
+		const bool prompt_on_error = Host::GetBaseBoolSettingValue("UI", "PromptOnStateLoadSaveFailure", true);
+		if (!prompt_on_error || !ImGuiManager::InitializeFullscreenUI())
+		{
+			SaveState_ReportSaveErrorOSD(message, slot);
+			return;
+		}
+
+		std::string title;
+		if (slot.has_value())
+			title = fmt::format(FSUI_FSTR("Failed to Save State To Slot {}"), *slot);
+		else
+			title = FSUI_STR("Failed to Save State");
+
+		ImGuiFullscreen::InfoMessageDialogCallback callback;
+		if (VMManager::GetState() == VMState::Running)
+		{
+			Host::RunOnCPUThread([]() { VMManager::SetPaused(true); });
+			callback = []() {
+				Host::RunOnCPUThread([]() { VMManager::SetPaused(false); });
+			};
+		}
+
+		ImGuiFullscreen::OpenInfoMessageDialog(
+			fmt::format("{} {}", ICON_FA_TRIANGLE_EXCLAMATION, title),
+			std::move(message), std::move(callback));
+	});
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Translation String Area
 // To avoid having to type T_RANSLATE("FullscreenUI", ...) everywhere, we use the shorter macros at the top
@@ -9228,6 +9360,8 @@ TRANSLATE_NOOP("FullscreenUI", "Reset System");
 TRANSLATE_NOOP("FullscreenUI", "Hardcore mode will not be enabled until the system is reset. Do you want to reset the system now?");
 TRANSLATE_NOOP("FullscreenUI", "This game has no achievements.");
 TRANSLATE_NOOP("FullscreenUI", "This game has no leaderboards.");
+TRANSLATE_NOOP("FullscreenUI", "Failed to Load State");
+TRANSLATE_NOOP("FullscreenUI", "Failed to Save State");
 TRANSLATE_NOOP("FullscreenUI", "Game List");
 TRANSLATE_NOOP("FullscreenUI", "Launch a game from images scanned from your game directories.");
 TRANSLATE_NOOP("FullscreenUI", "Start Game");
@@ -9273,7 +9407,7 @@ TRANSLATE_NOOP("FullscreenUI", "Selects the color style to be used for Big Pictu
 TRANSLATE_NOOP("FullscreenUI", "When Big Picture mode is started, the game list will be displayed instead of the main menu.");
 TRANSLATE_NOOP("FullscreenUI", "Show a save state selector UI when switching slots instead of showing a notification bubble.");
 TRANSLATE_NOOP("FullscreenUI", "Background");
-TRANSLATE_NOOP("FullscreenUI", "Select a custom background image to use in Big Picture Mode menus.");
+TRANSLATE_NOOP("FullscreenUI", "Select a custom background image to use in Big Picture Mode menus.\n\nSupported formats: PNG, JPG, JPEG, BMP.");
 TRANSLATE_NOOP("FullscreenUI", "Removes the custom background image.");
 TRANSLATE_NOOP("FullscreenUI", "Sets the transparency of the custom background image.");
 TRANSLATE_NOOP("FullscreenUI", "Select how to display the background image.");
@@ -9283,6 +9417,7 @@ TRANSLATE_NOOP("FullscreenUI", "Pauses the emulator when a game is started.");
 TRANSLATE_NOOP("FullscreenUI", "Pauses the emulator when you minimize the window or switch to another application, and unpauses when you switch back.");
 TRANSLATE_NOOP("FullscreenUI", "Pauses the emulator when a controller with bindings is disconnected.");
 TRANSLATE_NOOP("FullscreenUI", "Pauses the emulator when you open the quick menu, and unpauses when you close it.");
+TRANSLATE_NOOP("FullscreenUI", "Display a modal dialog when a save state load/save operation fails.");
 TRANSLATE_NOOP("FullscreenUI", "Determines whether a prompt will be displayed to confirm shutting down the emulator/game when the hotkey is pressed.");
 TRANSLATE_NOOP("FullscreenUI", "Automatically saves the emulator state when powering down or exiting. You can then resume directly from where you left off next time.");
 TRANSLATE_NOOP("FullscreenUI", "Creates a backup copy of a save state if it already exists when the save is created. The backup copy has a .backup suffix");
@@ -9292,6 +9427,7 @@ TRANSLATE_NOOP("FullscreenUI", "Game Display");
 TRANSLATE_NOOP("FullscreenUI", "Automatically switches to fullscreen mode when a game is started.");
 TRANSLATE_NOOP("FullscreenUI", "Switches between full screen and windowed when the window is double-clicked.");
 TRANSLATE_NOOP("FullscreenUI", "Hides the mouse pointer/cursor when the emulator is in fullscreen mode.");
+TRANSLATE_NOOP("FullscreenUI", "Automatically starts Big Picture Mode instead of the regular Qt interface when PCSX2 launches.");
 TRANSLATE_NOOP("FullscreenUI", "On-Screen Display");
 TRANSLATE_NOOP("FullscreenUI", "Determines how large the on-screen messages and monitors are.");
 TRANSLATE_NOOP("FullscreenUI", "%d%%");
@@ -9717,6 +9853,9 @@ TRANSLATE_NOOP("FullscreenUI", "Last Played: {}");
 TRANSLATE_NOOP("FullscreenUI", "Size: {:.2f} MB");
 TRANSLATE_NOOP("FullscreenUI", "Are you sure you want to reset the play time for '{}' ({})?\n\nYour current play time is {}.\n\nThis action cannot be undone.");
 TRANSLATE_NOOP("FullscreenUI", "Login failed.\nError: {}\n\nPlease check your username and password, and try again.");
+TRANSLATE_NOOP("FullscreenUI", "Failed to Load State From Backup Slot {}");
+TRANSLATE_NOOP("FullscreenUI", "Failed to Load State From Slot {}");
+TRANSLATE_NOOP("FullscreenUI", "Failed to Save State To Slot {}");
 TRANSLATE_NOOP("FullscreenUI", "Left: ");
 TRANSLATE_NOOP("FullscreenUI", "Top: ");
 TRANSLATE_NOOP("FullscreenUI", "Right: ");
@@ -9750,13 +9889,14 @@ TRANSLATE_NOOP("FullscreenUI", "AMOLED");
 TRANSLATE_NOOP("FullscreenUI", "Fit");
 TRANSLATE_NOOP("FullscreenUI", "Fill");
 TRANSLATE_NOOP("FullscreenUI", "Stretch");
+TRANSLATE_NOOP("FullscreenUI", "Center");
+TRANSLATE_NOOP("FullscreenUI", "Tile");
 TRANSLATE_NOOP("FullscreenUI", "Enabled");
 TRANSLATE_NOOP("FullscreenUI", "Disabled");
 TRANSLATE_NOOP("FullscreenUI", "Top Left");
 TRANSLATE_NOOP("FullscreenUI", "Top Center");
 TRANSLATE_NOOP("FullscreenUI", "Top Right");
 TRANSLATE_NOOP("FullscreenUI", "Center Left");
-TRANSLATE_NOOP("FullscreenUI", "Center");
 TRANSLATE_NOOP("FullscreenUI", "Center Right");
 TRANSLATE_NOOP("FullscreenUI", "Bottom Left");
 TRANSLATE_NOOP("FullscreenUI", "Bottom Center");
@@ -9976,6 +10116,7 @@ TRANSLATE_NOOP("FullscreenUI", "Pause On Start");
 TRANSLATE_NOOP("FullscreenUI", "Pause On Focus Loss");
 TRANSLATE_NOOP("FullscreenUI", "Pause On Controller Disconnection");
 TRANSLATE_NOOP("FullscreenUI", "Pause On Menu");
+TRANSLATE_NOOP("FullscreenUI", "Prompt On State Load/Save Failure");
 TRANSLATE_NOOP("FullscreenUI", "Confirm Shutdown");
 TRANSLATE_NOOP("FullscreenUI", "Save State On Shutdown");
 TRANSLATE_NOOP("FullscreenUI", "Create Save State Backups");
@@ -9985,6 +10126,7 @@ TRANSLATE_NOOP("FullscreenUI", "Enable Discord Presence");
 TRANSLATE_NOOP("FullscreenUI", "Start Fullscreen");
 TRANSLATE_NOOP("FullscreenUI", "Double-Click Toggles Fullscreen");
 TRANSLATE_NOOP("FullscreenUI", "Hide Cursor In Fullscreen");
+TRANSLATE_NOOP("FullscreenUI", "Start Big Picture UI");
 TRANSLATE_NOOP("FullscreenUI", "OSD Scale");
 TRANSLATE_NOOP("FullscreenUI", "OSD Messages Position");
 TRANSLATE_NOOP("FullscreenUI", "OSD Performance Position");
@@ -10165,7 +10307,6 @@ TRANSLATE_NOOP("FullscreenUI", "Delete Save");
 TRANSLATE_NOOP("FullscreenUI", "Close Menu");
 TRANSLATE_NOOP("FullscreenUI", "Default Boot");
 TRANSLATE_NOOP("FullscreenUI", "Delete State");
-TRANSLATE_NOOP("FullscreenUI", "Failed to Load State");
 TRANSLATE_NOOP("FullscreenUI", "Full Boot");
 TRANSLATE_NOOP("FullscreenUI", "Reset Play Time");
 TRANSLATE_NOOP("FullscreenUI", "Confirm Reset");

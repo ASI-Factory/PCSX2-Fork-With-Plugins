@@ -116,10 +116,13 @@ public Q_SLOTS:
 	void checkForUpdates(bool display_message, bool force_check);
 	void refreshGameList(bool invalidate_cache, bool popup_on_error);
 	void cancelGameListRefresh();
+	void updateGameListBackground();
 	void reportInfo(const QString& title, const QString& message);
 	void reportError(const QString& title, const QString& message);
 	bool confirmMessage(const QString& title, const QString& message);
 	void onStatusMessage(const QString& message);
+	void reportStateLoadError(const QString& message, std::optional<s32> slot, bool backup);
+	void reportStateSaveError(const QString& message, std::optional<s32> slot);
 
 	void runOnUIThread(const std::function<void()>& func);
 	void requestReset();

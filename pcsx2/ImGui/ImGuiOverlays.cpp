@@ -1390,8 +1390,7 @@ void SaveStateSelectorUI::LoadCurrentSlot()
 	Host::RunOnCPUThread([slot = GetCurrentSlot()]() {
 		Error error;
 		if (!VMManager::LoadStateFromSlot(slot, false, &error))
-			Host::AddIconOSDMessage("LoadStateFromSlot", ICON_FA_TRIANGLE_EXCLAMATION,
-				error.GetDescription(), Host::OSD_INFO_DURATION);
+			FullscreenUI::ReportStateLoadError(error.GetDescription(), slot, false);
 	});
 	Close();
 }
@@ -1401,8 +1400,7 @@ void SaveStateSelectorUI::LoadCurrentBackupSlot()
 	Host::RunOnCPUThread([slot = GetCurrentSlot()]() {
 		Error error;
 		if (!VMManager::LoadStateFromSlot(slot, true, &error))
-			Host::AddIconOSDMessage("LoadStateFromSlot", ICON_FA_TRIANGLE_EXCLAMATION,
-				error.GetDescription(), Host::OSD_INFO_DURATION);
+			FullscreenUI::ReportStateLoadError(error.GetDescription(), slot, true);
 	});
 	Close();
 }
@@ -1410,7 +1408,9 @@ void SaveStateSelectorUI::LoadCurrentBackupSlot()
 void SaveStateSelectorUI::SaveCurrentSlot()
 {
 	Host::RunOnCPUThread([slot = GetCurrentSlot()]() {
-		VMManager::SaveStateToSlot(slot);
+		VMManager::SaveStateToSlot(slot, true, [slot](const std::string& error) {
+			FullscreenUI::ReportStateSaveError(error, slot);
+		});
 	});
 	Close();
 }
