@@ -207,6 +207,17 @@ bool GSDeviceVK::SelectInstanceExtensions(ExtensionList* extension_list, const W
 		Console.Warning("VK: Debug report requested, but extension is not available.");
 
 	oe->vk_swapchain_maintenance1 = wi.type != WindowInfo::Type::Surfaceless;
+	if (wi.type != WindowInfo::Type::Surfaceless)
+	{
+		oe->vk_swapchain_maintenance1 = true;
+		// VK_EXT_swapchain_maintenance1 requires VK_EXT_surface_maintenance1.
+		// VK_KHR_swapchain_maintenance1 might require VK_KHR_surface_maintenance1 (It does on Nvidia).
+		// If either VK_KHR_surface_maintenance1 is supported, or VK_EXT_swapchain_maintenance1 is unsupported, don't try VK_EXT_swapchain_maintenance1.
+		oe->vk_swapchain_maintenance1_is_khr = SupportsExtension(VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME, false) ||
+			!SupportsExtension(VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME, false);
+	}
+	else
+		oe->vk_swapchain_maintenance1 = false;
 
 	// Needed for exclusive fullscreen control.
 	SupportsExtension(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME, false);
@@ -413,7 +424,12 @@ bool GSDeviceVK::SelectDeviceExtensions(ExtensionList* extension_list, bool enab
 	if (m_optional_extensions.vk_swapchain_maintenance1)
 	{
 		const bool khr_swapchain_maintenance1 = SupportsExtension(VK_KHR_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME, false);
-		m_optional_extensions.vk_swapchain_maintenance1 = khr_swapchain_maintenance1 ? khr_swapchain_maintenance1 : SupportsExtension(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME, false);
+		// vk_swapchain_maintenance1_is_khr will be set if we havn't enabled VK_EXT_surface_maintenance1
+		// This will happen if either the VK_EXT_surface_maintenance1 was unsupported, or we instead found the KHR version.
+		// As the EXT version depends on the surface maintenance1 extension, we need to check that aswell.
+		m_optional_extensions.vk_swapchain_maintenance1 = khr_swapchain_maintenance1 ? khr_swapchain_maintenance1 :
+			(!m_optional_extensions.vk_swapchain_maintenance1_is_khr && SupportsExtension(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME, false));
+
 		m_optional_extensions.vk_swapchain_maintenance1_is_khr = khr_swapchain_maintenance1;
 	}
 
@@ -5567,7 +5583,6 @@ GSTextureVK* GSDeviceVK::SetupPrimitiveTrackingDATE(GSHWDrawConfig& config)
 
 void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 {
-
 	const GSVector2i rtsize(config.rt ? config.rt->GetSize() : config.ds->GetSize());
 	GSTextureVK* draw_rt = static_cast<GSTextureVK*>(config.rt);
 	GSTextureVK* draw_ds = static_cast<GSTextureVK*>(config.ds);
@@ -5700,24 +5715,6 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 			break;
 	}
 
-	if (config.require_one_barrier && !m_features.texture_barrier)
-	{
-		// requires a copy of the RT
-		draw_rt_clone = static_cast<GSTextureVK*>(CreateTexture(rtsize.x, rtsize.y, 1, colclip_rt ? GSTexture::Format::ColorClip : GSTexture::Format::Color, true));
-		if (draw_rt_clone)
-		{
-			EndRenderPass();
-
-			GL_PUSH("VK: Copy RT to temp texture for fbmask {%d,%d %dx%d}", config.drawarea.left, config.drawarea.top,
-				config.drawarea.width(), config.drawarea.height());
-
-			CopyRect(draw_rt, draw_rt_clone, config.drawarea, config.drawarea.left, config.drawarea.top);
-			PSSetShaderResource(2, draw_rt_clone, true);
-		}
-		else
-			Console.Warning("VK: Failed to allocate temp texture for RT copy.");
-	}
-
 	// Switch to colclip target for colclip hw rendering
 	if (pipe.ps.colclip_hw)
 	{
@@ -5793,6 +5790,26 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 
 		// Prefer keeping feedback loop enabled, that way we're not constantly restarting render passes
 		pipe.feedback_loop_flags |= m_current_framebuffer_feedback_loop;
+	}
+
+	if (draw_rt && (config.require_one_barrier || (config.tex && config.tex == config.rt)) && !m_features.texture_barrier)
+	{
+		// Requires a copy of the RT.
+		draw_rt_clone = static_cast<GSTextureVK*>(CreateTexture(rtsize.x, rtsize.y, 1, draw_rt->GetFormat(), true));
+		if (draw_rt_clone)
+		{
+			GL_PUSH("VK: Copy RT to temp texture {%d,%d %dx%d}",
+				config.drawarea.left, config.drawarea.top,
+				config.drawarea.width(), config.drawarea.height());
+			EndRenderPass();
+			CopyRect(draw_rt, draw_rt_clone, config.drawarea, config.drawarea.left, config.drawarea.top);
+			if (config.require_one_barrier)
+				PSSetShaderResource(2, draw_rt_clone, true);
+			if (config.tex && config.tex == config.rt)
+				PSSetShaderResource(0, draw_rt_clone, true);
+		}
+		else
+			Console.Warning("VK: Failed to allocate temp texture for RT copy.");
 	}
 
 	// We don't need the very first barrier if this is the first draw after switching to feedback loop,
