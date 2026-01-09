@@ -437,26 +437,26 @@ void QtHost::SetStyleFromSettings()
 		// Alternative dark theme.
 		qApp->setStyle(QStyleFactory::create("Fusion"));
 
-		const QColor gray(150, 150, 150);
-		const QColor royalBlue(29, 41, 81);
-		const QColor darkishBlue(17, 30, 108);
+		const QColor abyssBlue(39, 58, 114);
+		const QColor darkishBlue(29, 41, 81);
 		const QColor lighterBlue(25, 32, 130);
-		const QColor highlight(36, 93, 218);
-		const QColor link(0, 202, 255);
+		const QColor blue(198, 238, 255);
+		const QColor gray(150, 150, 150);
 
 		QPalette cobaltSkyPalette;
-		cobaltSkyPalette.setColor(QPalette::Window, royalBlue);
+		cobaltSkyPalette.setColor(QPalette::Window, abyssBlue);
 		cobaltSkyPalette.setColor(QPalette::WindowText, Qt::white);
-		cobaltSkyPalette.setColor(QPalette::Base, royalBlue.lighter());
-		cobaltSkyPalette.setColor(QPalette::AlternateBase, darkishBlue);
+		cobaltSkyPalette.setColor(QPalette::Base, darkishBlue);
+		cobaltSkyPalette.setColor(QPalette::AlternateBase, darkishBlue.darker());
 		cobaltSkyPalette.setColor(QPalette::ToolTipBase, darkishBlue);
 		cobaltSkyPalette.setColor(QPalette::ToolTipText, Qt::white);
 		cobaltSkyPalette.setColor(QPalette::Text, Qt::white);
 		cobaltSkyPalette.setColor(QPalette::Button, lighterBlue);
 		cobaltSkyPalette.setColor(QPalette::ButtonText, Qt::white);
-		cobaltSkyPalette.setColor(QPalette::Link, link);
-		cobaltSkyPalette.setColor(QPalette::Highlight, highlight);
+		cobaltSkyPalette.setColor(QPalette::Link, blue);
+		cobaltSkyPalette.setColor(QPalette::Highlight, abyssBlue.lighter());
 		cobaltSkyPalette.setColor(QPalette::HighlightedText, Qt::white);
+		cobaltSkyPalette.setColor(QPalette::PlaceholderText, gray);
 
 		cobaltSkyPalette.setColor(QPalette::Active, QPalette::Button, lighterBlue);
 		cobaltSkyPalette.setColor(QPalette::Disabled, QPalette::ButtonText, gray);
@@ -475,9 +475,9 @@ void QtHost::SetStyleFromSettings()
 		// OLED screens.
 		qApp->setStyle(QStyleFactory::create("Fusion"));
 
-		const QColor black(0, 0, 0);
-		const QColor gray(25, 25, 25);
-		const QColor lighterGray(75, 75, 75);
+		const QColor black(5, 5, 5);
+		const QColor gray(22, 22, 29);
+		const QColor lighterGray(65, 79, 98);
 		const QColor blue(198, 238, 255);
 
 		QPalette AMOLEDPalette;
@@ -519,7 +519,7 @@ void QtHost::SetStyleFromSettings()
 		rubyPalette.setColor(QPalette::Window, slate);
 		rubyPalette.setColor(QPalette::WindowText, Qt::white);
 		rubyPalette.setColor(QPalette::Base, slate.lighter());
-		rubyPalette.setColor(QPalette::AlternateBase, slate.lighter());
+		rubyPalette.setColor(QPalette::AlternateBase, slate.darker());
 		rubyPalette.setColor(QPalette::ToolTipBase, slate);
 		rubyPalette.setColor(QPalette::ToolTipText, Qt::white);
 		rubyPalette.setColor(QPalette::Text, Qt::white);
@@ -553,7 +553,7 @@ void QtHost::SetStyleFromSettings()
 		sapphirePalette.setColor(QPalette::Window, slate);
 		sapphirePalette.setColor(QPalette::WindowText, Qt::white);
 		sapphirePalette.setColor(QPalette::Base, slate.lighter());
-		sapphirePalette.setColor(QPalette::AlternateBase, slate.lighter());
+		sapphirePalette.setColor(QPalette::AlternateBase, slate.darker());
 		sapphirePalette.setColor(QPalette::ToolTipBase, slate);
 		sapphirePalette.setColor(QPalette::ToolTipText, Qt::white);
 		sapphirePalette.setColor(QPalette::Text, Qt::white);
@@ -587,7 +587,7 @@ void QtHost::SetStyleFromSettings()
 		emeraldPalette.setColor(QPalette::Window, slate);
 		emeraldPalette.setColor(QPalette::WindowText, Qt::white);
 		emeraldPalette.setColor(QPalette::Base, slate.lighter());
-		emeraldPalette.setColor(QPalette::AlternateBase, slate.lighter());
+		emeraldPalette.setColor(QPalette::AlternateBase, slate.darker());
 		emeraldPalette.setColor(QPalette::ToolTipBase, slate);
 		emeraldPalette.setColor(QPalette::ToolTipText, Qt::white);
 		emeraldPalette.setColor(QPalette::Text, Qt::white);
