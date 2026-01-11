@@ -806,12 +806,12 @@ void GSState::DumpTransferList(const std::string& filename)
 			(*file) << std::endl;
 
 		// clear, EE->GS, or GS->GS
-		(*file) << LIST_ITEM << "type: " << (transfer.zero_clear ? "clear" : (transfer.ee_to_gs ? "EE_to_GS" : "GS_to_GS")) << std::endl;
+		(*file) << LIST_ITEM << "type: " << (transfer.zero_clear ? "clear" : ((transfer.transfer_type == EEGS_TransferType::EE_to_GS) ? "EE_to_GS" : "GS_to_GS")) << std::endl;
 
 		// Dump BITBLTBUF
 		(*file) << INDENT << "BITBLTBUF: " << OPEN_MAP;
 
-		const bool gs_to_gs = !transfer.ee_to_gs && !transfer.zero_clear;
+		const bool gs_to_gs = (transfer.transfer_type == EEGS_TransferType::GS_to_GS) && !transfer.zero_clear;
 
 		if (gs_to_gs)
 		{
@@ -857,7 +857,7 @@ void GSState::DumpTransferImages()
 		const GSUploadQueue& transfer = m_draw_transfers[i];
 
 		std::string filename;
-		if (transfer.ee_to_gs || transfer.zero_clear)
+		if ((transfer.transfer_type == EEGS_TransferType::EE_to_GS) || transfer.zero_clear)
 		{
 			// clear or EE->GS: only the destination info is relevant.
 			filename = GetDrawDumpPath("%05d_transfer%02d_%s_%04x_%d_%s_%d_%d_%d_%d.png",
@@ -2365,7 +2365,7 @@ void GSState::Write(const u8* mem, int len)
 
 		s_last_transfer_draw_n = s_n;
 		// Store the transfer for preloading new RT's.
-		if ((m_draw_transfers.size() > 0 && blit.DBP == m_draw_transfers.back().blit.DBP))
+		if ((m_draw_transfers.size() > 0 && blit.DBP == m_draw_transfers.back().blit.DBP && m_draw_transfers.back().transfer_type == EEGS_TransferType::EE_to_GS))
 		{
 			// Same BP, let's update the rect.
 			GSUploadQueue transfer = m_draw_transfers.back();
@@ -2377,7 +2377,7 @@ void GSState::Write(const u8* mem, int len)
 		}
 		else
 		{
-			const GSUploadQueue new_transfer = { blit, r, s_n, false, true };
+			const GSUploadQueue new_transfer = {blit, r, s_n, false, EEGS_TransferType::EE_to_GS};
 			m_draw_transfers.push_back(new_transfer);
 		}
 
@@ -2519,21 +2519,31 @@ void GSState::Move()
 
 	InvalidateLocalMem(m_env.BITBLTBUF, GSVector4i(sx, sy, sx + w, sy + h));
 	InvalidateVideoMem(m_env.BITBLTBUF, GSVector4i(dx, dy, dx + w, dy + h));
+	const bool overlaps = m_env.BITBLTBUF.SBP == m_env.BITBLTBUF.DBP;
+	const bool intersect = overlaps && !(GSVector4i(sx, sy, sx + w, sy + h).rintersect(GSVector4i(dx, dy, dx + w, dy + h)).rempty());
 
 	int xinc = 1;
 	int yinc = 1;
 
 	if (m_env.TRXPOS.DIRX)
 	{
-		sx += w - 1;
-		dx += w - 1;
-		xinc = -1;
+		// Only allow it to reverse if the destination is behind the source.
+		if (!intersect || (sx <= dx && (sx == dx || ((!m_env.TRXPOS.DIRY && sy >= dy) || (m_env.TRXPOS.DIRY && sy < dy)))))
+		{
+			sx += w - 1;
+			dx += w - 1;
+			xinc = -1;
+		}
 	}
 	if (m_env.TRXPOS.DIRY)
 	{
-		sy += h - 1;
-		dy += h - 1;
-		yinc = -1;
+		// Only allow it to reverse if the destination is behind the source.
+		if (!intersect || (sy <= dy && (sy == dy || ((!m_env.TRXPOS.DIRX && sx >= dx) || (m_env.TRXPOS.DIRX && sx < dx)))))
+		{
+			sy += h - 1;
+			dy += h - 1;
+			yinc = -1;
+		}
 	}
 
 	const GSLocalMemory::psm_t& spsm = GSLocalMemory::m_psm[m_env.BITBLTBUF.SPSM];
@@ -2556,7 +2566,7 @@ void GSState::Move()
 
 	s_last_transfer_draw_n = s_n;
 	// Store the transfer for preloading new RT's.
-	if ((m_draw_transfers.size() > 0 && m_env.BITBLTBUF.DBP == m_draw_transfers.back().blit.DBP))
+	if ((m_draw_transfers.size() > 0 && m_env.BITBLTBUF.DBP == m_draw_transfers.back().blit.DBP && m_draw_transfers.back().transfer_type == EEGS_TransferType::GS_to_GS))
 	{
 		// Same BP, let's update the rect.
 		GSUploadQueue transfer = m_draw_transfers.back();
@@ -2568,11 +2578,11 @@ void GSState::Move()
 	}
 	else
 	{
-		const GSUploadQueue new_transfer = { m_env.BITBLTBUF, r, s_n, false, false };
+		const GSUploadQueue new_transfer = {m_env.BITBLTBUF, r, s_n, false, EEGS_TransferType::GS_to_GS};
 		m_draw_transfers.push_back(new_transfer);
 	}
 
-	auto copy = [this, sbp, dbp, sx, sy, dx, dy, w, h, yinc, xinc](const GSOffset& dpo, const GSOffset& spo, auto&& pxCopyFn)
+	auto copy = [this, sbp, dbp, sx, sy, dx, dy, w, h, yinc, xinc, intersect](const GSOffset& dpo, const GSOffset& spo, auto&& pxCopyFn)
 	{
 		int _sy = sy, _dy = dy; // Faster with local copied variables, compiler optimizations are dumb
 		if (xinc > 0)
@@ -2584,8 +2594,6 @@ void GSState::Move()
 			// Copying from itself to itself (rotating textures) used in Gitaroo Man stage 8
 			// What probably happens is because the copy is buffered, the source stays just ahead of the destination.
 			// No need to do all this if the copy source/destination don't intersect, however.
-			const bool intersect = !(GSVector4i(sx, sy, sx + w, sy + h).rintersect(GSVector4i(dx, dy, dx + w, dy + h)).rempty());
-
 			if (intersect && sbp == dbp && (((_sy < _dy) && ((ypage + page_height) > _dy)) || ((sx < dx) && ((xpage + page_width) > dx))))
 			{
 				int starty = (yinc > 0) ? 0 : h-1;
@@ -4656,6 +4664,14 @@ __forceinline void GSState::VertexKick(u32 skip)
 	u32 tail = m_vertex.tail;
 	u32 next = m_vertex.next;
 	u32 xy_tail = m_vertex.xy_tail;
+
+	if (GSIsHardwareRenderer() && GSLocalMemory::m_psm[m_context->ZBUF.PSM].bpp == 32)
+	{
+		if (GSConfig.UserHacks_Limit24BitDepth == GSLimit24BitDepth::PrioritizeUpper)
+			m_v.XYZ.Z = ((m_v.XYZ.Z >> 8) & ~0xFF) | (m_v.XYZ.Z & 0xFF);
+		else if (GSConfig.UserHacks_Limit24BitDepth == GSLimit24BitDepth::PrioritizeLower)
+			m_v.XYZ.Z &= 0x00FFFFFF;
+	}
 
 	// callers should write XYZUVF to m_v.m[1] in one piece to have this load store-forwarded, either by the cpu or the compiler when this function is inlined
 
