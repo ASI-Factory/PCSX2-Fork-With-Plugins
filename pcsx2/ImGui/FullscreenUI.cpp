@@ -45,7 +45,7 @@
 #include "SIO/Pad/Pad.h"
 #include "SIO/Sio.h"
 
-#include "IconsFontAwesome6.h"
+#include "IconsFontAwesome.h"
 #include "IconsPromptFont.h"
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -1439,7 +1439,7 @@ void FullscreenUI::DoVMInitialize(const VMBootParameters& boot_params, bool swit
 
 			if (switch_to_landing_on_failure)
 				MTGS::RunOnGSThread(SwitchToLanding);
-			
+
 			return;
 		}
 
@@ -6589,57 +6589,57 @@ void FullscreenUI::DrawAdvancedSettingsPage()
 	{
 		MenuHeading(FSUI_CSTR("Emotion Engine"));
 
-		DrawIntListSetting(bsi, FSUI_CSTR("Rounding Mode"),
+		DrawIntListSetting(bsi, FSUI_ICONSTR(ICON_FA_ARROW_TREND_DOWN, "Rounding Mode"),
 			FSUI_CSTR("Determines how the results of floating-point operations are rounded. Some games need specific settings."),
 			"EmuCore/CPU", "FPU.Roundmode", static_cast<int>(FPRoundMode::ChopZero), ee_rounding_mode_settings,
 			std::size(ee_rounding_mode_settings), true);
-		DrawIntListSetting(bsi, FSUI_CSTR("Division Rounding Mode"),
+		DrawIntListSetting(bsi, FSUI_ICONSTR(ICON_FA_DIVIDE, "Division Rounding Mode"),
 			FSUI_CSTR("Determines how the results of floating-point division is rounded. Some games need specific settings."),
 			"EmuCore/CPU", "FPUDiv.Roundmode", static_cast<int>(FPRoundMode::Nearest),
 			ee_rounding_mode_settings, std::size(ee_rounding_mode_settings), true);
-		DrawClampingModeSetting(bsi, FSUI_CSTR("Clamping Mode"),
+		DrawClampingModeSetting(bsi, FSUI_ICONSTR(ICON_FA_ARROW_TURN_DOWN, "Clamping Mode"),
 			FSUI_CSTR("Determines how out-of-range floating point numbers are handled. Some games need specific settings."), -1);
 
-		DrawToggleSetting(bsi, FSUI_CSTR("Enable EE Recompiler"),
+		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_MICROCHIP, "Enable EE Recompiler"),
 			FSUI_CSTR("Performs just-in-time binary translation of 64-bit MIPS-IV machine code to native code."), "EmuCore/CPU/Recompiler",
 			"EnableEE", true);
-		DrawToggleSetting(bsi, FSUI_CSTR("Enable EE Cache"), FSUI_CSTR("Enables simulation of the EE's cache. Slow."),
+		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_BUCKET, "Enable EE Cache"), FSUI_CSTR("Enables simulation of the EE's cache. Slow."),
 			"EmuCore/CPU/Recompiler", "EnableEECache", false);
-		DrawToggleSetting(bsi, FSUI_CSTR("Enable INTC Spin Detection"),
+		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_ARROWS_SPIN, "Enable INTC Spin Detection"),
 			FSUI_CSTR("Huge speedup for some games, with almost no compatibility side effects."), "EmuCore/Speedhacks", "IntcStat", true);
-		DrawToggleSetting(bsi, FSUI_CSTR("Enable Wait Loop Detection"),
+		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_ARROWS_SPIN, "Enable Wait Loop Detection"),
 			FSUI_CSTR("Moderate speedup for some games, with no known side effects."), "EmuCore/Speedhacks", "WaitLoop", true);
-		DrawToggleSetting(bsi, FSUI_CSTR("Enable Fast Memory Access"),
+		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_MEMORY, "Enable Fast Memory Access"),
 			FSUI_CSTR("Uses backpatching to avoid register flushing on every memory access."), "EmuCore/CPU/Recompiler", "EnableFastmem",
 			true);
 
 		MenuHeading(FSUI_CSTR("Vector Units"));
-		DrawIntListSetting(bsi, FSUI_CSTR("VU0 Rounding Mode"),
+		DrawIntListSetting(bsi, FSUI_ICONSTR(ICON_FA_ARROW_TREND_DOWN, "VU0 Rounding Mode"),
 			FSUI_CSTR("Determines how the results of floating-point operations are rounded. Some games need specific settings."),
 			"EmuCore/CPU", "VU0.Roundmode", static_cast<int>(FPRoundMode::ChopZero),
 			ee_rounding_mode_settings, std::size(ee_rounding_mode_settings), true);
-		DrawClampingModeSetting(bsi, FSUI_CSTR("VU0 Clamping Mode"),
+		DrawClampingModeSetting(bsi, FSUI_ICONSTR(ICON_FA_ARROW_TURN_DOWN, "VU0 Clamping Mode"),
 			FSUI_CSTR("Determines how out-of-range floating point numbers are handled. Some games need specific settings."), 0);
-		DrawIntListSetting(bsi, FSUI_CSTR("VU1 Rounding Mode"),
+		DrawIntListSetting(bsi, FSUI_ICONSTR(ICON_FA_ARROW_TREND_DOWN, "VU1 Rounding Mode"),
 			FSUI_CSTR("Determines how the results of floating-point operations are rounded. Some games need specific settings."),
 			"EmuCore/CPU", "VU1.Roundmode", static_cast<int>(FPRoundMode::ChopZero),
 			ee_rounding_mode_settings, std::size(ee_rounding_mode_settings), true);
-		DrawClampingModeSetting(bsi, FSUI_CSTR("VU1 Clamping Mode"),
+		DrawClampingModeSetting(bsi, FSUI_ICONSTR(ICON_FA_ARROW_TURN_DOWN, "VU1 Clamping Mode"),
 			FSUI_CSTR("Determines how out-of-range floating point numbers are handled. Some games need specific settings."), 1);
-		DrawToggleSetting(bsi, FSUI_CSTR("Enable VU0 Recompiler (Micro Mode)"),
+		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_MICROCHIP, "Enable VU0 Recompiler (Micro Mode)"),
 			FSUI_CSTR("New Vector Unit recompiler with much improved compatibility. Recommended."), "EmuCore/CPU/Recompiler", "EnableVU0",
 			true);
-		DrawToggleSetting(bsi, FSUI_CSTR("Enable VU1 Recompiler"),
+		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_MICROCHIP, "Enable VU1 Recompiler"),
 			FSUI_CSTR("New Vector Unit recompiler with much improved compatibility. Recommended."), "EmuCore/CPU/Recompiler", "EnableVU1",
 			true);
-		DrawToggleSetting(bsi, FSUI_CSTR("Enable VU Flag Optimization"),
+		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_FLAG, "Enable VU Flag Optimization"),
 			FSUI_CSTR("Good speedup and high compatibility, may cause graphical errors."), "EmuCore/Speedhacks", "vuFlagHack", true);
-		DrawToggleSetting(bsi, FSUI_CSTR("Enable Instant VU1"),
+		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_CLOCK, "Enable Instant VU1"),
 			FSUI_CSTR("Runs VU1 instantly. Provides a modest speed improvement in most games. Safe for most games, but a few games may exhibit graphical errors."),
 			"EmuCore/Speedhacks", "vu1Instant", true);
 
 		MenuHeading(FSUI_CSTR("I/O Processor"));
-		DrawToggleSetting(bsi, FSUI_CSTR("Enable IOP Recompiler"),
+		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_MICROCHIP, "Enable IOP Recompiler"),
 			FSUI_CSTR("Performs just-in-time binary translation of 32-bit MIPS-I machine code to native code."), "EmuCore/CPU/Recompiler",
 			"EnableIOP", true);
 
@@ -9648,36 +9648,19 @@ TRANSLATE_NOOP("FullscreenUI", "Writes debug messages from the game's EE code to
 TRANSLATE_NOOP("FullscreenUI", "Writes debug messages from the game's IOP code to the console.");
 TRANSLATE_NOOP("FullscreenUI", "Logs disc reads from games.");
 TRANSLATE_NOOP("FullscreenUI", "Emotion Engine");
-TRANSLATE_NOOP("FullscreenUI", "Rounding Mode");
 TRANSLATE_NOOP("FullscreenUI", "Determines how the results of floating-point operations are rounded. Some games need specific settings.");
-TRANSLATE_NOOP("FullscreenUI", "Division Rounding Mode");
 TRANSLATE_NOOP("FullscreenUI", "Determines how the results of floating-point division is rounded. Some games need specific settings.");
-TRANSLATE_NOOP("FullscreenUI", "Clamping Mode");
 TRANSLATE_NOOP("FullscreenUI", "Determines how out-of-range floating point numbers are handled. Some games need specific settings.");
-TRANSLATE_NOOP("FullscreenUI", "Enable EE Recompiler");
 TRANSLATE_NOOP("FullscreenUI", "Performs just-in-time binary translation of 64-bit MIPS-IV machine code to native code.");
-TRANSLATE_NOOP("FullscreenUI", "Enable EE Cache");
 TRANSLATE_NOOP("FullscreenUI", "Enables simulation of the EE's cache. Slow.");
-TRANSLATE_NOOP("FullscreenUI", "Enable INTC Spin Detection");
 TRANSLATE_NOOP("FullscreenUI", "Huge speedup for some games, with almost no compatibility side effects.");
-TRANSLATE_NOOP("FullscreenUI", "Enable Wait Loop Detection");
 TRANSLATE_NOOP("FullscreenUI", "Moderate speedup for some games, with no known side effects.");
-TRANSLATE_NOOP("FullscreenUI", "Enable Fast Memory Access");
 TRANSLATE_NOOP("FullscreenUI", "Uses backpatching to avoid register flushing on every memory access.");
 TRANSLATE_NOOP("FullscreenUI", "Vector Units");
-TRANSLATE_NOOP("FullscreenUI", "VU0 Rounding Mode");
-TRANSLATE_NOOP("FullscreenUI", "VU0 Clamping Mode");
-TRANSLATE_NOOP("FullscreenUI", "VU1 Rounding Mode");
-TRANSLATE_NOOP("FullscreenUI", "VU1 Clamping Mode");
-TRANSLATE_NOOP("FullscreenUI", "Enable VU0 Recompiler (Micro Mode)");
 TRANSLATE_NOOP("FullscreenUI", "New Vector Unit recompiler with much improved compatibility. Recommended.");
-TRANSLATE_NOOP("FullscreenUI", "Enable VU1 Recompiler");
-TRANSLATE_NOOP("FullscreenUI", "Enable VU Flag Optimization");
 TRANSLATE_NOOP("FullscreenUI", "Good speedup and high compatibility, may cause graphical errors.");
-TRANSLATE_NOOP("FullscreenUI", "Enable Instant VU1");
 TRANSLATE_NOOP("FullscreenUI", "Runs VU1 instantly. Provides a modest speed improvement in most games. Safe for most games, but a few games may exhibit graphical errors.");
 TRANSLATE_NOOP("FullscreenUI", "I/O Processor");
-TRANSLATE_NOOP("FullscreenUI", "Enable IOP Recompiler");
 TRANSLATE_NOOP("FullscreenUI", "Performs just-in-time binary translation of 32-bit MIPS-I machine code to native code.");
 TRANSLATE_NOOP("FullscreenUI", "Save State Management");
 TRANSLATE_NOOP("FullscreenUI", "Sets the compression algorithm for savestate.");
@@ -10258,6 +10241,23 @@ TRANSLATE_NOOP("FullscreenUI", "Log Timestamps");
 TRANSLATE_NOOP("FullscreenUI", "EE Console");
 TRANSLATE_NOOP("FullscreenUI", "IOP Console");
 TRANSLATE_NOOP("FullscreenUI", "CDVD Verbose Reads");
+TRANSLATE_NOOP("FullscreenUI", "Rounding Mode");
+TRANSLATE_NOOP("FullscreenUI", "Division Rounding Mode");
+TRANSLATE_NOOP("FullscreenUI", "Clamping Mode");
+TRANSLATE_NOOP("FullscreenUI", "Enable EE Recompiler");
+TRANSLATE_NOOP("FullscreenUI", "Enable EE Cache");
+TRANSLATE_NOOP("FullscreenUI", "Enable INTC Spin Detection");
+TRANSLATE_NOOP("FullscreenUI", "Enable Wait Loop Detection");
+TRANSLATE_NOOP("FullscreenUI", "Enable Fast Memory Access");
+TRANSLATE_NOOP("FullscreenUI", "VU0 Rounding Mode");
+TRANSLATE_NOOP("FullscreenUI", "VU0 Clamping Mode");
+TRANSLATE_NOOP("FullscreenUI", "VU1 Rounding Mode");
+TRANSLATE_NOOP("FullscreenUI", "VU1 Clamping Mode");
+TRANSLATE_NOOP("FullscreenUI", "Enable VU0 Recompiler (Micro Mode)");
+TRANSLATE_NOOP("FullscreenUI", "Enable VU1 Recompiler");
+TRANSLATE_NOOP("FullscreenUI", "Enable VU Flag Optimization");
+TRANSLATE_NOOP("FullscreenUI", "Enable Instant VU1");
+TRANSLATE_NOOP("FullscreenUI", "Enable IOP Recompiler");
 TRANSLATE_NOOP("FullscreenUI", "Compression Method");
 TRANSLATE_NOOP("FullscreenUI", "Compression Level");
 TRANSLATE_NOOP("FullscreenUI", "Use Debug Device");
