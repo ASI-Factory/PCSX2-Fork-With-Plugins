@@ -5073,22 +5073,17 @@ GSState::TextureMinMaxResult GSState::GetTextureMinMax(GIFRegTEX0 TEX0, GIFRegCL
 				const GSVertex* vert_third = &m_vertex.buff[m_index.buff[2]];
 
 				GSVector4 new_st = st;
-				bool u_forward_check = false;
-				bool x_forward_check = false;
+				bool u_forward_check = PRIM->FST ? (vert_first->U < vert_second->U) : ((vert_first->ST.S / vert_first->RGBAQ.Q) < (vert_second->ST.S / vert_first->RGBAQ.Q));
+				bool x_forward_check = vert_first->XYZ.X < vert_second->XYZ.X;
+
 				if (m_vt.m_primclass == GS_TRIANGLE_CLASS)
 				{
-					u_forward_check = PRIM->FST ? ((vert_first->U < vert_second->U) || (vert_first->U < vert_third->U)) : (((vert_first->ST.S / vert_first->RGBAQ.Q) < (vert_second->ST.S / vert_second->RGBAQ.Q)) || ((vert_first->ST.S / vert_first->RGBAQ.Q) < (vert_third->ST.S / vert_third->RGBAQ.Q)));
-					x_forward_check = (vert_first->XYZ.X < vert_second->XYZ.X) || (vert_first->XYZ.X < vert_third->XYZ.X);
+					u_forward_check |= PRIM->FST ? (vert_first->U < vert_third->U) : ((vert_first->ST.S / vert_first->RGBAQ.Q) < (vert_third->ST.S / vert_third->RGBAQ.Q));
+					x_forward_check |= vert_first->XYZ.X < vert_third->XYZ.X;
 				}
-				else
-				{
-					u_forward_check = PRIM->FST ? (vert_first->U < vert_second->U) : ((vert_first->ST.T / vert_first->RGBAQ.Q) < (vert_second->ST.T / vert_first->RGBAQ.Q));
-					x_forward_check = vert_first->XYZ.Y < vert_second->XYZ.Y;
-				}
+
 				// Check if the UV coords are going in a different direction to the verts, if they match direction, no need to swap
-				const bool u_forward = u_forward_check;
-				const bool x_forward = x_forward_check;
-				const bool swap_x = u_forward != x_forward;
+				const bool swap_x = u_forward_check != x_forward_check;
 
 				if (int_rc.left < scissored_rc.left)
 				{
@@ -5110,21 +5105,16 @@ GSState::TextureMinMaxResult GSState::GetTextureMinMax(GIFRegTEX0 TEX0, GIFRegCL
 					st.x = new_st.x;
 					st.z = new_st.z;
 				}
-				bool v_forward_check = false;
-				bool y_forward_check = false;
+				bool v_forward_check = PRIM->FST ? (vert_first->V < vert_second->V) : ((vert_first->ST.T / vert_first->RGBAQ.Q) < (vert_second->ST.T / vert_first->RGBAQ.Q));
+				bool y_forward_check = vert_first->XYZ.Y < vert_second->XYZ.Y;
+
 				if (m_vt.m_primclass == GS_TRIANGLE_CLASS)
 				{
-					v_forward_check = PRIM->FST ? ((vert_first->V < vert_second->V) || (vert_first->V < vert_third->V)) : (((vert_first->ST.T / vert_first->RGBAQ.Q) < (vert_second->ST.T / vert_second->RGBAQ.Q)) || ((vert_first->ST.T / vert_first->RGBAQ.Q) < (vert_third->ST.T / vert_third->RGBAQ.Q)));
-					y_forward_check = (vert_first->XYZ.Y < vert_second->XYZ.Y) || (vert_first->XYZ.Y < vert_third->XYZ.Y);
+					v_forward_check |= PRIM->FST ? (vert_first->V < vert_third->V) : ((vert_first->ST.T / vert_first->RGBAQ.Q) < (vert_third->ST.T / vert_third->RGBAQ.Q));
+					y_forward_check |= vert_first->XYZ.Y < vert_third->XYZ.Y;
 				}
-				else
-				{
-					v_forward_check = PRIM->FST ? (vert_first->V < vert_second->V) : ((vert_first->ST.T / vert_first->RGBAQ.Q) < (vert_second->ST.T / vert_first->RGBAQ.Q));
-					y_forward_check = vert_first->XYZ.Y < vert_second->XYZ.Y;
-				}
-				const bool v_forward = v_forward_check;
-				const bool y_forward = y_forward_check;
-				const bool swap_y = v_forward != y_forward;
+
+				const bool swap_y = v_forward_check != y_forward_check;
 
 				if (int_rc.top < scissored_rc.top)
 				{
@@ -5971,44 +5961,36 @@ void GSState::GSPCRTCRegs::SetRects(int display, GSRegDISPLAY displayReg, GSRegD
 
 // Calculate framebuffer read offsets, should be considered if only one circuit is enabled, or difference is more than 1 line.
 // Only considered if "Anti-blur" is enabled.
-void GSState::GSPCRTCRegs::CalculateFramebufferOffset(bool scanmask)
+void GSState::GSPCRTCRegs::CalculateFramebufferOffset(bool scanmask, GSRegDISPFB framebuffer0Reg, GSRegDISPFB framebuffer1Reg)
 {
+	GSVector2i fb0 = GSVector2i(PCRTCDisplays[0].framebufferOffsets.x, PCRTCDisplays[0].framebufferOffsets.y);
+	GSVector2i fb1 = GSVector2i(PCRTCDisplays[1].framebufferOffsets.x, PCRTCDisplays[1].framebufferOffsets.y);
+
+	if (fb0.x + PCRTCDisplays[0].displayRect.z > 2048)
+	{
+		fb0.x -= 2048;
+		PCRTCDisplays[0].framebufferOffsets.x = fb0.x;
+	}
+	if (fb0.y + PCRTCDisplays[0].displayRect.w > 2048)
+	{
+		fb0.y -= 2048;
+		PCRTCDisplays[0].framebufferOffsets.y = fb0.y;
+	}
+	if (fb1.x + PCRTCDisplays[1].displayRect.z > 2048)
+	{
+		fb1.x -= 2048;
+		PCRTCDisplays[1].framebufferOffsets.x = fb1.x;
+	}
+	if (fb1.y + PCRTCDisplays[1].displayRect.w > 2048)
+	{
+		fb1.y -= 2048;
+		PCRTCDisplays[1].framebufferOffsets.y = fb1.y;
+	}
+
 	if (GSConfig.PCRTCAntiBlur && PCRTCSameSrc && !scanmask)
 	{
-		GSVector2i fb0 = GSVector2i(PCRTCDisplays[0].framebufferOffsets.x, PCRTCDisplays[0].framebufferOffsets.y);
-		GSVector2i fb1 = GSVector2i(PCRTCDisplays[1].framebufferOffsets.x, PCRTCDisplays[1].framebufferOffsets.y);
-
-		if (fb0.x + PCRTCDisplays[0].displayRect.z > 2048)
-		{
-			fb0.x -= 2048;
-			fb0.x = abs(fb0.x);
-		}
-		if (fb0.y + PCRTCDisplays[0].displayRect.w > 2048)
-		{
-			fb0.y -= 2048;
-			fb0.y = abs(fb0.y);
-		}
-		if (fb1.x + PCRTCDisplays[1].displayRect.z > 2048)
-		{
-			fb1.x -= 2048;
-			fb1.x = abs(fb1.x);
-		}
-		if (fb1.y + PCRTCDisplays[1].displayRect.w > 2048)
-		{
-			fb1.y -= 2048;
-			fb1.y = abs(fb1.y);
-		}
-
-		if (abs(fb1.y - fb0.y) == 1
-			&& PCRTCDisplays[0].displayRect.y == PCRTCDisplays[1].displayRect.y)
-		{
-			if (fb1.y < fb0.y)
-				PCRTCDisplays[0].framebufferOffsets.y = fb1.y;
-			else
-				PCRTCDisplays[1].framebufferOffsets.y = fb0.y;
-		}
-		if (abs(fb1.x - fb0.x) == 1
-			&& PCRTCDisplays[0].displayRect.x == PCRTCDisplays[1].displayRect.x)
+		
+		if (abs(fb1.x - fb0.x) == 1 && PCRTCDisplays[0].displayRect.x == PCRTCDisplays[1].displayRect.x)
 		{
 			if (fb1.x < fb0.x)
 				PCRTCDisplays[0].framebufferOffsets.x = fb1.x;
@@ -6025,6 +6007,20 @@ void GSState::GSPCRTCRegs::CalculateFramebufferOffset(bool scanmask)
 	PCRTCDisplays[1].framebufferRect.z += PCRTCDisplays[1].framebufferOffsets.x;
 	PCRTCDisplays[1].framebufferRect.y += PCRTCDisplays[1].framebufferOffsets.y;
 	PCRTCDisplays[1].framebufferRect.w += PCRTCDisplays[1].framebufferOffsets.y;
+
+	if (GSConfig.PCRTCAntiBlur && PCRTCSameSrc && !scanmask && abs(fb1.y - fb0.y) <= 1)
+	{
+		if (framebuffer0Reg.DBY != PCRTCDisplays[0].prevFramebufferReg.DBY)
+		{
+			PCRTCDisplays[0].framebufferRect.y = PCRTCDisplays[1].framebufferRect.y;
+			PCRTCDisplays[0].framebufferRect.w = PCRTCDisplays[1].framebufferRect.w;
+		}
+		else
+		{
+			PCRTCDisplays[1].framebufferRect.y = PCRTCDisplays[0].framebufferRect.y;
+			PCRTCDisplays[1].framebufferRect.w = PCRTCDisplays[0].framebufferRect.w;
+		}
+	}
 }
 
 // Used in software mode to align the buffer when reading. Offset is accounted for (block aligned) by GetOutput.
