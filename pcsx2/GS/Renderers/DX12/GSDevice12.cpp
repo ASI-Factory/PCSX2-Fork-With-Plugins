@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2002-2025 PCSX2 Dev Team
+// SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
 // SPDX-License-Identifier: GPL-3.0+
 
 #include "GS/GS.h"
@@ -822,7 +822,7 @@ bool GSDevice12::CreateSwapChain()
 		float fullscreen_refresh_rate;
 		m_is_exclusive_fullscreen =
 			GetRequestedExclusiveFullscreenMode(&fullscreen_width, &fullscreen_height, &fullscreen_refresh_rate) &&
-			D3D::GetRequestedExclusiveFullscreenModeDesc(m_dxgi_factory.get(), client_rc, fullscreen_width,
+			D3D::GetRequestedExclusiveFullscreenModeDesc(m_dxgi_factory.get(), window_hwnd, fullscreen_width,
 				fullscreen_height, fullscreen_refresh_rate, swap_chain_format, &fullscreen_mode,
 				fullscreen_output.put());
 
