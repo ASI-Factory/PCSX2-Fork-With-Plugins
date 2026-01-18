@@ -509,7 +509,7 @@ struct PSMain
 
 	uint fetch_raw_depth()
 	{
-		return tex_depth.read(ushort2(in.p.xy)) * 0x1p32f;
+		return tex_depth.read(ushort2(in.p.xy + cb.channel_shuffle_offset)) * 0x1p32f;
 	}
 
 	float4 fetch_raw_color()
@@ -517,7 +517,7 @@ struct PSMain
 		if (PS_TEX_IS_FB)
 			return current_color;
 		else
-			return tex.read(ushort2(in.p.xy));
+			return tex.read(ushort2(in.p.xy + cb.channel_shuffle_offset));
 	}
 
 	float4 fetch_c(ushort2 uv)
@@ -790,7 +790,7 @@ struct PSMain
 	void fog(thread float4& C, float f)
 	{
 		if (PS_FOG)
-			C.rgb = trunc(mix(cb.fog_color, C.rgb, f));
+			C.rgb = trunc(mix(cb.fog_color, C.rgb, (f * 255.0f) / 256.0f));
 	}
 
 	float4 ps_color()
