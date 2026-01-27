@@ -1925,7 +1925,6 @@ Pcsx2Config::Pcsx2Config()
 {
 	bitset = 0;
 	// Set defaults for fresh installs / reset settings
-	McdFolderAutoManage = true;
 	EnablePatches = true;
 	EnableFastBoot = true;
 	EnableRecordingTools = true;
@@ -1981,7 +1980,6 @@ void Pcsx2Config::LoadSaveCore(SettingsWrapper& wrap)
 	SettingsWrapBitBool(HostFs);
 
 	SettingsWrapBitBool(BackupSavestate);
-	SettingsWrapBitBool(McdFolderAutoManage);
 
 	SettingsWrapBitBool(WarnAboutUnsafeSettings);
 
