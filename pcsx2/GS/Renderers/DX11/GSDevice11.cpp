@@ -1314,6 +1314,8 @@ void GSDevice11::DoStretchRect(GSTexture* sTex, const GSVector4& sRect, GSTextur
 
 void GSDevice11::DoStretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ID3D11PixelShader* ps, ID3D11Buffer* ps_cb, ID3D11BlendState* bs, bool linear)
 {
+	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+
 	CommitClear(sTex);
 
 	const bool draw_in_depth = dTex && dTex->IsDepthStencil();
@@ -1321,6 +1323,10 @@ void GSDevice11::DoStretchRect(GSTexture* sTex, const GSVector4& sRect, GSTextur
 	GSVector2i ds;
 	if (dTex)
 	{
+		// preemptively bind svr if possible
+		if (m_state.cached_rt_view != sTex && m_state.cached_dsv != sTex)
+			PSSetShaderResource(0, sTex);
+
 		// ps unbind conflicting srvs
 		PSUnbindConflictingSRVs(dTex);
 
@@ -1381,11 +1387,17 @@ void GSDevice11::DoStretchRect(GSTexture* sTex, const GSVector4& sRect, GSTextur
 
 void GSDevice11::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, PresentShader shader, float shaderTime, bool linear)
 {
+	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+
 	CommitClear(sTex);
 
 	GSVector2i ds;
 	if (dTex)
 	{
+		// preemptively bind svr if possible
+		if (m_state.cached_rt_view != sTex && m_state.cached_dsv != sTex)
+			PSSetShaderResource(0, sTex);
+
 		// ps unbind conflicting srvs
 		PSUnbindConflictingSRVs(dTex);
 
@@ -1540,6 +1552,8 @@ void GSDevice11::DrawMultiStretchRects(const MultiStretchRect* rects, u32 num_re
 
 void GSDevice11::DoMultiStretchRects(const MultiStretchRect* rects, u32 num_rects, const GSVector2& ds)
 {
+	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+
 	// Don't use primitive restart here, it ends up slower on some drivers.
 	const u32 vertex_reserve_size = num_rects * 4;
 	const u32 index_reserve_size = num_rects * 6;
@@ -2181,12 +2195,19 @@ void GSDevice11::RenderImGui()
 
 void GSDevice11::SetupDATE(GSTexture* rt, GSTexture* ds, SetDATM datm, const GSVector4i& bbox)
 {
+	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
+
 	// sfex3 (after the capcom logo), vf4 (first menu fading in), ffxii shadows, rumble roses shadows, persona4 shadows
 
 	CommitClear(rt);
 	CommitClear(ds);
 
 	m_ctx->ClearDepthStencilView(*static_cast<GSTexture11*>(ds), D3D11_CLEAR_STENCIL, 0.0f, 0);
+
+	// preemptively bind svr if possible
+
+	if (m_state.cached_rt_view != rt && m_state.cached_dsv != rt)
+		PSSetShaderResource(0, rt);
 
 	// ps unbind conflicting srvs
 
@@ -2401,6 +2422,7 @@ void GSDevice11::VSSetShader(ID3D11VertexShader* vs, ID3D11Buffer* vs_cb)
 
 void GSDevice11::PSSetShaderResource(int i, GSTexture* sr)
 {
+	// Update local state only, PSUpdateShaderState updates gpu state.
 	m_state.ps_sr_views[i] = *static_cast<GSTexture11*>(sr);
 }
 
@@ -2437,7 +2459,7 @@ void GSDevice11::PSUpdateShaderState(const bool sr_update, const bool ss_update)
 	if (sr_update)
 	{
 		bool sr_changed = false;
-		for (size_t i = 0; i < m_state.ps_sr_views.size(); ++i)
+		for (size_t i = 0; i < MAX_TEXTURES; ++i)
 		{
 			if (m_state.ps_cached_sr_views[i] != m_state.ps_sr_views[i])
 			{
@@ -2449,14 +2471,14 @@ void GSDevice11::PSUpdateShaderState(const bool sr_update, const bool ss_update)
 		if (sr_changed)
 		{
 			m_state.ps_cached_sr_views = m_state.ps_sr_views;
-			m_ctx->PSSetShaderResources(0, m_state.ps_sr_views.size(), m_state.ps_sr_views.data());
+			m_ctx->PSSetShaderResources(0, MAX_TEXTURES, m_state.ps_sr_views.data());
 		}
 	}
 
 	if (ss_update)
 	{
 		bool ss_changed = false;
-		for (size_t i = 0; i < m_state.ps_ss.size(); ++i)
+		for (size_t i = 0; i < MAX_SAMPLERS; ++i)
 		{
 			if (m_state.ps_cached_ss[i] != m_state.ps_ss[i])
 			{
@@ -2468,7 +2490,7 @@ void GSDevice11::PSUpdateShaderState(const bool sr_update, const bool ss_update)
 		if (ss_changed)
 		{
 			m_state.ps_cached_ss = m_state.ps_ss;
-			m_ctx->PSSetSamplers(0, m_state.ps_ss.size(), m_state.ps_ss.data());
+			m_ctx->PSSetSamplers(0, MAX_SAMPLERS, m_state.ps_ss.data());
 		}
 	}
 }
@@ -2477,9 +2499,10 @@ void GSDevice11::PSUnbindConflictingSRVs(GSTexture* tex1, GSTexture* tex2)
 {
 	// Make sure no SRVs are bound using the same texture before binding it to a RTV.
 	bool changed = false;
-	for (size_t i = 0; i < m_state.ps_sr_views.size(); i++)
+	for (size_t i = 0; i < MAX_TEXTURES; i++)
 	{
-		if ((tex1 && m_state.ps_sr_views[i] == *static_cast<GSTexture11*>(tex1)) || (tex2 && m_state.ps_sr_views[i] == *static_cast<GSTexture11*>(tex2)))
+		// We chech against what's currently bound (cached_sr_views), then update local state (ps_sr_views) which calls PSUpdateShaderState to update gpu state.
+		if ((tex1 && m_state.ps_cached_sr_views[i] == *static_cast<GSTexture11*>(tex1)) || (tex2 && m_state.ps_cached_sr_views[i] == *static_cast<GSTexture11*>(tex2)))
 		{
 			m_state.ps_sr_views[i] = nullptr;
 			changed = true;
@@ -2623,7 +2646,6 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 			const GSVector4 dRect(config.colclip_update_area);
 			const GSVector4 sRect = dRect / GSVector4(size.x, size.y).xyxy();
 			StretchRect(colclip_rt, sRect, config.rt, dRect, ShaderConvert::COLCLIP_RESOLVE, false);
-			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 			Recycle(colclip_rt);
 
 			g_gs_device->SetColorClipTexture(nullptr);
@@ -2652,7 +2674,6 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 			const GSVector4 dRect = GSVector4((config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertOnly) ? GSVector4i::loadh(rtsize) : config.drawarea);
 			const GSVector4 sRect = dRect / GSVector4(rtsize.x, rtsize.y).xyxy();
 			StretchRect(config.rt, sRect, colclip_rt, dRect, ShaderConvert::COLCLIP_INIT, false);
-			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 		}
 	}
 
@@ -2723,19 +2744,28 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 	if (config.tex && config.tex == config.ds)
 		read_only_dsv = static_cast<GSTexture11*>(config.ds)->ReadOnlyDepthStencilView();
 
-	// Should be called before changing local srv state.
-	PSUnbindConflictingSRVs(colclip_rt ? colclip_rt : config.rt, read_only_dsv ? nullptr : config.ds);
-
+	// Preemptively bind svr if possible.
+	// We update the local state, then if there are srv conflicts PSUnbindConflictingSRVs will update the gpu state.
 	if (config.tex)
 	{
 		CommitClear(config.tex);
-		PSSetShaderResource(0, config.tex);
+		if (m_state.cached_rt_view != config.tex && m_state.cached_dsv != config.tex)
+			PSSetShaderResource(0, config.tex);
 	}
 	if (config.pal)
 	{
 		CommitClear(config.pal);
-		PSSetShaderResource(1, config.pal);
+		if (m_state.cached_rt_view != config.pal && m_state.cached_dsv != config.pal)
+			PSSetShaderResource(1, config.pal);
 	}
+
+	// Should be called before changing current gpu state.
+	PSUnbindConflictingSRVs(colclip_rt ? colclip_rt : config.rt, read_only_dsv ? nullptr : config.ds);
+
+	if (config.tex)
+		PSSetShaderResource(0, config.tex);
+	if (config.pal)
+		PSSetShaderResource(1, config.pal);
 
 	SetupVS(config.vs, &config.cb_vs);
 	SetupPS(config.ps, &config.cb_ps, config.sampler);
@@ -2837,7 +2867,6 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 			const GSVector4 dRect(config.colclip_update_area);
 			const GSVector4 sRect = dRect / GSVector4(size.x, size.y).xyxy();
 			StretchRect(colclip_rt, sRect, config.rt, dRect, ShaderConvert::COLCLIP_RESOLVE, false);
-			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 			Recycle(colclip_rt);
 
 			g_gs_device->SetColorClipTexture(nullptr);
