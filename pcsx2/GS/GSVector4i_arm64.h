@@ -888,7 +888,7 @@ public:
 
 	__forceinline GSVector4i hsub32(const GSVector4i& v) const
 	{
-		return vsubq_u32(vuzp1q_u32(v4s, v.v4s), vuzp2q_u32(v4s, v.v4s));;
+		return GSVector4i(vsubq_u32(vuzp1q_u32(v4s, v.v4s), vuzp2q_u32(v4s, v.v4s)));
 	}
 
 	__forceinline GSVector4i subs8(const GSVector4i& v) const
