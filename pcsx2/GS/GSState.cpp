@@ -3753,7 +3753,7 @@ GSState::PRIM_OVERLAP GSState::GetPrimitiveOverlapDrawlistImpl(bool save_drawlis
 	const u16* RESTRICT index = m_index.buff;
 	const u32 count = m_index.tail;
 
-	const auto GetPoint = [v, index](int i) -> GSVector4i {
+	const auto GetPoint = [&](int i) -> GSVector4i {
 		if constexpr (primclass == GS_SPRITE_CLASS || primclass == GS_POINT_CLASS)
 			return GSVector4i(v[i].m[1]).upl16(); // Optimize out using the indices.
 		else
@@ -3805,7 +3805,7 @@ GSState::PRIM_OVERLAP GSState::GetPrimitiveOverlapDrawlistImpl(bool save_drawlis
 
 			// Test overlap of two adjacent triangles give the indices of the
 			// shared edge and two unshared points.
-			const auto TrianglesOverlap = [v, index, GetPoint]
+			const auto TrianglesOverlap = [GetPoint]
 				(u32 s0, u32 s1, u32 u0, u32 u1, bool& sign_out) -> bool {
 
 				const GSVector4i shared0 = GetPoint(s0);
@@ -3824,7 +3824,7 @@ GSState::PRIM_OVERLAP GSState::GetPrimitiveOverlapDrawlistImpl(bool save_drawlis
 			};
 
 			// Helper to detect triangles strips/fans (template 0 for strips, 1 for fans).
-			const auto CheckTriangleQuads = [v, index, count, TrianglesOverlap, GetPoint]
+			const auto CheckTriangleQuads = [index, count, TrianglesOverlap, GetPoint]
 				<int type>(u32 i, u32& skip, BoundingOct& bbox) -> bool {
 
 				// Assuming that indices 0-5 represent two triangles:
@@ -3935,7 +3935,7 @@ GSState::PRIM_OVERLAP GSState::GetPrimitiveOverlapDrawlistImpl(bool save_drawlis
 
 			// Helper function to detect triangles strips and merge them together into
 			// a grid of triangles strips.
-			const auto CheckTriangleStrips = [index, v, count, CheckTriangleQuads, MatchTriangles, GetPoint]
+			const auto CheckTriangleStrips = [count, CheckTriangleQuads, MatchTriangles, GetPoint]
 				(u32 i, u32& skip, BoundingOct& bbox_all, SavedTristrip& saved_tristrip) -> bool {
 
 				if (!(primclass == GS_TRIANGLE_CLASS && i + 6 <= count))
@@ -4109,7 +4109,7 @@ GSState::PRIM_OVERLAP GSState::GetPrimitiveOverlapDrawlistImpl(bool save_drawlis
 			};
 
 			// Helper functions to just get the individual prim bbox.
-			const auto GetBBox = [v, count, GetPoint](u32 i, u32& skip, BoundingOct& bbox) -> bool {
+			const auto GetBBox = [GetPoint](u32 i, u32& skip, BoundingOct& bbox) -> bool {
 				if constexpr (primclass == GS_SPRITE_CLASS)
 				{
 					bbox = BoundingOct::FromSprite(GetPoint(i + 0), GetPoint(i + 1));
@@ -6362,27 +6362,29 @@ void GSState::GSPCRTCRegs::CalculateFramebufferOffset(bool scanmask, GSRegDISPFB
 
 	if (GSConfig.PCRTCAntiBlur && PCRTCSameSrc && !scanmask && abs(fb1.y - fb0.y) <= 1)
 	{
-		if (framebuffer0Reg.DBY != PCRTCDisplays[0].prevFramebufferReg.DBY)
-		{
-			if (framebuffer1Reg.DBY == PCRTCDisplays[1].prevFramebufferReg.DBY)
-			{
-				const int offset = PCRTCDisplays[1].framebufferRect.y - PCRTCDisplays[0].framebufferRect.y;
+		const bool alternating_0 = framebuffer0Reg.DBY != PCRTCDisplays[0].prevFramebufferReg.DBY;
+		const bool alternating_1 = framebuffer1Reg.DBY != PCRTCDisplays[1].prevFramebufferReg.DBY;
 
-				if (std::abs(offset) <= 4)
-				{
-					PCRTCDisplays[0].framebufferRect.y += offset;
-					PCRTCDisplays[0].framebufferRect.w += offset;
-				}
-			}
-		}
-		else
+		if (alternating_0 && alternating_1)
 		{
-			const int offset = PCRTCDisplays[0].framebufferRect.y - PCRTCDisplays[1].framebufferRect.y;
+			const int index = (static_cast<u32>(PCRTCDisplays[1].framebufferRect.y) < static_cast<u32>(PCRTCDisplays[0].framebufferRect.y)) ? 0 : 1;
+			const int offset = PCRTCDisplays[1 - index].framebufferRect.y - PCRTCDisplays[index].framebufferRect.y;
 
 			if (std::abs(offset) <= 4)
 			{
-				PCRTCDisplays[1].framebufferRect.y += offset;
-				PCRTCDisplays[1].framebufferRect.w += offset;
+				PCRTCDisplays[index].framebufferRect.y += offset;
+				PCRTCDisplays[index].framebufferRect.w += offset;
+			}
+		}
+		else // Only one rect is alternating
+		{
+			const int index = alternating_1 ? 1 : 0;
+			const int offset = PCRTCDisplays[1 - index].framebufferRect.y - PCRTCDisplays[index].framebufferRect.y;
+
+			if (std::abs(offset) <= 4)
+			{
+				PCRTCDisplays[index].framebufferRect.y += offset;
+				PCRTCDisplays[index].framebufferRect.w += offset;
 			}
 		}
 	}
