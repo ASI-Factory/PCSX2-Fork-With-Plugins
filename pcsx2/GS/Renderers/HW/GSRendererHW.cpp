@@ -7595,7 +7595,7 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 				GL_PERF("DATE: Accurate with alpha %d-%d", GetAlphaMinMax().min, GetAlphaMinMax().max);
 				DATE_PRIMID = true;
 			}
-			else if (features.texture_barrier)
+			else if (features.texture_barrier || features.multidraw_fb_copy)
 			{
 				GL_PERF("DATE: Accurate with alpha %d-%d", GetAlphaMinMax().min, GetAlphaMinMax().max);
 				m_conf.require_full_barrier = true;
