@@ -1323,7 +1323,7 @@ void GSDevice11::DoStretchRect(GSTexture* sTex, const GSVector4& sRect, GSTextur
 	GSVector2i ds;
 	if (dTex)
 	{
-		// preemptively bind svr if possible
+		// preemptively bind srv if possible
 		if (m_state.cached_rt_view != sTex && m_state.cached_dsv != sTex)
 			PSSetShaderResource(0, sTex);
 
@@ -1352,12 +1352,15 @@ void GSDevice11::DoStretchRect(GSTexture* sTex, const GSVector4& sRect, GSTextur
 
 	// ia
 
-	const float left = dRect.x * 2 / ds.x - 1.0f;
-	const float top = 1.0f - dRect.y * 2 / ds.y;
-	const float right = dRect.z * 2 / ds.x - 1.0f;
-	const float bottom = 1.0f - dRect.w * 2 / ds.y;
+	const float inv_x = 2.0f / ds.x;
+	const float inv_y = 2.0f / ds.y;
 
-	GSVertexPT1 vertices[] =
+	const float left = dRect.x * inv_x - 1.0f;
+	const float right = dRect.z * inv_x - 1.0f;
+	const float top = 1.0f - dRect.y * inv_y;
+	const float bottom = 1.0f - dRect.w * inv_y;
+
+	const GSVertexPT1 vertices[] =
 	{
 		{GSVector4(left, top, 0.5f, 1.0f), GSVector2(sRect.x, sRect.y)},
 		{GSVector4(right, top, 0.5f, 1.0f), GSVector2(sRect.z, sRect.y)},
@@ -1394,7 +1397,7 @@ void GSDevice11::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	GSVector2i ds;
 	if (dTex)
 	{
-		// preemptively bind svr if possible
+		// preemptively bind srv if possible
 		if (m_state.cached_rt_view != sTex && m_state.cached_dsv != sTex)
 			PSSetShaderResource(0, sTex);
 
@@ -1422,10 +1425,13 @@ void GSDevice11::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 
 	// ia
 
-	const float left = dRect.x * 2 / ds.x - 1.0f;
-	const float top = 1.0f - dRect.y * 2 / ds.y;
-	const float right = dRect.z * 2 / ds.x - 1.0f;
-	const float bottom = 1.0f - dRect.w * 2 / ds.y;
+	const float inv_x = 2.0f / ds.x;
+	const float inv_y = 2.0f / ds.y;
+
+	const float left = dRect.x * inv_x - 1.0f;
+	const float right = dRect.z * inv_x - 1.0f;
+	const float top = 1.0f - dRect.y * inv_y;
+	const float bottom = 1.0f - dRect.w * inv_y;
 
 	const GSVertexPT1 vertices[] =
 	{
@@ -1565,10 +1571,14 @@ void GSDevice11::DoMultiStretchRects(const MultiStretchRect* rects, u32 num_rect
 	{
 		const GSVector4& sRect = rects[i].src_rect;
 		const GSVector4& dRect = rects[i].dst_rect;
-		const float left = dRect.x * 2 / ds.x - 1.0f;
-		const float top = 1.0f - dRect.y * 2 / ds.y;
-		const float right = dRect.z * 2 / ds.x - 1.0f;
-		const float bottom = 1.0f - dRect.w * 2 / ds.y;
+
+		const float inv_x = 2.0f / ds.x;
+		const float inv_y = 2.0f / ds.y;
+
+		const float left = dRect.x * inv_x - 1.0f;
+		const float right = dRect.z * inv_x - 1.0f;
+		const float top = 1.0f - dRect.y * inv_y;
+		const float bottom = 1.0f - dRect.w * inv_y;
 
 		const u32 vstart = vcount;
 		verts[vcount++] = {GSVector4(left, top, 0.5f, 1.0f), GSVector2(sRect.x, sRect.y)};
@@ -2203,7 +2213,7 @@ void GSDevice11::SetupDATE(GSTexture* rt, GSTexture* ds, SetDATM datm, const GSV
 
 	m_ctx->ClearDepthStencilView(*static_cast<GSTexture11*>(ds), D3D11_CLEAR_STENCIL, 0.0f, 0);
 
-	// preemptively bind svr if possible
+	// preemptively bind srv if possible
 
 	if (m_state.cached_rt_view != rt && m_state.cached_dsv != rt)
 		PSSetShaderResource(0, rt);
@@ -2752,7 +2762,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 	if (config.tex && config.tex == config.ds)
 		read_only_dsv = static_cast<GSTexture11*>(config.ds)->ReadOnlyDepthStencilView();
 
-	// Preemptively bind svr if possible.
+	// Preemptively bind srv if possible.
 	// We update the local state, then if there are srv conflicts PSUnbindConflictingSRVs will update the gpu state.
 	if (config.tex)
 	{
@@ -2899,11 +2909,12 @@ void GSDevice11::SendHWDraw(const GSHWDrawConfig& config, GSTexture* draw_rt_clo
 				PSSetShaderResource(0, draw_rt_clone);
 		};
 
+		const GSVector4i rtsize(0, 0, draw_rt->GetWidth(), draw_rt->GetHeight());
+
 		if (m_features.multidraw_fb_copy && full_barrier)
 		{
 			const u32 draw_list_size = static_cast<u32>(config.drawlist->size());
 			const u32 indices_per_prim = config.indices_per_prim;
-			const GSVector4i rtsize(0, 0, draw_rt->GetWidth(), draw_rt->GetHeight());
 
 			pxAssert(config.drawlist && !config.drawlist->empty());
 			pxAssert(config.drawlist_bbox && static_cast<u32>(config.drawlist_bbox->size()) == draw_list_size);
@@ -2913,27 +2924,7 @@ void GSDevice11::SendHWDraw(const GSHWDrawConfig& config, GSTexture* draw_rt_clo
 				const u32 count = (*config.drawlist)[n] * indices_per_prim;
 
 				const GSVector4i original_bbox = (*config.drawlist_bbox)[n].rintersect(config.drawarea);
-				GSVector4i snapped_bbox = original_bbox;
-
-				// We don't want the snapped box adjustments when the rect is empty as it might make the copy to pass.
-				// The empty rect itself needs to be handled in renderer properly.
-				if (!snapped_bbox.rempty())
-				{
-					// Aligning bbox to 4 pixel boundaries so copies will be faster using Direct Memory Access,
-					// otherwise it may stall as more commands need to be issued.
-					snapped_bbox.left &= ~3;
-					snapped_bbox.top &= ~3;
-					snapped_bbox.right = (snapped_bbox.right + 3) & ~3;
-					snapped_bbox.bottom = (snapped_bbox.bottom + 3) & ~3;
-
-					// Ensure the new sizes are within bounds.
-					snapped_bbox.left = std::max(0, snapped_bbox.left);
-					snapped_bbox.top = std::max(0, snapped_bbox.top);
-					snapped_bbox.right = std::min(snapped_bbox.right, rtsize.right);
-					snapped_bbox.bottom = std::min(snapped_bbox.bottom, rtsize.bottom);
-				}
-
-				CopyAndBind(snapped_bbox);
+				CopyAndBind(ProcessCopyArea(rtsize, original_bbox));
 
 				DrawIndexedPrimitive(p, count);
 				p += count;
@@ -2944,7 +2935,7 @@ void GSDevice11::SendHWDraw(const GSHWDrawConfig& config, GSTexture* draw_rt_clo
 
 		// Optimization: For alpha second pass we can reuse the copy snapshot from the first pass.
 		if (!skip_first_barrier)
-			CopyAndBind(config.drawarea);
+			CopyAndBind(ProcessCopyArea(rtsize, config.drawarea));
 	}
 
 	DrawIndexedPrimitive();
