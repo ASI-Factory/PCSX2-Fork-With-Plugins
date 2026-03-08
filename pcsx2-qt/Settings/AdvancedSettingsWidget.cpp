@@ -226,3 +226,5 @@ void AdvancedSettingsWidget::onSavestateCompressionTypeChanged()
 							   static_cast<int>(SavestateCompressionMethod::Uncompressed));
 	m_ui.savestateCompressionLevel->setDisabled(uncompressed);
 }
+
+#include "moc_AdvancedSettingsWidget.cpp"
