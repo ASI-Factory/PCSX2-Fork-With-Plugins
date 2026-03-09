@@ -100,8 +100,8 @@ AdvancedSettingsWidget::AdvancedSettingsWidget(SettingsWindow* settings_dialog, 
 		   "end of the block, not on the instruction which caused the exception. Refer to the console to see the address where the invalid "
 		   "access occurred."));
 
-	dialog()->registerWidgetHelp(m_ui.extraMemory, tr("Enable 128MB RAM (Dev Console)"), tr("Checked"),
-		tr("Exposes an additional 96MB of memory to the virtual machine."));
+	dialog()->registerWidgetHelp(m_ui.extraMemory, tr("Enable Extended RAM (Dev Console)"), tr("Checked"),
+		tr("Exposes additional memory to the virtual machine, expanding the EE and IOP memory to 128MB and 8MB respectively."));
 	m_ui.extraMemory->setEnabled(false);
 
 	dialog()->registerWidgetHelp(m_ui.vu0RoundingMode, tr("VU0 Rounding Mode"), tr("Chop/Zero (Default)"), tr("Changes how PCSX2 handles rounding while emulating the Emotion Engine's Vector Unit 0 (EE VU0). "
