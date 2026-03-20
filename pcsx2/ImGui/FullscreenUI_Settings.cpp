@@ -3,6 +3,7 @@
 
 #include "GS/Renderers/Common/GSDevice.h"
 #include "GS/Renderers/Common/GSTexture.h"
+#include "GS/GSUtil.h"
 #include "Achievements.h"
 #include "GameList.h"
 #include "Host.h"
@@ -1192,6 +1193,11 @@ void FullscreenUI::DrawStringListSetting(SettingsInterface* bsi, const char* tit
 				FSUI_CSTR("Use Global Setting"),
 			enabled, height, font, summary_font))
 	{
+		std::vector<std::string> option_values_copy;
+		option_values_copy.reserve(option_count);
+		for (size_t i = 0; i < option_count; i++)
+			option_values_copy.emplace_back(option_values[i]);
+
 		ImGuiFullscreen::ChoiceDialogOptions cd_options;
 		cd_options.reserve(option_count + 1);
 		if (game_settings)
@@ -1202,7 +1208,7 @@ void FullscreenUI::DrawStringListSetting(SettingsInterface* bsi, const char* tit
 				(value.has_value() && i == static_cast<size_t>(index)));
 		}
 		OpenChoiceDialog(title, false, std::move(cd_options),
-			[game_settings, section, key, option_values](s32 index, const std::string& title, bool checked) {
+			[game_settings, section, key, option_values_copy = std::move(option_values_copy)](s32 index, const std::string& title, bool checked) {
 				if (index >= 0)
 				{
 					auto lock = Host::GetSettingsLock();
@@ -1212,11 +1218,11 @@ void FullscreenUI::DrawStringListSetting(SettingsInterface* bsi, const char* tit
 						if (index == 0)
 							bsi->DeleteValue(section, key);
 						else
-							bsi->SetStringValue(section, key, option_values[index - 1]);
+							bsi->SetStringValue(section, key, option_values_copy[index - 1].c_str());
 					}
 					else
 					{
-						bsi->SetStringValue(section, key, option_values[index]);
+						bsi->SetStringValue(section, key, option_values_copy[index].c_str());
 					}
 
 					SetSettingsChanged(bsi);
@@ -1770,6 +1776,7 @@ void FullscreenUI::DrawSettingsWindow()
 			ICON_PF_MICROCHIP,
 			ICON_PF_GEARS_OPTIONS_SETTINGS,
 			ICON_PF_PICTURE,
+			ICON_FA_GAUGE,
 			ICON_PF_SOUND,
 			ICON_PF_MEMORY_CARD,
 			ICON_FA_NETWORK_WIRED,
@@ -1785,6 +1792,7 @@ void FullscreenUI::DrawSettingsWindow()
 			ICON_FA_BANDAGE,
 			ICON_PF_INFINITY,
 			ICON_PF_PICTURE,
+			ICON_FA_GAUGE,
 			ICON_PF_SOUND,
 			ICON_PF_MEMORY_CARD,
 			ICON_FA_TRIANGLE_EXCLAMATION,
@@ -1794,6 +1802,7 @@ void FullscreenUI::DrawSettingsWindow()
 			SettingsPage::BIOS,
 			SettingsPage::Emulation,
 			SettingsPage::Graphics,
+			SettingsPage::OSD,
 			SettingsPage::Audio,
 			SettingsPage::MemoryCard,
 			SettingsPage::NetworkHDD,
@@ -1809,6 +1818,7 @@ void FullscreenUI::DrawSettingsWindow()
 			SettingsPage::Patches,
 			SettingsPage::Cheats,
 			SettingsPage::Graphics,
+			SettingsPage::OSD,
 			SettingsPage::Audio,
 			SettingsPage::MemoryCard,
 			SettingsPage::GameFixes,
@@ -1819,6 +1829,7 @@ void FullscreenUI::DrawSettingsWindow()
 			FSUI_NSTR("BIOS Settings"),
 			FSUI_NSTR("Emulation Settings"),
 			FSUI_NSTR("Graphics Settings"),
+			FSUI_NSTR("On-Screen Display Settings"),
 			FSUI_NSTR("Audio Settings"),
 			FSUI_NSTR("Memory Card Settings"),
 			FSUI_NSTR("Network & HDD Settings"),
@@ -1943,6 +1954,10 @@ void FullscreenUI::DrawSettingsWindow()
 
 			case SettingsPage::Graphics:
 				DrawGraphicsSettingsPage(bsi, show_advanced_settings);
+				break;
+
+			case SettingsPage::OSD:
+				DrawOSDSettingsPage();
 				break;
 
 			case SettingsPage::Audio:
@@ -2358,82 +2373,6 @@ void FullscreenUI::DrawInterfaceSettingsPage()
 	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_TABLET_SCREEN_BUTTON, "Start Big Picture UI"),
 		FSUI_CSTR("Automatically starts Big Picture Mode instead of the regular Qt interface when PCSX2 launches."), "UI", "StartBigPictureMode", false);
 
-	MenuHeading(FSUI_CSTR("On-Screen Display"));
-	DrawIntSpinBoxSetting(bsi, FSUI_ICONSTR(ICON_FA_MAGNIFYING_GLASS, "OSD Scale"),
-		FSUI_CSTR("Determines how large the on-screen messages and monitors are."), "EmuCore/GS", "OsdScale", 100, 25, 500, 1, FSUI_CSTR("%d%%"));
-
-	// OSD Positioning Options
-	static constexpr const char* s_osd_position_options[] = {
-		FSUI_NSTR("None"),
-		FSUI_NSTR("Top Left"),
-		FSUI_NSTR("Top Center"),
-		FSUI_NSTR("Top Right"),
-		FSUI_NSTR("Center Left"),
-		FSUI_NSTR("Center"),
-		FSUI_NSTR("Center Right"),
-		FSUI_NSTR("Bottom Left"),
-		FSUI_NSTR("Bottom Center"),
-		FSUI_NSTR("Bottom Right"),
-	};
-	static constexpr const char* s_osd_position_values[] = {
-		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
-
-	DrawStringListSetting(bsi, FSUI_ICONSTR(ICON_FA_COMMENT, "OSD Messages Position"),
-		FSUI_CSTR("Determines where on-screen display messages are positioned."), "EmuCore/GS", "OsdMessagesPos", "1",
-		s_osd_position_options, s_osd_position_values, std::size(s_osd_position_options), true);
-	DrawStringListSetting(bsi, FSUI_ICONSTR(ICON_FA_CHART_BAR, "OSD Performance Position"),
-		FSUI_CSTR("Determines where performance statistics are positioned."), "EmuCore/GS", "OsdPerformancePos", "3",
-		s_osd_position_options, s_osd_position_values, std::size(s_osd_position_options), true);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_CODE_MERGE, "Show PCSX2 Version"),
-		FSUI_CSTR("Shows the current PCSX2 version."), "EmuCore/GS",
-		"OsdShowVersion", false);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_GAUGE_SIMPLE_HIGH, "Show Speed"),
-		FSUI_CSTR("Shows the current emulation speed of the system as a percentage."), "EmuCore/GS",
-		"OsdShowSpeed", false);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_FILM, "Show FPS"),
-		FSUI_CSTR("Shows the number of internal video frames displayed per second by the system."),
-		"EmuCore/GS", "OsdShowFPS", false);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_CLAPPERBOARD, "Show VPS"),
-		FSUI_CSTR("Shows the number of Vsyncs performed per second by the system."), "EmuCore/GS", "OsdShowVPS", false);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_PF_MONITOR_CODE, "Show Resolution"),
-		FSUI_CSTR("Shows the internal resolution of the game."), "EmuCore/GS", "OsdShowResolution", false);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_COMPUTER, "Show Hardware Info"),
-		FSUI_CSTR("Shows the current system CPU and GPU information."), "EmuCore/GS", "OsdShowHardwareInfo", false);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_CHART_PIE, "Show GS Statistics"),
-		FSUI_CSTR("Shows statistics about the emulated GS such as primitives and draw calls."),
-		"EmuCore/GS", "OsdShowGSStats", false);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_PF_MICROCHIP_ALT, "Show CPU Usage"),
-		FSUI_CSTR("Shows the host's CPU utilization based on threads."), "EmuCore/GS", "OsdShowCPU", false);
-	// TODO: Change this to a GPU icon when FA gets one or PromptFont fixes their codepoints.
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_IMAGE, "Show GPU Usage"),
-		FSUI_CSTR("Shows the host's GPU utilization."), "EmuCore/GS", "OsdShowGPU", false);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_PLAY, "Show Status Indicators"),
-		FSUI_CSTR("Shows indicators when fast forwarding, pausing, and other abnormal states are active."), "EmuCore/GS",
-		"OsdShowIndicators", true);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_PF_HEARTBEAT_ALT, "Show Frame Times"),
-		FSUI_CSTR("Shows a visual history of frame times."), "EmuCore/GS", "OsdShowFrameTimes", false);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_SLIDERS, "Show Settings"),
-		FSUI_CSTR("Shows the current configuration in the bottom-right corner of the display."),
-		"EmuCore/GS", "OsdShowSettings", false);
-	bool show_settings = (bsi->GetBoolValue("EmuCore/GS", "OsdShowSettings", false) == false);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_HAMMER, "Show Patches"),
-		FSUI_CSTR("Shows the amount of currently active patches/cheats on the bottom-right corner of the display."), "EmuCore/GS",
-		"OsdshowPatches", false, !show_settings);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_PF_GAMEPAD_ALT, "Show Inputs"),
-		FSUI_CSTR("Shows the current controller state of the system in the bottom-left corner of the display."), "EmuCore/GS",
-		"OsdShowInputs", false);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_VIDEO, "Show Video Capture Status"),
-		FSUI_CSTR("Shows the status of the currently active video capture."), "EmuCore/GS",
-		"OsdShowVideoCapture", true);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_KEYBOARD, "Show Input Recording Status"),
-		FSUI_CSTR("Shows the status of the currently active input recording."), "EmuCore/GS",
-		"OsdShowInputRec", true);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_IMAGES, "Show Texture Replacement Status"),
-		FSUI_CSTR("Shows the number of dumped and loaded texture replacements on the OSD."), "EmuCore/GS",
-		"OsdShowTextureReplacements", true);
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_TRIANGLE_EXCLAMATION, "Warn About Unsafe Settings"),
-		FSUI_CSTR("Displays warnings when settings are enabled which may break games."), "EmuCore", "WarnAboutUnsafeSettings", true);
-
 	MenuHeading(FSUI_CSTR("Operations"));
 	if (MenuButton(FSUI_ICONSTR(u8"🔥", "Reset Settings"),
 			FSUI_CSTR("Resets configuration to defaults (excluding controller settings)."), !IsEditingGameSettings(bsi)))
@@ -2777,6 +2716,19 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 		FSUI_NSTR("10x Native (~3600px/6K UHD)"),
 		FSUI_NSTR("11x Native (~3960px)"),
 		FSUI_NSTR("12x Native (~4320px/8K UHD)"),
+		FSUI_NSTR("13x Native (~4680px)"),
+		FSUI_NSTR("14x Native (~5040px)"),
+		FSUI_NSTR("15x Native (~5400px)"),
+		FSUI_NSTR("16x Native (~5760px)"),
+		FSUI_NSTR("17x Native (~6120px)"),
+		FSUI_NSTR("18x Native (~6480px/12K UHD)"),
+		FSUI_NSTR("19x Native (~6840px)"),
+		FSUI_NSTR("20x Native (~7200px)"),
+		FSUI_NSTR("21x Native (~7560px)"),
+		FSUI_NSTR("22x Native (~7920px)"),
+		FSUI_NSTR("23x Native (~8280px)"),
+		FSUI_NSTR("24x Native (~8640px/16K UHD)"),
+		FSUI_NSTR("25x Native (~9000px)"),
 	};
 	static const char* s_resolution_values[] = {
 		"1",
@@ -2791,6 +2743,19 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 		"10",
 		"11",
 		"12",
+		"13",
+		"14",
+		"15",
+		"16",
+		"17",
+		"18",
+		"19",
+		"20",
+		"21",
+		"22",
+		"23",
+		"24",
+		"25",
 	};
 	static constexpr const char* s_bilinear_options[] = {
 		FSUI_NSTR("Nearest"),
@@ -2861,9 +2826,77 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 
 	const GSRendererType renderer =
 		static_cast<GSRendererType>(GetEffectiveIntSetting(bsi, "EmuCore/GS", "Renderer", static_cast<int>(GSRendererType::Auto)));
+	const GSRendererType effective_renderer =
+		(renderer == GSRendererType::Auto) ? GSUtil::GetPreferredRenderer() : renderer;
 	const bool is_hardware = (renderer == GSRendererType::Auto || renderer == GSRendererType::DX11 || renderer == GSRendererType::DX12 ||
 							  renderer == GSRendererType::OGL || renderer == GSRendererType::VK || renderer == GSRendererType::Metal);
 	//const bool is_software = (renderer == GSRendererType::SW);
+
+	static std::optional<GSRendererType> s_last_adapter_list_renderer;
+	if (!s_last_adapter_list_renderer.has_value() || s_last_adapter_list_renderer.value() != effective_renderer)
+	{
+		s_graphics_adapter_list_cache = GSGetAdapterInfo(effective_renderer);
+		s_last_adapter_list_renderer = effective_renderer;
+	}
+
+	u32 max_upscale_multiplier = 12;
+	bool supports_extended_upscales = false;
+	if (is_hardware && !s_graphics_adapter_list_cache.empty())
+	{
+		std::string current_adapter;
+		bsi->GetStringValue("EmuCore/GS", "Adapter", &current_adapter);
+
+		const GSAdapterInfo* current_adapter_info = nullptr;
+		if (!current_adapter.empty())
+		{
+			for (const GSAdapterInfo& adapter : s_graphics_adapter_list_cache)
+			{
+				if (current_adapter == adapter.name)
+				{
+					current_adapter_info = &adapter;
+					break;
+				}
+			}
+		}
+
+		if (!current_adapter_info && !s_graphics_adapter_list_cache.empty())
+			current_adapter_info = &s_graphics_adapter_list_cache.front();
+		if (current_adapter_info)
+			max_upscale_multiplier = std::clamp<u32>(current_adapter_info->max_upscale_multiplier, 12, std::size(s_resolution_options));
+
+		supports_extended_upscales = max_upscale_multiplier > 12u;
+	}
+
+	size_t max_shown_multiplier = static_cast<size_t>(
+		(supports_extended_upscales && bsi->GetBoolValue("EmuCore/GS", "ExtendedUpscalingMultipliers", false)) ? max_upscale_multiplier : 12u);
+	const bool game_settings = IsEditingGameSettings(bsi);
+	std::optional<float> saved_multiplier;
+	if (const std::optional<SmallString> config_value = bsi->GetOptionalSmallStringValue("EmuCore/GS", "upscale_multiplier"))
+	{
+		saved_multiplier = StringUtil::FromChars<float>(config_value->c_str());
+	}
+
+	static const char* s_shown_resolution_options[std::size(s_resolution_options)];
+	static const char* s_shown_resolution_values[std::size(s_resolution_values)];
+	size_t num_resolutions = 0;
+
+	for (num_resolutions = 0; num_resolutions < max_shown_multiplier; num_resolutions++)
+	{
+		s_shown_resolution_options[num_resolutions] = s_resolution_options[num_resolutions];
+		s_shown_resolution_values[num_resolutions] = s_resolution_values[num_resolutions];
+	}
+
+	if (saved_multiplier)
+	{
+		// if saved multiplier goes above the current UI cap, expose it temporarily.
+		const size_t saved_count = static_cast<size_t>(saved_multiplier.value());
+		if (saved_count > max_shown_multiplier && saved_count <= std::size(s_resolution_options) && static_cast<float>(saved_count) == *saved_multiplier)
+		{
+			s_shown_resolution_options[num_resolutions] = s_resolution_options[saved_count - 1];
+			s_shown_resolution_values[num_resolutions] = s_resolution_values[saved_count - 1];
+			num_resolutions++;
+		}
+	}
 
 #ifndef PCSX2_DEVBUILD
 	const bool hw_fixes_visible = is_hardware && IsEditingGameSettings(bsi);
@@ -2930,7 +2963,7 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 	{
 		DrawStringListSetting(bsi, FSUI_ICONSTR(ICON_FA_ARROW_UP_RIGHT_FROM_SQUARE, "Internal Resolution"),
 			FSUI_CSTR("Multiplies the render resolution by the specified factor (upscaling)."), "EmuCore/GS", "upscale_multiplier",
-			"1.000000", s_resolution_options, s_resolution_values, std::size(s_resolution_options), true);
+			"1.000000", s_shown_resolution_options, s_shown_resolution_values, num_resolutions, true);
 		DrawIntListSetting(bsi, FSUI_ICONSTR(ICON_FA_TABLE_CELLS_LARGE, "Bilinear Filtering"),
 			FSUI_CSTR("Selects where bilinear filtering is utilized when rendering textures."), "EmuCore/GS", "filter",
 			static_cast<int>(BiFiltering::PS2), s_bilinear_options, std::size(s_bilinear_options), true);
@@ -3206,10 +3239,9 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 			FSUI_CSTR("Forces the use of FIFO over Mailbox presentation, i.e. double buffering instead of triple buffering. "
 					  "Usually results in worse frame pacing."),
 			"EmuCore/GS", "DisableMailboxPresentation", false);
-		/* DrawToggleSetting(bsi, FSUI_CSTR("Extended Upscaling Multipliers"),
-			FSUI_CSTR("Displays additional, very high upscaling multipliers dependent on GPU capability."),
-			"EmuCore/GS", "ExtendedUpscalingMultipliers", false); */
-		// TODO: Immplement this button properly
+		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_ARROW_UP_RIGHT_FROM_SQUARE, "Extended Upscaling Multipliers"),
+			FSUI_CSTR("Displays additional, very high upscaling multipliers dependent on GPU and driver capability."),
+			"EmuCore/GS", "ExtendedUpscalingMultipliers", false, supports_extended_upscales);
 		if (IsEditingGameSettings(bsi))
 		{
 			DrawIntListSetting(bsi, FSUI_CSTR("Hardware Download Mode"), FSUI_CSTR("Changes synchronization behavior for GS downloads."),
@@ -3241,6 +3273,139 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 		DrawFloatRangeSetting(bsi, FSUI_CSTR("PAL Frame Rate"), FSUI_CSTR("Determines what frame rate PAL games run at."),
 			"EmuCore/GS", "FrameRatePAL", 50.0f, 10.0f, 300.0f, "%.2f Hz");
 	}
+
+	EndMenuButtons();
+}
+
+void FullscreenUI::DrawOSDSettingsPage()
+{
+	SettingsInterface* bsi = GetEditingSettingsInterface();
+
+	BeginMenuButtons();
+
+	MenuHeading(FSUI_CSTR("On-Screen Display"));
+	DrawIntSpinBoxSetting(bsi, FSUI_ICONSTR(ICON_FA_MAGNIFYING_GLASS, "OSD Scale"),
+		FSUI_CSTR("Determines how large the on-screen messages and monitors are."), "EmuCore/GS", "OsdScale", 100, 25, 500, 1, FSUI_CSTR("%d%%"));
+	DrawIntSpinBoxSetting(bsi, FSUI_ICONSTR(ICON_FA_BORDER_ALL, "OSD Margin"),
+		FSUI_CSTR("Determines the distance in pixels from the edges of the screen for OSD elements."), "EmuCore/GS", "OsdMargin", 10, 0, 100, 1, FSUI_CSTR("%dpx"));
+
+	// OSD Positioning Options
+	static constexpr const char* s_osd_position_options[] = {
+		FSUI_NSTR("None"),
+		FSUI_NSTR("Top Left"),
+		FSUI_NSTR("Top Center"),
+		FSUI_NSTR("Top Right"),
+		FSUI_NSTR("Center Left"),
+		FSUI_NSTR("Center"),
+		FSUI_NSTR("Center Right"),
+		FSUI_NSTR("Bottom Left"),
+		FSUI_NSTR("Bottom Center"),
+		FSUI_NSTR("Bottom Right"),
+	};
+	static constexpr const char* s_osd_position_values[] = {
+		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
+
+	DrawStringListSetting(bsi, FSUI_ICONSTR(ICON_FA_COMMENT, "OSD Messages Position"),
+		FSUI_CSTR("Determines where on-screen display messages are positioned."), "EmuCore/GS", "OsdMessagesPos", "1",
+		s_osd_position_options, s_osd_position_values, std::size(s_osd_position_options), true);
+	DrawStringListSetting(bsi, FSUI_ICONSTR(ICON_FA_CHART_BAR, "OSD Performance Position"),
+		FSUI_CSTR("Determines where performance statistics are positioned."), "EmuCore/GS", "OsdPerformancePos", "3",
+		s_osd_position_options, s_osd_position_values, std::size(s_osd_position_options), true);
+
+	{
+		const bool game_settings = IsEditingGameSettings(bsi);
+		const std::optional<SmallString> osd_font_value(bsi->GetOptionalSmallStringValue(
+			"EmuCore/GS", "OsdFontPath", game_settings ? std::nullopt : std::optional<const char*>("")));
+
+		const std::string osd_font_summary_str =
+			(osd_font_value.has_value() && !osd_font_value->empty()) ?
+				std::string(osd_font_value->c_str()) :
+				EmuFolders::GetOverridableResourcePath("fonts" FS_OSPATH_SEPARATOR_STR "RobotoMono-Medium.ttf");
+		const char* osd_font_summary = osd_font_summary_str.c_str();
+
+		if (MenuButton(FSUI_ICONSTR(ICON_FA_FONT, "OSD Font File"), osd_font_summary))
+		{
+			auto callback = [game_settings = IsEditingGameSettings(bsi)](const std::string& path) {
+				auto lock = Host::GetSettingsLock();
+				SettingsInterface* ebsi = GetEditingSettingsInterface(game_settings);
+
+				if (!path.empty())
+					ebsi->SetStringValue("EmuCore/GS", "OsdFontPath", path.c_str());
+
+				SetSettingsChanged(ebsi);
+				CloseFileSelector();
+			};
+
+			std::string initial_path;
+			if (osd_font_value.has_value() && !osd_font_value->empty())
+				initial_path = Path::GetDirectory(osd_font_value.value());
+
+			OpenFileSelector(FSUI_CSTR("Select OSD Font"), false, std::move(callback),
+				{"*.ttf", "*.ttc", "*.otf", "*.otc"}, std::move(initial_path));
+		}
+
+		if (osd_font_value.has_value() && !osd_font_value->empty())
+		{
+			if (MenuButton(FSUI_CSTR("Clear OSD Font Override"), FSUI_CSTR("Use default bundled font")))
+			{
+				SettingsInterface* ebsi = bsi;
+				ebsi->DeleteValue("EmuCore/GS", "OsdFontPath");
+				SetSettingsChanged(ebsi);
+			}
+		}
+	}
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_BOLD, "Bold OSD Text"),
+		FSUI_CSTR("Draws OSD text with heavier weight for improved readability."), 
+		"EmuCore/GS", "OsdBoldText", true);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_CODE_MERGE, "Show PCSX2 Version"),
+		FSUI_CSTR("Shows the current PCSX2 version."), "EmuCore/GS",
+		"OsdShowVersion", false);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_GAUGE_SIMPLE_HIGH, "Show Speed"),
+		FSUI_CSTR("Shows the current emulation speed of the system as a percentage."), "EmuCore/GS",
+		"OsdShowSpeed", false);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_FILM, "Show FPS"),
+		FSUI_CSTR("Shows the number of internal video frames displayed per second by the system."),
+		"EmuCore/GS", "OsdShowFPS", false);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_CLAPPERBOARD, "Show VPS"),
+		FSUI_CSTR("Shows the number of Vsyncs performed per second by the system."), "EmuCore/GS", "OsdShowVPS", false);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_PF_MONITOR_CODE, "Show Resolution"),
+		FSUI_CSTR("Shows the internal resolution of the game."), "EmuCore/GS", "OsdShowResolution", false);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_COMPUTER, "Show Hardware Info"),
+		FSUI_CSTR("Shows the current system CPU and GPU information."), "EmuCore/GS", "OsdShowHardwareInfo", false);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_CHART_PIE, "Show GS Statistics"),
+		FSUI_CSTR("Shows statistics about the emulated GS such as primitives and draw calls."),
+		"EmuCore/GS", "OsdShowGSStats", false);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_PF_MICROCHIP_ALT, "Show CPU Usage"),
+		FSUI_CSTR("Shows the host's CPU utilization based on threads."), "EmuCore/GS", "OsdShowCPU", false);
+	// TODO: Change this to a GPU icon when FA gets one or PromptFont fixes their codepoints.
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_IMAGE, "Show GPU Usage"),
+		FSUI_CSTR("Shows the host's GPU utilization."), "EmuCore/GS", "OsdShowGPU", false);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_PLAY, "Show Status Indicators"),
+		FSUI_CSTR("Shows indicators when fast forwarding, pausing, and other abnormal states are active."), "EmuCore/GS",
+		"OsdShowIndicators", true);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_PF_HEARTBEAT_ALT, "Show Frame Times"),
+		FSUI_CSTR("Shows a visual history of frame times."), "EmuCore/GS", "OsdShowFrameTimes", false);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_SLIDERS, "Show Settings"),
+		FSUI_CSTR("Shows the current configuration in the bottom-right corner of the display."),
+		"EmuCore/GS", "OsdShowSettings", false);
+	bool show_settings = (bsi->GetBoolValue("EmuCore/GS", "OsdShowSettings", false) == false);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_HAMMER, "Show Patches"),
+		FSUI_CSTR("Shows the amount of currently active patches/cheats on the bottom-right corner of the display."), "EmuCore/GS",
+		"OsdshowPatches", false, !show_settings);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_PF_GAMEPAD_ALT, "Show Inputs"),
+		FSUI_CSTR("Shows the current controller state of the system in the bottom-left corner of the display."), "EmuCore/GS",
+		"OsdShowInputs", false);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_VIDEO, "Show Video Capture Status"),
+		FSUI_CSTR("Shows the status of the currently active video capture."), "EmuCore/GS",
+		"OsdShowVideoCapture", true);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_KEYBOARD, "Show Input Recording Status"),
+		FSUI_CSTR("Shows the status of the currently active input recording."), "EmuCore/GS",
+		"OsdShowInputRec", true);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_IMAGES, "Show Texture Replacement Status"),
+		FSUI_CSTR("Shows the number of dumped and loaded texture replacements on the OSD."), "EmuCore/GS",
+		"OsdShowTextureReplacements", true);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_TRIANGLE_EXCLAMATION, "Warn About Unsafe Settings"),
+		FSUI_CSTR("Displays warnings when settings are enabled which may break games."), "EmuCore", "WarnAboutUnsafeSettings", true);
 
 	EndMenuButtons();
 }
@@ -4991,29 +5156,6 @@ TRANSLATE_NOOP("FullscreenUI", "Automatically switches to fullscreen mode when a
 TRANSLATE_NOOP("FullscreenUI", "Switches between full screen and windowed when the window is double-clicked.");
 TRANSLATE_NOOP("FullscreenUI", "Hides the mouse pointer/cursor when the emulator is in fullscreen mode.");
 TRANSLATE_NOOP("FullscreenUI", "Automatically starts Big Picture Mode instead of the regular Qt interface when PCSX2 launches.");
-TRANSLATE_NOOP("FullscreenUI", "On-Screen Display");
-TRANSLATE_NOOP("FullscreenUI", "Determines how large the on-screen messages and monitors are.");
-TRANSLATE_NOOP("FullscreenUI", "%d%%");
-TRANSLATE_NOOP("FullscreenUI", "Determines where on-screen display messages are positioned.");
-TRANSLATE_NOOP("FullscreenUI", "Determines where performance statistics are positioned.");
-TRANSLATE_NOOP("FullscreenUI", "Shows the current PCSX2 version.");
-TRANSLATE_NOOP("FullscreenUI", "Shows the current emulation speed of the system as a percentage.");
-TRANSLATE_NOOP("FullscreenUI", "Shows the number of internal video frames displayed per second by the system.");
-TRANSLATE_NOOP("FullscreenUI", "Shows the number of Vsyncs performed per second by the system.");
-TRANSLATE_NOOP("FullscreenUI", "Shows the internal resolution of the game.");
-TRANSLATE_NOOP("FullscreenUI", "Shows the current system CPU and GPU information.");
-TRANSLATE_NOOP("FullscreenUI", "Shows statistics about the emulated GS such as primitives and draw calls.");
-TRANSLATE_NOOP("FullscreenUI", "Shows the host's CPU utilization based on threads.");
-TRANSLATE_NOOP("FullscreenUI", "Shows the host's GPU utilization.");
-TRANSLATE_NOOP("FullscreenUI", "Shows indicators when fast forwarding, pausing, and other abnormal states are active.");
-TRANSLATE_NOOP("FullscreenUI", "Shows a visual history of frame times.");
-TRANSLATE_NOOP("FullscreenUI", "Shows the current configuration in the bottom-right corner of the display.");
-TRANSLATE_NOOP("FullscreenUI", "Shows the amount of currently active patches/cheats on the bottom-right corner of the display.");
-TRANSLATE_NOOP("FullscreenUI", "Shows the current controller state of the system in the bottom-left corner of the display.");
-TRANSLATE_NOOP("FullscreenUI", "Shows the status of the currently active video capture.");
-TRANSLATE_NOOP("FullscreenUI", "Shows the status of the currently active input recording.");
-TRANSLATE_NOOP("FullscreenUI", "Shows the number of dumped and loaded texture replacements on the OSD.");
-TRANSLATE_NOOP("FullscreenUI", "Displays warnings when settings are enabled which may break games.");
 TRANSLATE_NOOP("FullscreenUI", "Operations");
 TRANSLATE_NOOP("FullscreenUI", "Resets configuration to defaults (excluding controller settings).");
 TRANSLATE_NOOP("FullscreenUI", "BIOS Configuration");
@@ -5049,6 +5191,7 @@ TRANSLATE_NOOP("FullscreenUI", "Selects the algorithm used to convert the PS2's 
 TRANSLATE_NOOP("FullscreenUI", "Determines the resolution at which screenshots will be saved.");
 TRANSLATE_NOOP("FullscreenUI", "Selects the format which will be used to save screenshots.");
 TRANSLATE_NOOP("FullscreenUI", "Selects the quality at which screenshots will be compressed.");
+TRANSLATE_NOOP("FullscreenUI", "%d%%");
 TRANSLATE_NOOP("FullscreenUI", "Increases or decreases the virtual picture size vertically.");
 TRANSLATE_NOOP("FullscreenUI", "Crops the image, while respecting aspect ratio.");
 TRANSLATE_NOOP("FullscreenUI", "%dpx");
@@ -5150,8 +5293,7 @@ TRANSLATE_NOOP("FullscreenUI", "Skip Presenting Duplicate Frames");
 TRANSLATE_NOOP("FullscreenUI", "Skips displaying frames that don't change in 25/30fps games. Can improve speed, but increase input lag/make frame pacing worse.");
 TRANSLATE_NOOP("FullscreenUI", "Disable Mailbox Presentation");
 TRANSLATE_NOOP("FullscreenUI", "Forces the use of FIFO over Mailbox presentation, i.e. double buffering instead of triple buffering. Usually results in worse frame pacing.");
-TRANSLATE_NOOP("FullscreenUI", "Extended Upscaling Multipliers");
-TRANSLATE_NOOP("FullscreenUI", "Displays additional, very high upscaling multipliers dependent on GPU capability.");
+TRANSLATE_NOOP("FullscreenUI", "Displays additional, very high upscaling multipliers dependent on GPU and driver capability.");
 TRANSLATE_NOOP("FullscreenUI", "Hardware Download Mode");
 TRANSLATE_NOOP("FullscreenUI", "Changes synchronization behavior for GS downloads.");
 TRANSLATE_NOOP("FullscreenUI", "Allow Exclusive Fullscreen");
@@ -5172,6 +5314,33 @@ TRANSLATE_NOOP("FullscreenUI", "NTSC Frame Rate");
 TRANSLATE_NOOP("FullscreenUI", "Determines what frame rate NTSC games run at.");
 TRANSLATE_NOOP("FullscreenUI", "PAL Frame Rate");
 TRANSLATE_NOOP("FullscreenUI", "Determines what frame rate PAL games run at.");
+TRANSLATE_NOOP("FullscreenUI", "On-Screen Display");
+TRANSLATE_NOOP("FullscreenUI", "Determines how large the on-screen messages and monitors are.");
+TRANSLATE_NOOP("FullscreenUI", "Determines the distance in pixels from the edges of the screen for OSD elements.");
+TRANSLATE_NOOP("FullscreenUI", "Determines where on-screen display messages are positioned.");
+TRANSLATE_NOOP("FullscreenUI", "Determines where performance statistics are positioned.");
+TRANSLATE_NOOP("FullscreenUI", "Select OSD Font");
+TRANSLATE_NOOP("FullscreenUI", "Clear OSD Font Override");
+TRANSLATE_NOOP("FullscreenUI", "Use default bundled font");
+TRANSLATE_NOOP("FullscreenUI", "Draws OSD text with heavier weight for improved readability.");
+TRANSLATE_NOOP("FullscreenUI", "Shows the current PCSX2 version.");
+TRANSLATE_NOOP("FullscreenUI", "Shows the current emulation speed of the system as a percentage.");
+TRANSLATE_NOOP("FullscreenUI", "Shows the number of internal video frames displayed per second by the system.");
+TRANSLATE_NOOP("FullscreenUI", "Shows the number of Vsyncs performed per second by the system.");
+TRANSLATE_NOOP("FullscreenUI", "Shows the internal resolution of the game.");
+TRANSLATE_NOOP("FullscreenUI", "Shows the current system CPU and GPU information.");
+TRANSLATE_NOOP("FullscreenUI", "Shows statistics about the emulated GS such as primitives and draw calls.");
+TRANSLATE_NOOP("FullscreenUI", "Shows the host's CPU utilization based on threads.");
+TRANSLATE_NOOP("FullscreenUI", "Shows the host's GPU utilization.");
+TRANSLATE_NOOP("FullscreenUI", "Shows indicators when fast forwarding, pausing, and other abnormal states are active.");
+TRANSLATE_NOOP("FullscreenUI", "Shows a visual history of frame times.");
+TRANSLATE_NOOP("FullscreenUI", "Shows the current configuration in the bottom-right corner of the display.");
+TRANSLATE_NOOP("FullscreenUI", "Shows the amount of currently active patches/cheats on the bottom-right corner of the display.");
+TRANSLATE_NOOP("FullscreenUI", "Shows the current controller state of the system in the bottom-left corner of the display.");
+TRANSLATE_NOOP("FullscreenUI", "Shows the status of the currently active video capture.");
+TRANSLATE_NOOP("FullscreenUI", "Shows the status of the currently active input recording.");
+TRANSLATE_NOOP("FullscreenUI", "Shows the number of dumped and loaded texture replacements on the OSD.");
+TRANSLATE_NOOP("FullscreenUI", "Displays warnings when settings are enabled which may break games.");
 TRANSLATE_NOOP("FullscreenUI", "Audio Control");
 TRANSLATE_NOOP("FullscreenUI", "Controls the volume of the audio played on the host at normal speed.");
 TRANSLATE_NOOP("FullscreenUI", "Controls the volume of the audio played on the host when fast forwarding.");
@@ -5341,6 +5510,7 @@ TRANSLATE_NOOP("FullscreenUI", "Interface Settings");
 TRANSLATE_NOOP("FullscreenUI", "BIOS Settings");
 TRANSLATE_NOOP("FullscreenUI", "Emulation Settings");
 TRANSLATE_NOOP("FullscreenUI", "Graphics Settings");
+TRANSLATE_NOOP("FullscreenUI", "On-Screen Display Settings");
 TRANSLATE_NOOP("FullscreenUI", "Audio Settings");
 TRANSLATE_NOOP("FullscreenUI", "Memory Card Settings");
 TRANSLATE_NOOP("FullscreenUI", "Network & HDD Settings");
@@ -5369,14 +5539,6 @@ TRANSLATE_NOOP("FullscreenUI", "Center");
 TRANSLATE_NOOP("FullscreenUI", "Tile");
 TRANSLATE_NOOP("FullscreenUI", "Enabled");
 TRANSLATE_NOOP("FullscreenUI", "Disabled");
-TRANSLATE_NOOP("FullscreenUI", "Top Left");
-TRANSLATE_NOOP("FullscreenUI", "Top Center");
-TRANSLATE_NOOP("FullscreenUI", "Top Right");
-TRANSLATE_NOOP("FullscreenUI", "Center Left");
-TRANSLATE_NOOP("FullscreenUI", "Center Right");
-TRANSLATE_NOOP("FullscreenUI", "Bottom Left");
-TRANSLATE_NOOP("FullscreenUI", "Bottom Center");
-TRANSLATE_NOOP("FullscreenUI", "Bottom Right");
 TRANSLATE_NOOP("FullscreenUI", "2% [1 FPS (NTSC) / 1 FPS (PAL)]");
 TRANSLATE_NOOP("FullscreenUI", "10% [6 FPS (NTSC) / 5 FPS (PAL)]");
 TRANSLATE_NOOP("FullscreenUI", "25% [15 FPS (NTSC) / 12 FPS (PAL)]");
@@ -5443,6 +5605,19 @@ TRANSLATE_NOOP("FullscreenUI", "9x Native (~3240px)");
 TRANSLATE_NOOP("FullscreenUI", "10x Native (~3600px/6K UHD)");
 TRANSLATE_NOOP("FullscreenUI", "11x Native (~3960px)");
 TRANSLATE_NOOP("FullscreenUI", "12x Native (~4320px/8K UHD)");
+TRANSLATE_NOOP("FullscreenUI", "13x Native (~4680px)");
+TRANSLATE_NOOP("FullscreenUI", "14x Native (~5040px)");
+TRANSLATE_NOOP("FullscreenUI", "15x Native (~5400px)");
+TRANSLATE_NOOP("FullscreenUI", "16x Native (~5760px)");
+TRANSLATE_NOOP("FullscreenUI", "17x Native (~6120px)");
+TRANSLATE_NOOP("FullscreenUI", "18x Native (~6480px/12K UHD)");
+TRANSLATE_NOOP("FullscreenUI", "19x Native (~6840px)");
+TRANSLATE_NOOP("FullscreenUI", "20x Native (~7200px)");
+TRANSLATE_NOOP("FullscreenUI", "21x Native (~7560px)");
+TRANSLATE_NOOP("FullscreenUI", "22x Native (~7920px)");
+TRANSLATE_NOOP("FullscreenUI", "23x Native (~8280px)");
+TRANSLATE_NOOP("FullscreenUI", "24x Native (~8640px/16K UHD)");
+TRANSLATE_NOOP("FullscreenUI", "25x Native (~9000px)");
 TRANSLATE_NOOP("FullscreenUI", "Nearest");
 TRANSLATE_NOOP("FullscreenUI", "Bilinear (Forced)");
 TRANSLATE_NOOP("FullscreenUI", "Bilinear (PS2)");
@@ -5526,6 +5701,14 @@ TRANSLATE_NOOP("FullscreenUI", "NxAGSS");
 TRANSLATE_NOOP("FullscreenUI", "Uncompressed");
 TRANSLATE_NOOP("FullscreenUI", "LZMA (xz)");
 TRANSLATE_NOOP("FullscreenUI", "Zstandard (zst)");
+TRANSLATE_NOOP("FullscreenUI", "Top Left");
+TRANSLATE_NOOP("FullscreenUI", "Top Center");
+TRANSLATE_NOOP("FullscreenUI", "Top Right");
+TRANSLATE_NOOP("FullscreenUI", "Center Left");
+TRANSLATE_NOOP("FullscreenUI", "Center Right");
+TRANSLATE_NOOP("FullscreenUI", "Bottom Left");
+TRANSLATE_NOOP("FullscreenUI", "Bottom Center");
+TRANSLATE_NOOP("FullscreenUI", "Bottom Right");
 TRANSLATE_NOOP("FullscreenUI", "PS1");
 TRANSLATE_NOOP("FullscreenUI", "Manual");
 TRANSLATE_NOOP("FullscreenUI", "Auto");
@@ -5583,27 +5766,6 @@ TRANSLATE_NOOP("FullscreenUI", "Start Fullscreen");
 TRANSLATE_NOOP("FullscreenUI", "Double-Click Toggles Fullscreen");
 TRANSLATE_NOOP("FullscreenUI", "Hide Cursor In Fullscreen");
 TRANSLATE_NOOP("FullscreenUI", "Start Big Picture UI");
-TRANSLATE_NOOP("FullscreenUI", "OSD Scale");
-TRANSLATE_NOOP("FullscreenUI", "OSD Messages Position");
-TRANSLATE_NOOP("FullscreenUI", "OSD Performance Position");
-TRANSLATE_NOOP("FullscreenUI", "Show PCSX2 Version");
-TRANSLATE_NOOP("FullscreenUI", "Show Speed");
-TRANSLATE_NOOP("FullscreenUI", "Show FPS");
-TRANSLATE_NOOP("FullscreenUI", "Show VPS");
-TRANSLATE_NOOP("FullscreenUI", "Show Resolution");
-TRANSLATE_NOOP("FullscreenUI", "Show Hardware Info");
-TRANSLATE_NOOP("FullscreenUI", "Show GS Statistics");
-TRANSLATE_NOOP("FullscreenUI", "Show CPU Usage");
-TRANSLATE_NOOP("FullscreenUI", "Show GPU Usage");
-TRANSLATE_NOOP("FullscreenUI", "Show Status Indicators");
-TRANSLATE_NOOP("FullscreenUI", "Show Frame Times");
-TRANSLATE_NOOP("FullscreenUI", "Show Settings");
-TRANSLATE_NOOP("FullscreenUI", "Show Patches");
-TRANSLATE_NOOP("FullscreenUI", "Show Inputs");
-TRANSLATE_NOOP("FullscreenUI", "Show Video Capture Status");
-TRANSLATE_NOOP("FullscreenUI", "Show Input Recording Status");
-TRANSLATE_NOOP("FullscreenUI", "Show Texture Replacement Status");
-TRANSLATE_NOOP("FullscreenUI", "Warn About Unsafe Settings");
 TRANSLATE_NOOP("FullscreenUI", "Reset Settings");
 TRANSLATE_NOOP("FullscreenUI", "Change Search Directory");
 TRANSLATE_NOOP("FullscreenUI", "Fast Boot");
@@ -5663,6 +5825,31 @@ TRANSLATE_NOOP("FullscreenUI", "Shade Boost Brightness");
 TRANSLATE_NOOP("FullscreenUI", "Shade Boost Contrast");
 TRANSLATE_NOOP("FullscreenUI", "Shade Boost Saturation");
 TRANSLATE_NOOP("FullscreenUI", "TV Shaders");
+TRANSLATE_NOOP("FullscreenUI", "Extended Upscaling Multipliers");
+TRANSLATE_NOOP("FullscreenUI", "OSD Scale");
+TRANSLATE_NOOP("FullscreenUI", "OSD Margin");
+TRANSLATE_NOOP("FullscreenUI", "OSD Messages Position");
+TRANSLATE_NOOP("FullscreenUI", "OSD Performance Position");
+TRANSLATE_NOOP("FullscreenUI", "OSD Font File");
+TRANSLATE_NOOP("FullscreenUI", "Bold OSD Text");
+TRANSLATE_NOOP("FullscreenUI", "Show PCSX2 Version");
+TRANSLATE_NOOP("FullscreenUI", "Show Speed");
+TRANSLATE_NOOP("FullscreenUI", "Show FPS");
+TRANSLATE_NOOP("FullscreenUI", "Show VPS");
+TRANSLATE_NOOP("FullscreenUI", "Show Resolution");
+TRANSLATE_NOOP("FullscreenUI", "Show Hardware Info");
+TRANSLATE_NOOP("FullscreenUI", "Show GS Statistics");
+TRANSLATE_NOOP("FullscreenUI", "Show CPU Usage");
+TRANSLATE_NOOP("FullscreenUI", "Show GPU Usage");
+TRANSLATE_NOOP("FullscreenUI", "Show Status Indicators");
+TRANSLATE_NOOP("FullscreenUI", "Show Frame Times");
+TRANSLATE_NOOP("FullscreenUI", "Show Settings");
+TRANSLATE_NOOP("FullscreenUI", "Show Patches");
+TRANSLATE_NOOP("FullscreenUI", "Show Inputs");
+TRANSLATE_NOOP("FullscreenUI", "Show Video Capture Status");
+TRANSLATE_NOOP("FullscreenUI", "Show Input Recording Status");
+TRANSLATE_NOOP("FullscreenUI", "Show Texture Replacement Status");
+TRANSLATE_NOOP("FullscreenUI", "Warn About Unsafe Settings");
 TRANSLATE_NOOP("FullscreenUI", "Standard Volume");
 TRANSLATE_NOOP("FullscreenUI", "Fast Forward Volume");
 TRANSLATE_NOOP("FullscreenUI", "Mute All Sound");
