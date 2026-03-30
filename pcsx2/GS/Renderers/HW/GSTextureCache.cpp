@@ -1428,11 +1428,15 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 				const bool width_match = (std::max(64U, bw * 64U) >> GSLocalMemory::m_psm[psm].info.pageShiftX()) ==
 				                         (std::max(64U, t->m_TEX0.TBW * 64U) >> GSLocalMemory::m_psm[t->m_TEX0.PSM].info.pageShiftX());
 
-				if (bp == t->m_TEX0.TBP0 && !t->m_dirty.empty() && GSUtil::GetChannelMask(psm) == GSUtil::GetChannelMask(t->m_TEX0.PSM) && GSRendererHW::GetInstance()->m_draw_transfers.size() > 0)
+				// Check for transfers that may have occurred within the textures valid area or completely outside it.
+				// Transfers completely outside the valid area may not have been given a dirty rect, so we need both checks.
+				const bool t_maybe_dirty = !t->m_dirty.empty() || !t->OverlapsValid(bp, bw, psm, req_rect);
+
+				if ((bp == t->m_TEX0.TBP0 && t_maybe_dirty && GSUtil::GetChannelMask(psm) == GSUtil::GetChannelMask(t->m_TEX0.PSM) && GSRendererHW::GetInstance()->m_draw_transfers.size() > 0) || GSState::s_n==421)
 				{
 					bool can_use = true;
 
-					if (!possible_shuffle && !(GSLocalMemory::m_psm[TEX0.PSM].bpp == 16 && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == 32) && !width_match && t->m_dirty.size() >= 1 && !t->m_dirty.GetTotalRect(t->m_TEX0, t->m_unscaled_size).eq(t->m_valid))
+					if (!possible_shuffle && !(GSLocalMemory::m_psm[TEX0.PSM].bpp == 16 && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == 32) && !width_match && t_maybe_dirty && !t->m_dirty.GetTotalRect(t->m_TEX0, t->m_unscaled_size).eq(t->m_valid))
 					{
 						std::vector<GSState::GSUploadQueue>::reverse_iterator iter;
 
@@ -7289,7 +7293,7 @@ GSTextureCache::Surface::Surface() = default;
 
 GSTextureCache::Surface::~Surface() = default;
 
-bool GSTextureCache::Surface::Inside(u32 bp, u32 bw, u32 psm, const GSVector4i& rect)
+bool GSTextureCache::Surface::Inside(u32 bp, u32 bw, u32 psm, const GSVector4i& rect) const
 {
 	// Valid only for color formats.
 	const GSOffset off(GSLocalMemory::m_psm[psm].info, bp, bw, psm);
@@ -7298,7 +7302,7 @@ bool GSTextureCache::Surface::Inside(u32 bp, u32 bw, u32 psm, const GSVector4i& 
 	return start_block >= m_TEX0.TBP0 && end_block <= UnwrappedEndBlock();
 }
 
-bool GSTextureCache::Surface::Overlaps(u32 bp, u32 bw, u32 psm, const GSVector4i& rect)
+bool GSTextureCache::Surface::OverlapsHelper(u32 start_block0, u32 end_block0, u32 bp, u32 bw, u32 psm, const GSVector4i& rect) const
 {
 	const GSOffset off(GSLocalMemory::m_psm[psm].info, bp, bw, psm);
 
@@ -7324,8 +7328,12 @@ bool GSTextureCache::Surface::Overlaps(u32 bp, u32 bw, u32 psm, const GSVector4i
 	if (end_block > GS_MAX_BLOCKS && bp < m_end_block && m_end_block < m_TEX0.TBP0)
 		bp += GS_MAX_BLOCKS;
 
-	const bool overlap = GSTextureCache::CheckOverlap(m_TEX0.TBP0, UnwrappedEndBlock(), start_block, end_block);
-	return overlap;
+	return GSTextureCache::CheckOverlap(start_block0, end_block0, start_block, end_block);
+}
+
+bool GSTextureCache::Surface::Overlaps(u32 bp, u32 bw, u32 psm, const GSVector4i& rect) const
+{
+	return OverlapsHelper(m_TEX0.TBP0, UnwrappedEndBlock(), bp, bw, psm, rect);
 }
 
 // GSTextureCache::Source
@@ -7688,6 +7696,12 @@ GSTextureCache::Target::~Target()
 		}
 	}
 #endif
+}
+
+bool GSTextureCache::Target::OverlapsValid(u32 bp, u32 bw, u32 psm, const GSVector4i& rect) const
+{
+	const u32 valid_start_block = GSLocalMemory::m_psm[m_TEX0.PSM].info.bn(m_valid.x, m_valid.y, m_TEX0.TBP0, m_TEX0.TBW);
+	return OverlapsHelper(valid_start_block, UnwrappedEndBlock(), bp, bw, psm, rect);
 }
 
 void GSTextureCache::Target::Update(bool cannot_scale)
@@ -8552,7 +8566,7 @@ GSTextureCache::PaletteMap::PaletteMap()
 {
 	for (auto& map : m_maps)
 	{
-		map.reserve(MAX_SIZE);
+		map.reserve(MAX_CACHED_PALETES);
 	}
 }
 
@@ -8588,10 +8602,10 @@ std::shared_ptr<GSTextureCache::Palette> GSTextureCache::PaletteMap::LookupPalet
 
 	// No palette with matching clut content, MISS
 
-	if (map.size() > MAX_SIZE)
+	if (map.size() > MAX_CACHED_PALETES)
 	{
 		// If the map is too big, try to clean it by disposing and removing unused palettes, before adding the new one
-		GL_INS("TC: WARNING, %u-bit PaletteMap (Size %u): Max size %u exceeded, clearing unused palettes.", pal * sizeof(u32), map.size(), MAX_SIZE);
+		GL_INS("TC: WARNING, %u-bit PaletteMap (Size %u): Max size %u exceeded, clearing unused palettes.", pal * sizeof(u32), map.size(), MAX_CACHED_PALETES);
 
 		const u32 current_size = map.size();
 
@@ -8615,11 +8629,11 @@ std::shared_ptr<GSTextureCache::Palette> GSTextureCache::PaletteMap::LookupPalet
 
 		if (cleared_palette_count == 0)
 		{
-			GL_INS("TC: ERROR, %u-bit PaletteMap (Size %u): Max size %u exceeded, could not clear any palette, negative performance impact.", pal * sizeof(u32), map.size(), MAX_SIZE);
+			GL_INS("TC: ERROR, %u-bit PaletteMap (Size %u): Max size %u exceeded, could not clear any palette, negative performance impact.", pal * sizeof(u32), map.size(), MAX_CACHED_PALETES);
 		}
 		else
 		{
-			map.reserve(MAX_SIZE); // Ensure map capacity is not modified by the clearing
+			map.reserve(MAX_CACHED_PALETES); // Ensure map capacity is not modified by the clearing
 			GL_INS("TC: INFO, %u-bit PaletteMap (Size %u): Cleared %u palettes.", pal * sizeof(u32), map.size(), cleared_palette_count);
 		}
 	}
@@ -8638,7 +8652,7 @@ void GSTextureCache::PaletteMap::Clear()
 	for (auto& map : m_maps)
 	{
 		map.clear(); // Clear all the nodes of the map, deleting Palette objects managed by shared pointers as they should be unused elsewhere
-		map.reserve(MAX_SIZE); // Ensure map capacity is not modified by the clearing
+		map.reserve(MAX_CACHED_PALETES); // Ensure map capacity is not modified by the clearing
 	}
 }
 
