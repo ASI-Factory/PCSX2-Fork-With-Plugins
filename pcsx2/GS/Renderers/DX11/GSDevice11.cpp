@@ -2864,20 +2864,17 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 	if (draw_rt && (config.require_one_barrier || (config.require_full_barrier && m_features.multidraw_fb_copy) || (config.tex && config.tex == config.rt)))
 	{
 		// Requires a copy of the RT.
-		// Used as "bind rt" flag when texture barrier is unsupported for tex is fb.
 		draw_rt_clone = CreateTexture(rtsize.x, rtsize.y, 1, draw_rt->GetFormat(), true);
-
 		if (!draw_rt_clone)
 			Console.Warning("D3D11: Failed to allocate temp texture for RT copy.");
 	}
 
 	if (draw_ds && (config.require_one_barrier || (config.require_full_barrier && m_features.multidraw_fb_copy)) &&
-		config.ps.IsFeedbackLoopDepth())
+		m_features.depth_feedback == GSDevice::DepthFeedbackSupport::Depth && config.ps.IsFeedbackLoopDepth())
 	{
 		// Requires a copy of the DS.
-		// Used as "bind ds" flag when texture barrier is unsupported for tex is fb.
 		draw_ds_clone = CreateTexture(rtsize.x, rtsize.y, 1, draw_ds->GetFormat(), true);
-		if (!draw_rt_clone)
+		if (!draw_ds_clone)
 			Console.Warning("D3D11: Failed to allocate temp texture for DS copy.");
 	}
 
@@ -2889,7 +2886,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 		m_ctx->ClearDepthStencilView(*static_cast<GSTexture11*>(draw_ds), D3D11_CLEAR_STENCIL, 0.0f, 1);
 
 	SendHWDraw(config, draw_rt_clone, draw_rt, draw_ds_clone, draw_ds,
-		config.require_one_barrier, config.require_full_barrier, false);
+		config.require_one_barrier, config.require_full_barrier);
 
 	if (config.blend_multi_pass.enable)
 	{
@@ -2916,7 +2913,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 
 		SetupOM(config.alpha_second_pass.depth, OMBlendSelector(config.alpha_second_pass.colormask, config.blend), config.blend.constant);
 		SendHWDraw(config, draw_rt_clone, draw_rt, draw_ds_clone, draw_ds,
-			config.alpha_second_pass.require_one_barrier, config.alpha_second_pass.require_full_barrier, true);
+			false, config.alpha_second_pass.require_full_barrier);
 	}
 
 	if (colclip_rt)
@@ -2938,7 +2935,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 
 void GSDevice11::SendHWDraw(const GSHWDrawConfig& config,
 	GSTexture* draw_rt_clone, GSTexture* draw_rt, GSTexture* draw_ds_clone, GSTexture* draw_ds,
-	const bool one_barrier, const bool full_barrier, const bool skip_first_barrier)
+	const bool one_barrier, const bool full_barrier)
 {
 	if (draw_rt_clone || draw_ds_clone)
 	{
@@ -2949,20 +2946,23 @@ void GSDevice11::SendHWDraw(const GSHWDrawConfig& config,
 
 		auto CopyAndBind = [&](GSVector4i drawarea) {
 			if (draw_rt_clone)
+			{
 				CopyRect(draw_rt, draw_rt_clone, drawarea, drawarea.left, drawarea.top);
+				if ((one_barrier || full_barrier))
+					PSSetShaderResource(2, draw_rt_clone);
+				if (config.tex && config.tex == draw_rt)
+					PSSetShaderResource(0, draw_rt_clone);
+			}
 			if (draw_ds_clone)
+			{
 				CopyRect(draw_ds, draw_ds_clone, drawarea, drawarea.left, drawarea.top);
-			if ((one_barrier || full_barrier) && draw_rt_clone)
-				PSSetShaderResource(2, draw_rt_clone);
-			if ((one_barrier || full_barrier) && draw_ds_clone)
 				PSSetShaderResource(4, draw_ds_clone);
-			if (config.tex && config.tex == config.rt)
-				PSSetShaderResource(0, draw_rt_clone);
+			}
 		};
 
-		const GSVector4i rtsize(0, 0, draw_rt->GetWidth(), draw_rt->GetHeight());
+		const GSVector4i rtsize(0, 0, (draw_rt ? draw_rt : draw_ds)->GetWidth(), (draw_rt ? draw_rt : draw_ds)->GetHeight());
 
-		if (m_features.multidraw_fb_copy && full_barrier)
+		if (full_barrier)
 		{
 			const u32 draw_list_size = static_cast<u32>(config.drawlist->size());
 			const u32 indices_per_prim = config.indices_per_prim;
@@ -2985,8 +2985,7 @@ void GSDevice11::SendHWDraw(const GSHWDrawConfig& config,
 		}
 
 		// Optimization: For alpha second pass we can reuse the copy snapshot from the first pass.
-		if (!skip_first_barrier)
-			CopyAndBind(ProcessCopyArea(rtsize, config.drawarea));
+		CopyAndBind(ProcessCopyArea(rtsize, config.drawarea));
 	}
 
 	DrawIndexedPrimitive();
