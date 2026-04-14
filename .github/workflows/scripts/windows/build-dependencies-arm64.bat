@@ -58,12 +58,12 @@ set QT=6.11.0
 set QTMINOR=6.11
 set QTAPNG=1.3.0
 
-set FREETYPE=2.14.1
-set HARFBUZZ=13.0.0
-set LIBJPEGTURBO=3.1.3
-set LIBPNG=1655
-set LIBPNGLONG=1.6.55
+set FREETYPE=2.14.3
+set HARFBUZZ=14.0.0
 set SDL=SDL3-3.4.4
+set LIBJPEGTURBO=3.1.4.1
+set LIBPNG=1656
+set LIBPNGLONG=1.6.56
 set LZ4=1.10.0
 set WEBP=1.6.0
 set ZLIB=1.3.2
@@ -79,7 +79,7 @@ set SHADERC_GLSLANG=f0bd0257c308b9a26562c1a30c4748a0219cc951
 set SHADERC_SPIRVHEADERS=04f10f650d514df88b76d25e83db360142c7b174
 set SHADERC_SPIRVTOOLS=fbe4f3ad913c44fe8700545f8ffe35d1382b7093
 
-set AGILITYSDK=1.618.5
+set AGILITYSDK=1.619.1
 
 call :downloadfile "qtbase-everywhere-src-%QT%.zip" "https://download.qt.io/official_releases/qt/%QTMINOR%/%QT%/submodules/qtbase-everywhere-src-%QT%.zip" 590d5ae246c85fa14d6458a36ff75a11236acfe8987c2475090aab1770acbdf8 || goto error
 call :downloadfile "qtimageformats-everywhere-src-%QT%.zip" "https://download.qt.io/official_releases/qt/%QTMINOR%/%QT%/submodules/qtimageformats-everywhere-src-%QT%.zip" 5dfb3c0cb84d2c935c1716b3b86358ca496fb9216676e7e28fee1357fb4a050e || goto error
@@ -88,11 +88,11 @@ call :downloadfile "qttools-everywhere-src-%QT%.zip" "https://download.qt.io/off
 call :downloadfile "qttranslations-everywhere-src-%QT%.zip" "https://download.qt.io/official_releases/qt/%QTMINOR%/%QT%/submodules/qttranslations-everywhere-src-%QT%.zip" f9c4fd4fd73dff51e9043d2825b04361b678f63798ed798021ef47f1ff0bfccf || goto error
 call :downloadfile "QtApng-%QTAPNG%.zip" "https://github.com/jurplel/QtApng/archive/refs/tags/%QTAPNG%.zip" 5176082cdd468047a7eb1ec1f106b032f57df207aa318d559b29606b00d159ac || goto error
 
-call :downloadfile "freetype-%FREETYPE%.tar.gz" https://sourceforge.net/projects/freetype/files/freetype2/%FREETYPE%/freetype-%FREETYPE%.tar.gz/download 174d9e53402e1bf9ec7277e22ec199ba3e55a6be2c0740cb18c0ee9850fc8c34 || goto error
-call :downloadfile "harfbuzz-%HARFBUZZ%.zip" https://github.com/harfbuzz/harfbuzz/archive/refs/tags/%HARFBUZZ%.zip a448a8abc3f9ae8eef19ef3ce247370957c1fada5d58a01b5e281e792f40fa61 || goto error
-call :downloadfile "lpng%LIBPNG%.zip" https://download.sourceforge.net/libpng/lpng1655.zip aa45ef52ff7a4e61f34af866b3254b0b243ddc42fe2adb823b0843d2a57c2e86 || goto error
-call :downloadfile "lpng%LIBPNG%-apng.patch.gz" https://download.sourceforge.net/libpng-apng/libpng-%LIBPNGLONG%-apng.patch.gz 452a1a290bd0cf18737fad0057dc17b7fdf10a73eda2d6d4f31ba04fda25ef2c || goto error
-call :downloadfile "libjpeg-turbo-%LIBJPEGTURBO%.tar.gz" "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/%LIBJPEGTURBO%/libjpeg-turbo-%LIBJPEGTURBO%.tar.gz" 075920b826834ac4ddf97661cc73491047855859affd671d52079c6867c1c6c0 || goto error
+call :downloadfile "freetype-%FREETYPE%.tar.gz" https://sourceforge.net/projects/freetype/files/freetype2/%FREETYPE%/freetype-%FREETYPE%.tar.gz/download e61b31ab26358b946e767ed7eb7f4bb2e507da1cfefeb7a8861ace7fd5c899a1 || goto error
+call :downloadfile "harfbuzz-%HARFBUZZ%.zip" https://github.com/harfbuzz/harfbuzz/archive/refs/tags/%HARFBUZZ%.zip f4b86f4d107bc4f0b005c97d6cde43e548a125ee2810fa00d41844b46b6fe16a || goto error
+call :downloadfile "lpng%LIBPNG%.zip" https://download.sourceforge.net/libpng/lpng1656.zip 1ccf023c5f4ee1a7b75c5624f53acede5066f79b2fb14ddffaa28369adf9baac || goto error
+call :downloadfile "lpng%LIBPNG%-apng.patch.gz" https://download.sourceforge.net/libpng-apng/libpng-%LIBPNGLONG%-apng.patch.gz 9ce32d4a2763a2ac5f258726ba2f49e9011327c1ee8c30862a32d0f30889fbe8 || goto error
+call :downloadfile "libjpeg-turbo-%LIBJPEGTURBO%.tar.gz" "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/%LIBJPEGTURBO%/libjpeg-turbo-%LIBJPEGTURBO%.tar.gz" ecae8008e2cc9ade2f2c1bb9d5e6d4fb73e7c433866a056bd82980741571a022 || goto error
 call :downloadfile "libwebp-%WEBP%.tar.gz" "https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-%WEBP%.tar.gz" e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564 || goto error
 call :downloadfile "%SDL%.zip" "https://libsdl.org/release/%SDL%.zip" 6bd4fbb665f77899a488b381c5b6e9681fc57c60b669738f985fea714f3456c5 || goto error
 call :downloadfile "lz4-%LZ4%.zip" "https://github.com/lz4/lz4/archive/refs/tags/v%LZ4%.zip" 3224b4c80f351f194984526ef396f6079bd6332dd9825c72ac0d7a37b3cdc565 || goto error
@@ -101,7 +101,7 @@ call :downloadfile "zstd-%ZSTD%.zip" "https://github.com/facebook/zstd/archive/r
 call :downloadfile "KDDockWidgets-%KDDOCKWIDGETS%.zip" "https://github.com/KDAB/KDDockWidgets/archive/v%KDDOCKWIDGETS%.zip" 47ddb48197872055f0adf8e90a7235f8a3b795ca1ee3a28ac2c504c673ae3806 || goto error
 call :downloadfile "plutovg-%PLUTOVG%.zip" "https://github.com/sammycage/plutovg/archive/v%PLUTOVG%.zip" 4fe4e48f28aa80171b2166d45c0976ab0f21eecedb52cd4c3ef73b5afb48fac9 || goto error
 call :downloadfile "plutosvg-%PLUTOSVG%.zip" "https://github.com/sammycage/plutosvg/archive/v%PLUTOSVG%.zip" 82dee2c57ad712bdd6d6d81d3e76249d89caa4b5a4214353660fd5adff12201a || goto error
-call :downloadfile: "agility-sdk-%AGILITYSDK%.nupkg" "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/%AGILITYSDK%" 0027fc24f947c48dbded13ada7d280be221eb651644e23a8a476f0f1f0a079dd || goto error
+call :downloadfile "agility-sdk-%AGILITYSDK%.nupkg" "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/%AGILITYSDK%" 9073a264301e93183844026239c9081717d52d13fb71aae68a0555c576b8de44 || goto error
 call :downloadfile "rapidyaml-%RAPIDYAML%-src.zip" "https://github.com/biojppm/rapidyaml/releases/download/v%RAPIDYAML%/rapidyaml-%RAPIDYAML%-src.zip" 30054b74abdf0ba35bf2cb435b6e49fcb6d62a8e78a240a018c36aa60dba765f || goto error
 
 call :downloadfile "shaderc-%SHADERC%.zip" "https://github.com/google/shaderc/archive/refs/tags/v%SHADERC%.zip" 3ac59c8216d367ab7858684d39c8faf872a64150aeb139335f4e083c5f79dde0 || goto error
@@ -171,7 +171,7 @@ echo Building HarfBuzz...
 rmdir /S /Q "harfbuzz-%HARFBUZZ%"
 %SEVENZIP% x "-x^!harfbuzz-%HARFBUZZ%\README" "harfbuzz-%HARFBUZZ%.zip" || goto error
 cd "harfbuzz-%HARFBUZZ%" || goto error
-cmake %ARM64TOOLCHAIN% -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="%INSTALLDIR%" -DCMAKE_INSTALL_PREFIX="%INSTALLDIR%" -DBUILD_SHARED_LIBS=ON -DHB_BUILD_UTILS=OFF -B build -G Ninja || goto error
+cmake %ARM64TOOLCHAIN% -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="%INSTALLDIR%" -DCMAKE_INSTALL_PREFIX="%INSTALLDIR%" -DBUILD_SHARED_LIBS=ON -DHB_BUILD_UTILS=OFF -DHB_BUILD_GPU=OFF -B build -G Ninja || goto error
 cmake --build build --parallel || goto error
 ninja -C build install || goto error
 cd .. || goto error
