@@ -2447,7 +2447,10 @@ void GSDevice11::VSSetShader(ID3D11VertexShader* vs, ID3D11Buffer* vs_cb)
 void GSDevice11::PSSetShaderResource(int i, GSTexture* sr)
 {
 	// Update local state only, PSUpdateShaderState updates gpu state.
-	m_state.ps_pending_srv[i] = *static_cast<GSTexture11*>(sr);
+	if (sr)
+		m_state.ps_pending_srv[i] = *static_cast<GSTexture11*>(sr);
+	else
+		m_state.ps_pending_srv[i] = nullptr;
 }
 
 void GSDevice11::PSSetSamplerState(ID3D11SamplerState* ss0)
@@ -2801,7 +2804,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 
 	// Preemptively bind srv if possible.
 	// We update the local state, then if there are srv conflicts PSUnbindConflictingSRVs will update the gpu state.
-	if (config.tex)
+	if (config.tex && config.tex != config.rt)
 	{
 		CommitClear(config.tex);
 		if (m_state.current_rt != config.tex && m_state.current_ds != config.tex)
@@ -2817,7 +2820,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 	// Should be called before changing current gpu state.
 	PSUnbindConflictingSRVs(colclip_rt ? colclip_rt : config.rt, read_only_dsv ? nullptr : config.ds);
 
-	if (config.tex)
+	if (config.tex && config.tex != config.rt)
 		PSSetShaderResource(0, config.tex);
 	if (config.pal)
 		PSSetShaderResource(1, config.pal);

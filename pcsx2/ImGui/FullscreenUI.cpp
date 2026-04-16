@@ -68,12 +68,13 @@ void FullscreenUI::GetStandardSelectionFooterText(SmallStringBase& dest, bool ba
 	if (IsGamepadInputSource())
 	{
 		const bool circleOK = ImGui::GetIO().ConfigNavSwapGamepadButtons;
+		const auto glyphs = GetGamepadGlyphs();
 		ImGuiFullscreen::CreateFooterTextString(
 			dest,
 			std::array{
-				std::make_pair(ICON_PF_DPAD_UP_DOWN, FSUI_VSTR("Change Selection")),
-				std::make_pair(circleOK ? ICON_PF_BUTTON_CIRCLE : ICON_PF_BUTTON_CROSS, FSUI_VSTR("Select")),
-				std::make_pair(circleOK ? ICON_PF_BUTTON_CROSS : ICON_PF_BUTTON_CIRCLE, back_instead_of_cancel ? FSUI_VSTR("Back") : FSUI_VSTR("Cancel")),
+				std::make_pair(glyphs.dpad_ud, FSUI_VSTR("Change Selection")),
+				std::make_pair(glyphs.confirm(circleOK), FSUI_VSTR("Select")),
+				std::make_pair(glyphs.cancel(circleOK), back_instead_of_cancel ? FSUI_VSTR("Back") : FSUI_VSTR("Cancel")),
 			});
 	}
 	else
@@ -105,12 +106,13 @@ void ImGuiFullscreen::GetFileSelectorHelpText(SmallStringBase& dest)
 	{
 		const bool circleOK = ImGui::GetIO().ConfigNavSwapGamepadButtons;
 		const bool swapNorthWest = ImGuiManager::IsGamepadNorthWestSwapped();
+		const auto glyphs = GetGamepadGlyphs();
 		ImGuiFullscreen::CreateFooterTextString(
 			dest, std::array{
-					  std::make_pair(ICON_PF_DPAD_UP_DOWN, FSUI_VSTR("Change Selection")),
-					  std::make_pair(swapNorthWest ? ICON_PF_BUTTON_SQUARE : ICON_PF_BUTTON_TRIANGLE, FSUI_VSTR("Parent Directory")),
-					  std::make_pair(circleOK ? ICON_PF_BUTTON_CIRCLE : ICON_PF_BUTTON_CROSS, FSUI_VSTR("Select")),
-					  std::make_pair(circleOK ? ICON_PF_BUTTON_CROSS : ICON_PF_BUTTON_CIRCLE, FSUI_VSTR("Cancel")),
+					  std::make_pair(glyphs.dpad_ud, FSUI_VSTR("Change Selection")),
+					  std::make_pair(swapNorthWest ? glyphs.west : glyphs.north, FSUI_VSTR("Parent Directory")),
+					  std::make_pair(glyphs.confirm(circleOK), FSUI_VSTR("Select")),
+					  std::make_pair(glyphs.cancel(circleOK), FSUI_VSTR("Cancel")),
 				  });
 	}
 	else
@@ -131,10 +133,11 @@ void ImGuiFullscreen::GetInputDialogHelpText(SmallStringBase& dest)
 	if (IsGamepadInputSource())
 	{
 		const bool circleOK = ImGui::GetIO().ConfigNavSwapGamepadButtons;
+		const auto glyphs = GetGamepadGlyphs();
 		CreateFooterTextString(dest, std::array{
 										 std::make_pair(ICON_PF_KEYBOARD, FSUI_VSTR("Enter Value")),
-										 std::make_pair(circleOK ? ICON_PF_BUTTON_CIRCLE : ICON_PF_BUTTON_CROSS, FSUI_VSTR("Select")),
-										 std::make_pair(circleOK ? ICON_PF_BUTTON_CROSS : ICON_PF_BUTTON_CIRCLE, FSUI_VSTR("Cancel")),
+										 std::make_pair(glyphs.confirm(circleOK), FSUI_VSTR("Select")),
+										 std::make_pair(glyphs.cancel(circleOK), FSUI_VSTR("Cancel")),
 									 });
 	}
 	else
@@ -157,6 +160,34 @@ void FullscreenUI::ApplyLayoutSettings(const SettingsInterface* bsi)
 
 	// Check Nintendo Setting
 	SmallString sdl2_nintendo_mode = GET_SETTINGS_VALUE(SmallString, "UI", "SDL2NintendoLayout", "false");
+	// Check glyph preference
+	SmallString glyph_mode = GET_SETTINGS_VALUE(SmallString, "UI", "FullscreenUIGlyphStyle", "auto");
+
+	const auto parse_glyph_layout = [](const SmallString& mode) -> InputLayout {
+		if (mode == "xbox")
+			return InputLayout::Xbox;
+		if (mode == "playstation")
+			return InputLayout::Playstation;
+		if (mode == "nintendo")
+			return InputLayout::Nintendo;
+		return InputLayout::Unknown;
+	};
+
+	switch (parse_glyph_layout(glyph_mode))
+	{
+		case InputLayout::Xbox:
+			InputManager::SetGamepadIconPreference(InputLayout::Xbox);
+			break;
+		case InputLayout::Playstation:
+			InputManager::SetGamepadIconPreference(InputLayout::Playstation);
+			break;
+		case InputLayout::Nintendo:
+			InputManager::SetGamepadIconPreference(InputLayout::Nintendo);
+			break;
+		default:
+			InputManager::SetGamepadIconPreference(InputLayout::Unknown);
+			break;
+	}
 
 	const InputLayout layout = ImGuiFullscreen::GetGamepadLayout();
 
@@ -1246,9 +1277,8 @@ void FullscreenUI::DrawLandingTemplate(ImVec2* menu_pos, ImVec2* menu_size)
 			const ImVec2 logo_size = LayoutScale(LAYOUT_MENU_BUTTON_HEIGHT_NO_SUMMARY, LAYOUT_MENU_BUTTON_HEIGHT_NO_SUMMARY);
 			dl->AddImage(reinterpret_cast<ImTextureID>(GetCachedTexture("icons/AppIconLarge.png")->GetNativeHandle()),
 				logo_pos, logo_pos + logo_size);
-			dl->AddText(heading_font.first, heading_font.second,
-				ImVec2(logo_pos.x + logo_size.x + LayoutScale(LAYOUT_MENU_BUTTON_X_PADDING), logo_pos.y),
-				ImGui::GetColorU32(ImGuiCol_Text), "PCSX2");
+			const ImVec2 branding_pos(logo_pos.x + logo_size.x + LayoutScale(LAYOUT_MENU_BUTTON_X_PADDING), logo_pos.y);
+			ImGuiFullscreen::AddTextWithShadow(dl, heading_font, branding_pos, ImGui::GetColorU32(ImGuiCol_Text), "PCSX2");
 		}
 
 		// draw time
@@ -1269,6 +1299,8 @@ void FullscreenUI::DrawLandingTemplate(ImVec2* menu_pos, ImVec2* menu_size)
 			const ImVec2 time_size = heading_font.first->CalcTextSizeA(heading_font.second, FLT_MAX, 0.0f, "00:00");
 			time_pos = ImVec2(heading_size.x - LayoutScale(LAYOUT_MENU_BUTTON_X_PADDING) - time_size.x,
 				LayoutScale(LAYOUT_MENU_BUTTON_Y_PADDING));
+			ImGuiFullscreen::AddTextWithShadow(
+				dl, heading_font, time_pos, ImGui::GetColorU32(ImGuiCol_Text), heading_str.c_str(), heading_str.end_ptr());
 			ImGui::RenderTextClipped(time_pos, time_pos + time_size, heading_str.c_str(), heading_str.end_ptr(), &time_size);
 		}
 
@@ -1282,6 +1314,7 @@ void FullscreenUI::DrawLandingTemplate(ImVec2* menu_pos, ImVec2* menu_size)
 				const ImVec2 name_size = heading_font.first->CalcTextSizeA(heading_font.second, FLT_MAX, 0.0f, username);
 				const ImVec2 name_pos =
 					ImVec2(time_pos.x - name_size.x - LayoutScale(LAYOUT_MENU_BUTTON_X_PADDING), time_pos.y);
+				ImGuiFullscreen::AddTextWithShadow(dl, heading_font, name_pos, ImGui::GetColorU32(ImGuiCol_Text), username, nullptr);
 				ImGui::RenderTextClipped(name_pos, name_pos + name_size, username, nullptr, &name_size);
 
 				// TODO: should we cache this? heap allocations bad...
@@ -1358,13 +1391,14 @@ void FullscreenUI::DrawLandingWindow()
 	{
 		const bool circleOK = ImGui::GetIO().ConfigNavSwapGamepadButtons;
 		const bool swapNorthWest = ImGuiManager::IsGamepadNorthWestSwapped();
+		const auto glyphs = GetGamepadGlyphs();
 		SetFullscreenFooterText(std::array{
-			std::make_pair(ICON_PF_SELECT_SHARE, FSUI_VSTR("About")),
-			std::make_pair(ICON_PF_DPAD_LEFT_RIGHT, FSUI_VSTR("Navigate")),
-			std::make_pair(swapNorthWest ? ICON_PF_BUTTON_SQUARE : ICON_PF_BUTTON_TRIANGLE, FSUI_VSTR("Game List")),
-			std::make_pair(swapNorthWest ? ICON_PF_BUTTON_TRIANGLE : ICON_PF_BUTTON_SQUARE, FSUI_VSTR("Toggle Fullscreen")),
-			std::make_pair(circleOK ? ICON_PF_BUTTON_CIRCLE : ICON_PF_BUTTON_CROSS, FSUI_VSTR("Select")),
-			std::make_pair(circleOK ? ICON_PF_BUTTON_CROSS : ICON_PF_BUTTON_CIRCLE, FSUI_VSTR("Exit")),
+			std::make_pair(glyphs.select, FSUI_VSTR("About")),
+			std::make_pair(glyphs.dpad_lr, FSUI_VSTR("Navigate")),
+			std::make_pair(swapNorthWest ? glyphs.west : glyphs.north, FSUI_VSTR("Game List")),
+			std::make_pair(swapNorthWest ? glyphs.north : glyphs.west, FSUI_VSTR("Toggle Fullscreen")),
+			std::make_pair(glyphs.confirm(circleOK), FSUI_VSTR("Select")),
+			std::make_pair(glyphs.cancel(circleOK), FSUI_VSTR("Exit")),
 		});
 	}
 	else
@@ -1429,11 +1463,12 @@ void FullscreenUI::DrawStartGameWindow()
 	{
 		const bool circleOK = ImGui::GetIO().ConfigNavSwapGamepadButtons;
 		const bool swapNorthWest = ImGuiManager::IsGamepadNorthWestSwapped();
+		const auto glyphs = GetGamepadGlyphs();
 		SetFullscreenFooterText(std::array{
-			std::make_pair(ICON_PF_DPAD_LEFT_RIGHT, FSUI_VSTR("Navigate")),
-			std::make_pair(swapNorthWest ? ICON_PF_BUTTON_TRIANGLE : ICON_PF_BUTTON_SQUARE, FSUI_VSTR("Load Global State")),
-			std::make_pair(circleOK ? ICON_PF_BUTTON_CIRCLE : ICON_PF_BUTTON_CROSS, FSUI_VSTR("Select")),
-			std::make_pair(circleOK ? ICON_PF_BUTTON_CROSS : ICON_PF_BUTTON_CIRCLE, FSUI_VSTR("Back")),
+			std::make_pair(glyphs.dpad_lr, FSUI_VSTR("Navigate")),
+			std::make_pair(swapNorthWest ? glyphs.north : glyphs.west, FSUI_VSTR("Load Global State")),
+			std::make_pair(glyphs.confirm(circleOK), FSUI_VSTR("Select")),
+			std::make_pair(glyphs.cancel(circleOK), FSUI_VSTR("Back")),
 		});
 	}
 	else
@@ -1488,10 +1523,11 @@ void FullscreenUI::DrawExitWindow()
 	if (IsGamepadInputSource())
 	{
 		const bool circleOK = ImGui::GetIO().ConfigNavSwapGamepadButtons;
+		const auto glyphs = GetGamepadGlyphs();
 		SetFullscreenFooterText(std::array{
-			std::make_pair(ICON_PF_DPAD_LEFT_RIGHT, FSUI_VSTR("Navigate")),
-			std::make_pair(circleOK ? ICON_PF_BUTTON_CIRCLE : ICON_PF_BUTTON_CROSS, FSUI_VSTR("Select")),
-			std::make_pair(circleOK ? ICON_PF_BUTTON_CROSS : ICON_PF_BUTTON_CIRCLE, FSUI_VSTR("Back")),
+			std::make_pair(glyphs.dpad_lr, FSUI_VSTR("Navigate")),
+			std::make_pair(glyphs.confirm(circleOK), FSUI_VSTR("Select")),
+			std::make_pair(glyphs.cancel(circleOK), FSUI_VSTR("Back")),
 		});
 	}
 	else
@@ -1507,8 +1543,7 @@ void FullscreenUI::DrawExitWindow()
 static void DrawShadowedText(
 	ImDrawList* dl, std::pair<ImFont*, float> font, const ImVec2& pos, u32 col, const char* text, const char* text_end = nullptr, float wrap_width = 0.0f)
 {
-	dl->AddText(font.first, font.second, pos + LayoutScale(1.0f, 1.0f), IM_COL32(0, 0, 0, 100), text, text_end, wrap_width);
-	dl->AddText(font.first, font.second, pos, col, text, text_end, wrap_width);
+	ImGuiFullscreen::AddTextWithShadow(dl, font, pos, col, text, text_end, wrap_width);
 }
 
 void FullscreenUI::DrawPauseMenu(MainWindowType type)
@@ -1812,10 +1847,11 @@ void FullscreenUI::DrawPauseMenu(MainWindowType type)
 	if (IsGamepadInputSource())
 	{
 		const bool circleOK = ImGui::GetIO().ConfigNavSwapGamepadButtons;
+		const auto glyphs = GetGamepadGlyphs();
 		SetFullscreenFooterText(std::array{
-			std::make_pair(ICON_PF_DPAD_UP_DOWN, FSUI_VSTR("Change Selection")),
-			std::make_pair(circleOK ? ICON_PF_BUTTON_CIRCLE : ICON_PF_BUTTON_CROSS, FSUI_VSTR("Select")),
-			std::make_pair(circleOK ? ICON_PF_BUTTON_CROSS : ICON_PF_BUTTON_CIRCLE, FSUI_VSTR("Return To Game")),
+			std::make_pair(glyphs.dpad_ud, FSUI_VSTR("Change Selection")),
+			std::make_pair(glyphs.confirm(circleOK), FSUI_VSTR("Select")),
+			std::make_pair(glyphs.cancel(circleOK), FSUI_VSTR("Return To Game")),
 		});
 	}
 	else
@@ -2179,7 +2215,7 @@ void FullscreenUI::DrawSaveStateSelector(bool is_loading)
 				bool pressed = ImGui::ButtonBehavior(bb, id, &hovered, &held, 0);
 				if (hovered)
 				{
-					const ImU32 col = ImGui::GetColorU32(held ? ImGuiCol_ButtonActive : ImGuiCol_ButtonHovered, 1.0f);
+					const ImU32 col = ImGui::GetColorU32(held ? ImGuiCol_ButtonActive : ImGuiCol_ButtonHovered, 0.7f);
 
 					const float t = std::min<float>(std::abs(std::sin(ImGui::GetTime() * 0.75) * 1.1), 1.0f);
 					ImGui::PushStyleColor(ImGuiCol_Border, ImGui::GetColorU32(ImGuiCol_Border, t));
@@ -2202,7 +2238,8 @@ void FullscreenUI::DrawSaveStateSelector(bool is_loading)
 				const ImVec2 title_pos(bb.Min.x, bb.Min.y + image_height + title_spacing);
 				const ImRect title_bb(title_pos, ImVec2(bb.Max.x, title_pos.y + g_large_font.second));
 				ImGui::PushFont(g_large_font.first, g_large_font.second);
-				ImGui::RenderTextClipped(title_bb.Min, title_bb.Max, entry.title.c_str(), nullptr, nullptr, ImVec2(0.0f, 0.0f), &title_bb);
+				ImGuiFullscreen::RenderTextClippedWithShadow(
+					title_bb.Min, title_bb.Max, entry.title.c_str(), nullptr, nullptr, ImVec2(0.0f, 0.0f), &title_bb);
 				ImGui::PopFont();
 
 				if (!entry.summary.empty())
@@ -2210,7 +2247,7 @@ void FullscreenUI::DrawSaveStateSelector(bool is_loading)
 					const ImVec2 summary_pos(bb.Min.x, title_pos.y + g_large_font.second + summary_spacing);
 					const ImRect summary_bb(summary_pos, ImVec2(bb.Max.x, summary_pos.y + g_medium_font.second));
 					ImGui::PushFont(g_medium_font.first, g_medium_font.second);
-					ImGui::RenderTextClipped(
+					ImGuiFullscreen::RenderTextClippedWithShadow(
 						summary_bb.Min, summary_bb.Max, entry.summary.c_str(), nullptr, nullptr, ImVec2(0.0f, 0.0f), &summary_bb);
 					ImGui::PopFont();
 				}
@@ -2257,11 +2294,12 @@ void FullscreenUI::DrawSaveStateSelector(bool is_loading)
 		{
 			const bool circleOK = ImGui::GetIO().ConfigNavSwapGamepadButtons;
 			const bool swapNorthWest = ImGuiManager::IsGamepadNorthWestSwapped();
+			const auto glyphs = GetGamepadGlyphs();
 			SetFullscreenFooterText(std::array{
-				std::make_pair(ICON_PF_DPAD, FSUI_VSTR("Select State")),
-				std::make_pair(swapNorthWest ? ICON_PF_BUTTON_TRIANGLE : ICON_PF_BUTTON_SQUARE, FSUI_VSTR("Options")),
-				std::make_pair(circleOK ? ICON_PF_BUTTON_CIRCLE : ICON_PF_BUTTON_CROSS, FSUI_VSTR("Load/Save State")),
-				std::make_pair(circleOK ? ICON_PF_BUTTON_CROSS : ICON_PF_BUTTON_CIRCLE, FSUI_VSTR("Cancel")),
+				std::make_pair(glyphs.dpad, FSUI_VSTR("Select State")),
+				std::make_pair(swapNorthWest ? glyphs.north : glyphs.west, FSUI_VSTR("Options")),
+				std::make_pair(glyphs.confirm(circleOK), FSUI_VSTR("Load/Save State")),
+				std::make_pair(glyphs.cancel(circleOK), FSUI_VSTR("Cancel")),
 			});
 		}
 		else
@@ -2602,13 +2640,14 @@ void FullscreenUI::DrawGameListWindow()
 	{
 		const bool circleOK = ImGui::GetIO().ConfigNavSwapGamepadButtons;
 		const bool swapNorthWest = ImGuiManager::IsGamepadNorthWestSwapped();
+		const auto glyphs = GetGamepadGlyphs();
 		SetFullscreenFooterText(std::array{
-			std::make_pair(ICON_PF_DPAD, FSUI_VSTR("Select Game")),
-			std::make_pair(ICON_PF_START, FSUI_VSTR("Settings")),
-			std::make_pair(swapNorthWest ? ICON_PF_BUTTON_SQUARE : ICON_PF_BUTTON_TRIANGLE, FSUI_VSTR("Change View")),
-			std::make_pair(swapNorthWest ? ICON_PF_BUTTON_TRIANGLE : ICON_PF_BUTTON_SQUARE, FSUI_VSTR("Launch Options")),
-			std::make_pair(circleOK ? ICON_PF_BUTTON_CIRCLE : ICON_PF_BUTTON_CROSS, FSUI_VSTR("Start Game")),
-			std::make_pair(circleOK ? ICON_PF_BUTTON_CROSS : ICON_PF_BUTTON_CIRCLE, FSUI_VSTR("Back")),
+			std::make_pair(glyphs.dpad, FSUI_VSTR("Select Game")),
+			std::make_pair(glyphs.start, FSUI_VSTR("Settings")),
+			std::make_pair(swapNorthWest ? glyphs.west : glyphs.north, FSUI_VSTR("Change View")),
+			std::make_pair(swapNorthWest ? glyphs.north : glyphs.west, FSUI_VSTR("Launch Options")),
+			std::make_pair(glyphs.confirm(circleOK), FSUI_VSTR("Start Game")),
+			std::make_pair(glyphs.cancel(circleOK), FSUI_VSTR("Back")),
 		});
 	}
 	else
@@ -2910,12 +2949,12 @@ void FullscreenUI::DrawGameGrid(const ImVec2& heading_size)
 			bool pressed = ImGui::ButtonBehavior(bb, id, &hovered, &held, 0);
 			if (hovered)
 			{
-				const ImU32 col = ImGui::GetColorU32(held ? ImGuiCol_ButtonActive : ImGuiCol_ButtonHovered, 1.0f);
+				const ImU32 col = ImGui::GetColorU32(held ? ImGuiCol_ButtonActive : ImGuiCol_ButtonHovered, 0.7f);
 
 				const float t = std::min<float>(std::abs(std::sin(ImGui::GetTime() * 0.75) * 1.1), 1.0f);
 				ImGui::PushStyleColor(ImGuiCol_Border, ImGui::GetColorU32(ImGuiCol_Border, t));
 
-				ImGuiFullscreen::DrawMenuButtonFrame(bb.Min, bb.Max, col, true, 0.0f);
+				ImGuiFullscreen::DrawMenuButtonFrame(bb.Min, bb.Max, col, true, LayoutScale(ImGuiFullscreen::LAYOUT_FRAME_ROUNDING));
 
 				ImGui::PopStyleColor();
 			}
@@ -2935,8 +2974,8 @@ void FullscreenUI::DrawGameGrid(const ImVec2& heading_size)
 				draw_title.clear();
 				fmt::format_to(std::back_inserter(draw_title), "{}{}", title, (title.length() == full_title.length()) ? "" : g_ellipsis);
 				ImGui::PushFont(g_medium_font.first, g_medium_font.second);
-				ImGui::RenderTextClipped(title_bb.Min, title_bb.Max, draw_title.c_str(), draw_title.c_str() + draw_title.length(), nullptr,
-					ImVec2(0.5f, 0.0f), &title_bb);
+				ImGuiFullscreen::RenderTextClippedWithShadow(
+					title_bb.Min, title_bb.Max, draw_title.c_str(), draw_title.c_str() + draw_title.length(), nullptr, ImVec2(0.5f, 0.0f), &title_bb);
 				ImGui::PopFont();
 			}
 
@@ -3379,7 +3418,7 @@ void FullscreenUI::DrawAboutWindow()
 	ImGui::OpenPopup(FSUI_CSTR("About PCSX2"));
 
 	ImGui::PushFont(g_large_font.first, g_large_font.second);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, LayoutScale(10.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, LayoutScale(ImGuiFullscreen::LAYOUT_WINDOW_ROUNDING));
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, LayoutScale(30.0f, 30.0f));
 
 	if (ImGui::BeginPopupModal(FSUI_CSTR("About PCSX2"), &s_about_window_open, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
@@ -3387,10 +3426,18 @@ void FullscreenUI::DrawAboutWindow()
 		const ImVec2 image_size = LayoutScale(500.0f, 76.0f);
 		const ImRect image_bb(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(ImGui::GetCurrentWindow()->WorkRect.GetWidth(), image_size.y));
 		const ImRect image_rect(CenterImage(image_bb, image_size));
+		const float start_y = ImGui::GetCursorPosY();
 
 		DrawListSvgTexture(ImGui::GetWindowDrawList(), s_banner_texture.get(), image_rect.Min, image_rect.Max);
 
-		const float indent = image_size.y + LayoutScale(12.0f);
+		ImGui::SetCursorPosY(start_y + image_size.y + LayoutScale(2.0f));
+		static const std::string version_text = fmt::format(FSUI_FSTR("Version: {}"), BuildVersion::GitRev);
+		const float version_center_x =
+			ImGui::GetCursorPosX() + ((ImGui::GetCurrentWindow()->WorkRect.GetWidth() - ImGui::CalcTextSize(version_text.c_str()).x) * 0.5f);
+		ImGui::SetCursorPosX(version_center_x);
+		ImGui::TextUnformatted(version_text.c_str());
+
+		const float indent = LayoutScale(12.0f);
 		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + indent);
 		ImGui::TextWrapped("%s", FSUI_CSTR(
 									 "PCSX2 is a free and open-source PlayStation 2 (PS2) emulator. Its purpose is to emulate the PS2's hardware, using a "
@@ -3428,10 +3475,6 @@ void FullscreenUI::DrawAboutWindow()
 
 		EndMenuButtons();
 
-		const float alignment = image_size.x + image_size.y;
-		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + alignment);
-		ImGui::TextWrapped(FSUI_CSTR("Version: %s"), BuildVersion::GitRev);
-
 		ImGui::EndPopup();
 	}
 
@@ -3459,7 +3502,7 @@ void FullscreenUI::DrawAchievementsLoginWindow()
 	ImGui::SetNextWindowSize(LayoutScale(400.0f, 330.0f));
 	ImGui::SetNextWindowPos(ImGui::GetIO().DisplaySize * 0.5f, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, LayoutScale(12.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, LayoutScale(ImGuiFullscreen::LAYOUT_WINDOW_ROUNDING));
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, LayoutScale(24.0f, 24.0f));
 	ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.13f, 0.13f, 0.13f, 0.95f));
 
@@ -3501,7 +3544,7 @@ void FullscreenUI::DrawAchievementsLoginWindow()
 		ImGui::Spacing();
 		ImGui::Spacing();
 
-		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, LayoutScale(8.0f));
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, LayoutScale(ImGuiFullscreen::LAYOUT_FRAME_ROUNDING));
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, LayoutScale(12.0f, 10.0f));
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, LayoutScale(1.0f));
 		ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
@@ -3548,7 +3591,7 @@ void FullscreenUI::DrawAchievementsLoginWindow()
 
 		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + start_x);
 
-		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, LayoutScale(8.0f));
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, LayoutScale(ImGuiFullscreen::LAYOUT_FRAME_ROUNDING));
 
 		const bool can_login = !s_achievements_login_logging_in &&
 							   strlen(s_achievements_login_username) > 0 &&
@@ -3856,44 +3899,65 @@ void FullscreenUI::DrawAchievementsSettingsPage(std::unique_lock<std::mutex>& se
 	if (!IsEditingGameSettings(bsi))
 	{
 		MenuHeading(FSUI_CSTR("Sound Effects"));
-		if (MenuButton(FSUI_ICONSTR(ICON_FA_MUSIC, "Notification Sound"), bsi->GetTinyStringValue("Achievements", "InfoSoundName")))
-		{
-			auto callback = [bsi](const std::string& path) {
-				if (!path.empty())
-				{
-					bsi->SetStringValue("Achievements", "InfoSoundName", path.c_str());
-					SetSettingsChanged(bsi);
-				}
-				CloseFileSelector();
-			};
-			OpenFileSelector(FSUI_ICONSTR(ICON_FA_FOLDER_OPEN, "Select Notification Sound"), false, std::move(callback), GetAudioFileFilters());
-		}
+		const auto draw_sound_setting = [bsi](const char* title, const char* key, const char* default_filename, const char* selector_title) {
+			const std::string default_path = Path::Combine(EmuFolders::Resources, default_filename);
+			const std::optional<SmallString> custom_path = bsi->GetOptionalSmallStringValue("Achievements", key, std::nullopt);
+			const char* value = custom_path.has_value() ? custom_path->c_str() : default_path.c_str();
+			if (!MenuButton(title, value))
+				return;
 
-		if (MenuButton(FSUI_ICONSTR(ICON_FA_MUSIC, "Unlock Sound"), bsi->GetTinyStringValue("Achievements", "UnlockSoundName")))
-		{
-			auto callback = [bsi](const std::string& path) {
-				if (!path.empty())
-				{
-					bsi->SetStringValue("Achievements", "UnlockSoundName", path.c_str());
-					SetSettingsChanged(bsi);
-				}
-				CloseFileSelector();
-			};
-			OpenFileSelector(FSUI_ICONSTR(ICON_FA_FOLDER_OPEN, "Select Unlock Sound"), false, std::move(callback), GetAudioFileFilters());
-		}
+			ImGuiFullscreen::ChoiceDialogOptions options;
+			options.emplace_back(FSUI_ICONSTR(ICON_FA_FILE, "Select File"), false);
+			options.emplace_back(FSUI_ICONSTR(ICON_FA_VOLUME_HIGH, "Preview"), false);
+			options.emplace_back(FSUI_ICONSTR(ICON_FA_ROTATE_RIGHT, "Reset to Default"), false);
+			OpenChoiceDialog(title, false, std::move(options),
+				[bsi, key = std::string(key), selector_title = std::string(selector_title), default_path = std::move(default_path)](
+					s32 index, const std::string&, bool) {
+					if (index == 0)
+					{
+						auto callback = [bsi, key = key](const std::string& path) {
+							if (!path.empty())
+							{
+								bsi->SetStringValue("Achievements", key.c_str(), path.c_str());
+								SetSettingsChanged(bsi);
+							}
+							CloseFileSelector();
+						};
+						OpenFileSelector(selector_title.c_str(), false, std::move(callback), GetAudioFileFilters());
+					}
+					else if (index == 1)
+					{
+						const TinyString preview_path = bsi->GetTinyStringValue("Achievements", key.c_str(), default_path.c_str());
+						if (!Common::PlaySoundAsync(preview_path.c_str()))
+						{
+							ShowToast(std::string(),
+								fmt::format(FSUI_FSTR("Failed to preview sound:\n{}"),
+									preview_path.empty() ? FSUI_STR("No file selected.") : preview_path.c_str()));
+						}
+					}
+					else if (index == 2)
+					{
+						if (bsi->ContainsValue("Achievements", key.c_str()))
+						{
+							bsi->DeleteValue("Achievements", key.c_str());
+							SetSettingsChanged(bsi);
+							ShowToast(std::string(), FSUI_STR("Sound reset to default."));
+						}
+						else
+						{
+							ShowToast(std::string(), FSUI_STR("Sound is already using default."));
+						}
+					}
+					CloseChoiceDialog();
+				});
+		};
 
-		if (MenuButton(FSUI_ICONSTR(ICON_FA_MUSIC, "Leaderboard Submit Sound"), bsi->GetTinyStringValue("Achievements", "LBSubmitSoundName")))
-		{
-			auto callback = [bsi](const std::string& path) {
-				if (!path.empty())
-				{
-					bsi->SetStringValue("Achievements", "LBSubmitSoundName", path.c_str());
-					SetSettingsChanged(bsi);
-				}
-				CloseFileSelector();
-			};
-			OpenFileSelector(FSUI_ICONSTR(ICON_FA_FOLDER_OPEN, "Select Leaderboard Submit Sound"), false, std::move(callback), GetAudioFileFilters());
-		}
+		draw_sound_setting(FSUI_ICONSTR(ICON_FA_MUSIC, "Notification Sound"), "InfoSoundName", "sounds/achievements/message.wav",
+			FSUI_ICONSTR(ICON_FA_FOLDER_OPEN, "Select Notification Sound"));
+		draw_sound_setting(FSUI_ICONSTR(ICON_FA_MUSIC, "Unlock Sound"), "UnlockSoundName", "sounds/achievements/unlock.wav",
+			FSUI_ICONSTR(ICON_FA_FOLDER_OPEN, "Select Unlock Sound"));
+		draw_sound_setting(FSUI_ICONSTR(ICON_FA_MUSIC, "Leaderboard Submit Sound"), "LBSubmitSoundName",
+			"sounds/achievements/lbsubmit.wav", FSUI_ICONSTR(ICON_FA_FOLDER_OPEN, "Select Leaderboard Submit Sound"));
 
 		MenuHeading(FSUI_CSTR("Account"));
 		if (bsi->ContainsValue("Achievements", "Token"))

@@ -2153,7 +2153,7 @@ void GSDeviceOGL::PSSetShaderResource(int i, GSTexture* sr)
 {
 	pxAssert(i < static_cast<int>(std::size(GLState::tex_unit)));
 
-	const GLuint id = static_cast<GSTextureOGL*>(sr)->GetID();
+	const GLuint id = sr ?  static_cast<GSTextureOGL*>(sr)->GetID() : 0;
 	if (GLState::tex_unit[i] != id)
 	{
 		GLState::tex_unit[i] = id;
@@ -2624,7 +2624,7 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 		GLState::scissor = config.scissor;
 	}
 
-	if (config.tex)
+	if (config.tex && (m_features.texture_barrier || (config.tex != config.rt)))
 		CommitClear(config.tex, true);
 	if (config.pal)
 		CommitClear(config.pal, true);
@@ -2740,7 +2740,7 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	}
 	IASetPrimitiveTopology(topology);
 
-	if (config.tex)
+	if (config.tex && (m_features.texture_barrier || (config.tex != config.rt)))
 		PSSetShaderResource(0, config.tex);
 	if (config.pal)
 		PSSetShaderResource(1, config.pal);
@@ -2855,10 +2855,7 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	// Clear texture binding when it's bound to RT or DS.
 	if (!config.tex && ((draw_rt && static_cast<GSTextureOGL*>(draw_rt)->GetID() == GLState::tex_unit[0]) ||
 		(draw_ds && static_cast<GSTextureOGL*>(draw_ds)->GetID() == GLState::tex_unit[0])))
-	{
-		GLState::tex_unit[0] = 0;
-		glBindTextureUnit(0, 0);
-	}
+		PSSetShaderResource(0, nullptr);
 
 	// Avoid changing framebuffer just to switch from rt+depth to rt and vice versa.
 	bool fb_optimization_needs_barrier = false;
