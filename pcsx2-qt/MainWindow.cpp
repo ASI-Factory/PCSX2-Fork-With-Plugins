@@ -1114,7 +1114,7 @@ bool MainWindow::shouldHideMainWindow() const
 {
 	// NOTE: We can't use isRenderingToMain() here, because this happens post-fullscreen-switch.
 	return (Host::GetBoolSettingValue("UI", "HideMainWindowWhenRunning", false) && !g_emu_thread->shouldRenderToMain()) ||
-	       (g_emu_thread->shouldRenderToMain() && (isRenderingFullscreen() || m_is_temporarily_windowed)) ||
+	       (g_emu_thread->shouldRenderToMain() && (isRenderingFullscreen() || g_emu_thread->isExclusiveFullscreen() || m_is_temporarily_windowed)) ||
 	       Host::InNoGUIMode();
 }
 
@@ -2538,6 +2538,7 @@ std::optional<WindowInfo> MainWindow::acquireRenderWindow(bool recreate_window, 
 		return std::nullopt;
 	}
 
+	m_display_is_exclusive_fullscreen = g_emu_thread->isExclusiveFullscreen();
 	g_emu_thread->connectDisplaySignals(m_display_surface);
 
 	updateWindowTitle();
@@ -2709,6 +2710,7 @@ void MainWindow::releaseRenderWindow()
 	// Now we can safely destroy the display window.
 	destroyDisplayWidget(true);
 	m_display_created = false;
+	m_display_is_exclusive_fullscreen = false;
 
 	m_ui.actionViewSystemDisplay->setEnabled(false);
 	m_ui.actionFullscreen->setEnabled(false);
@@ -2719,7 +2721,7 @@ void MainWindow::destroyDisplayWidget(bool show_game_list)
 	if (!m_display_surface)
 		return;
 
-	if (!m_display_surface->isFullScreen() && !isRenderingToMain())
+	if (!(m_display_surface->isFullScreen() || m_display_is_exclusive_fullscreen) && !isRenderingToMain())
 		saveDisplayWindowGeometryToConfig();
 
 	if (isRenderingToMain())
