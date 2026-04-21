@@ -1858,6 +1858,22 @@ void VMManager::Shutdown(bool save_resume_state)
 	LoadSettings();
 }
 
+bool VMManager::RequestReset()
+{
+	if (MemcardBusy::IsBusy())
+	{
+		Host::AddIconOSDMessage("RequestReset", ICON_FA_TRIANGLE_EXCLAMATION,
+			TRANSLATE_STR("VMManager",
+				"The memory card is busy, so the reset operation has been cancelled to prevent data loss."),
+			Host::OSD_WARNING_DURATION);
+		return false;
+	}
+
+	VMManager::Reset();
+
+	return true;
+}
+
 void VMManager::Reset()
 {
 	pxAssert(HasValidVM());
@@ -3406,6 +3422,11 @@ void VMManager::WarnAboutUnsafeSettings()
 		{
 			append(ICON_FA_IMAGES,
 				TRANSLATE_SV("VMManager", "Accurate Alpha Test is enabled, this may reduce performance."));
+		}
+		if (EmuConfig.GS.HWAA1)
+		{
+			append(ICON_FA_CIRCLE_EXCLAMATION,
+				TRANSLATE_SV("VMManager", "AA1 is enabled, this may severely degrade performance."));
 		}
 		if (EmuConfig.GS.DepthFeedbackMode != GSDepthFeedbackMode::Auto)
 		{
