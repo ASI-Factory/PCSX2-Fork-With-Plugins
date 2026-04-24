@@ -1007,6 +1007,23 @@ bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_con
 	return true;
 }
 
+void GSDevice::BeginDSAsRT(GSTexture* ds, const GSVector4i& drawarea)
+{
+	// Create a temporary RT and copy the area needed for the draw.
+	const int w = ds->GetWidth();
+	const int h = ds->GetHeight();
+	m_ds_as_rt = g_gs_device->CreateRenderTarget(w, h, GSTexture::Format::Float32, false, true);
+	const GSVector4 dRect(drawarea);
+	const GSVector4 sRect(dRect.x / w, dRect.y / h, dRect.z / w, dRect.w / h);
+	StretchRect(ds, sRect, m_ds_as_rt, dRect, ShaderConvert::FLOAT32_DEPTH_TO_COLOR, false);
+}
+
+void GSDevice::EndDSAsRT()
+{
+	Recycle(m_ds_as_rt);
+	m_ds_as_rt = nullptr;
+}
+
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-function"
@@ -1467,6 +1484,7 @@ static void DumpPSSelector(DrawConfigWriter& out, const GSHWDrawConfig::PSSelect
 	out.WriteLn("scanmsk: {} ({})", GSUtil::GetSCANMSKName(ps.scanmsk), ps.scanmsk);
 	out.WriteLn("aa1: {} ({})", static_cast<u32>(ps.aa1), GetPSAA1Name(static_cast<u32>(ps.aa1)));
 	out.WriteLn("abe: {}", static_cast<u32>(ps.abe));
+	out.WriteLn("sw_aniso: {}", ps.sw_aniso);
 }
 
 static void DumpVSSelector(DrawConfigWriter& out, const GSHWDrawConfig::VSSelector& vs)
@@ -1512,7 +1530,6 @@ static void DumpSamplerSelector(DrawConfigWriter& out, const GSHWDrawConfig::Sam
 	out.WriteLn("tav: {}", ss.tav);
 	out.WriteLn("biln: {}", ss.biln);
 	out.WriteLn("triln: {} ({})", GetSSTrilnName(static_cast<GS_MIN_FILTER>(ss.triln)), ss.triln);
-	out.WriteLn("aniso: {}", ss.aniso);
 	out.WriteLn("lodclamp: {}", ss.lodclamp);
 }
 

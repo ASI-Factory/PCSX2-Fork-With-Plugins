@@ -423,6 +423,9 @@ struct alignas(16) GSHWDrawConfig
 				// AA1
 				PS_AA1 aa1 : 2; // Pixel shader AA1 primitive. Must be used in conjunction with VS AA1 expand.
 				u32 abe : 1; // Alpha blend enabled. Currently only used for emulating AA1/ABE interaction.
+
+				// Anisotropic filtering
+				u32 sw_aniso : 5;
 			};
 
 			struct
@@ -505,7 +508,6 @@ struct alignas(16) GSHWDrawConfig
 				u8 tav      : 1;
 				u8 biln     : 1;
 				u8 triln    : 3;
-				u8 aniso    : 1;
 				u8 lodclamp : 1;
 			};
 			u8 key;
@@ -810,7 +812,6 @@ struct alignas(16) GSHWDrawConfig
 	};
 
 	GSTexture* rt;        ///< Render target
-	GSTexture* ds_as_rt;  ///< Depth as color (if supported)
 	GSTexture* ds;        ///< Depth stencil
 	GSTexture* tex;       ///< Source texture
 	GSTexture* pal;       ///< Palette texture
@@ -929,13 +930,6 @@ public:
 		Performance
 	};
 
-	enum class DepthFeedbackSupport : u8
-	{
-		None,      // No support for depth feedback loops.
-		Depth,     // Implement depth feedback loops directly on the depth buffer.
-		DepthAsRT, // Implement depth feedback loops by first converting depth to a color RT.
-	};
-
 	// clang-format off
 	struct FeatureSupport
 	{
@@ -954,12 +948,14 @@ public:
 		bool stencil_buffer       : 1; ///< Supports stencil buffer, and can use for DATE.
 		bool cas_sharpening       : 1; ///< Supports sufficient functionality for contrast adaptive sharpening.
 		bool test_and_sample_depth: 1; ///< Supports concurrently binding the depth-stencil buffer for sampling and depth testing.
-		DepthFeedbackSupport depth_feedback : 2; ///< Support for depth feedback loops.
+		bool depth_feedback       : 1; ///< Depth feedback loops can be done with DS directly (otherwise need to copy to separate RT).  Implies `feedback_loops`.
 		bool aa1                  : 1; ///< Supports the GS AA1 feature.
 		FeatureSupport()
 		{
 			memset(this, 0, sizeof(*this));
 		}
+		/// Supports feedback loops through either texture barriers or rt copies.
+		bool feedback_loops() const { return texture_barrier || multidraw_fb_copy; }
 	};
 
 	struct MultiStretchRect
@@ -1037,6 +1033,7 @@ protected:
 	GSTexture* m_current = nullptr;
 	GSTexture* m_cas = nullptr;
 	GSTexture* m_colclip_rt = nullptr; ///< Temp hw colclip texture
+	GSTexture* m_ds_as_rt = nullptr; ///< Depth as color
 
 	bool AcquireWindow(bool recreate_window);
 
@@ -1073,6 +1070,11 @@ public:
 	GSTexture* GetColorClipTexture() const { return m_colclip_rt; }
 		
 	void SetColorClipTexture(GSTexture* tex) { m_colclip_rt = tex; }
+
+	bool IsDSInRTActive() const { return m_ds_as_rt; }
+	/// Create a temporary color clone of depth for depth feedback
+	virtual void BeginDSAsRT(GSTexture* ds, const GSVector4i& drawarea);
+	void EndDSAsRT();
 
 	/// Returns a string representing the specified API.
 	static const char* RenderAPIToString(RenderAPI api);

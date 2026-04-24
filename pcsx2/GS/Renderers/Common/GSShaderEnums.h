@@ -39,6 +39,15 @@ enum class PS_AFAIL : uint32_t
 	RGB_ONLY_SW_Z = 5, ///< RGB only with software Z discard
 };
 
+// Identical to GS_ZTST
+enum class ZTST : uint32_t
+{
+	NEVER   = 0,
+	ALWAYS  = 1,
+	GEQUAL  = 2,
+	GREATER = 3,
+};
+
 enum class PS_AA1 : uint32_t
 {
 	NONE          = 0, ///< No AA1

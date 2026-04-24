@@ -282,12 +282,19 @@ bool GSDevice12::CreateDevice(u32& vendor_id)
 		}
 	}
 
-	// Intel Haswell doesn't actually support DX12 even tho the device is created which results in a crash,
-	// to get around this check if device can be created using feature level 12 (skylake+).
-	const bool isIntel = (vendor_id == 0x163C || vendor_id == 0x8086 || vendor_id == 0x8087);
-
 	// Create the actual device.
+	// Intel Haswell DX12 support is specific:
+	// Newerest drivers have dx12 support disabled so the last driver to support dx12 is 15.40.42.5063.
+	// Shader cache must be also disabled, and make sure Debug Device option is disabled as well.
+	// Let's enable it on dev/debug for testing purposes so we don't have to change this all the time.
+	// TODO: Find out the status of Broadwell.
+#ifdef PCSX2_DEVBUILD
+	hr = D3D12CreateDevice(m_adapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device));
+#else
+	const bool isIntel = (vendor_id == 0x163C || vendor_id == 0x8086 || vendor_id == 0x8087);
 	hr = D3D12CreateDevice(m_adapter.get(), isIntel ? D3D_FEATURE_LEVEL_12_0 : D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device));
+#endif
+
 	if (FAILED(hr))
 	{
 		Console.Error("D3D12: Failed to create device: %08X", hr);
@@ -1405,17 +1412,8 @@ bool GSDevice12::CheckFeatures(const u32& vendor_id)
 	m_features.cas_sharpening = true;
 	m_features.test_and_sample_depth = true;
 	m_features.vs_expand = !GSConfig.DisableVertexShaderExpand;
-	if (m_features.texture_barrier && (GSConfig.DepthFeedbackMode == GSDepthFeedbackMode::Auto ||
-		GSConfig.DepthFeedbackMode == GSDepthFeedbackMode::DepthAsRT))
-	{
-		m_features.depth_feedback = GSDevice::DepthFeedbackSupport::DepthAsRT;
-	}
-	else
-	{
-		m_features.depth_feedback = GSDevice::DepthFeedbackSupport::None;
-	}
-		
-	m_features.aa1 = GSConfig.HWAA1 && m_features.vs_expand && (m_features.depth_feedback != GSDevice::DepthFeedbackSupport::None);
+	m_features.depth_feedback = false;
+	m_features.aa1 = GSConfig.HWAA1 && m_features.vs_expand && m_features.feedback_loops();
 
 	m_features.dxt_textures = SupportsTextureFormat(DXGI_FORMAT_BC1_UNORM) &&
 	                          SupportsTextureFormat(DXGI_FORMAT_BC2_UNORM) &&
@@ -2512,37 +2510,33 @@ bool GSDevice12::GetSampler(D3D12DescriptorHandle* cpu_handle, GSHWDrawConfig::S
 		return true;
 	}
 
-	D3D12_SAMPLER_DESC sd = {};
-	const int anisotropy = GSConfig.MaxAnisotropy;
-	if (anisotropy > 1 && ss.aniso)
-	{
-		sd.Filter = D3D12_FILTER_ANISOTROPIC;
-	}
-	else
-	{
-		static constexpr std::array<D3D12_FILTER, 8> filters = {{
-			D3D12_FILTER_MIN_MAG_MIP_POINT, // 000 / min=point,mag=point,mip=point
-			D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT, // 001 / min=linear,mag=point,mip=point
-			D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT, // 010 / min=point,mag=linear,mip=point
-			D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT, // 011 / min=linear,mag=linear,mip=point
-			D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR, // 100 / min=point,mag=point,mip=linear
-			D3D12_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR, // 101 / min=linear,mag=point,mip=linear
-			D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR, // 110 / min=point,mag=linear,mip=linear
-			D3D12_FILTER_MIN_MAG_MIP_LINEAR, // 111 / min=linear,mag=linear,mip=linear
-		}};
+	static constexpr std::array<D3D12_FILTER, 8> filters = {{
+		D3D12_FILTER_MIN_MAG_MIP_POINT, // 000 / min=point,mag=point,mip=point
+		D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT, // 001 / min=linear,mag=point,mip=point
+		D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT, // 010 / min=point,mag=linear,mip=point
+		D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT, // 011 / min=linear,mag=linear,mip=point
+		D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR, // 100 / min=point,mag=point,mip=linear
+		D3D12_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR, // 101 / min=linear,mag=point,mip=linear
+		D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR, // 110 / min=point,mag=linear,mip=linear
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // 111 / min=linear,mag=linear,mip=linear
+	}};
 
-		const u8 index = (static_cast<u8>(ss.IsMipFilterLinear()) << 2) |
-		                 (static_cast<u8>(ss.IsMagFilterLinear()) << 1) | static_cast<u8>(ss.IsMinFilterLinear());
-		sd.Filter = filters[index];
-	}
+	const u8 index = (static_cast<u8>(ss.IsMipFilterLinear()) << 2) |
+	                 (static_cast<u8>(ss.IsMagFilterLinear()) << 1) |
+	                 static_cast<u8>(ss.IsMinFilterLinear());
 
-	sd.AddressU = ss.tau ? D3D12_TEXTURE_ADDRESS_MODE_WRAP : D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	sd.AddressV = ss.tav ? D3D12_TEXTURE_ADDRESS_MODE_WRAP : D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	sd.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	sd.MinLOD = 0.0f;
-	sd.MaxLOD = (ss.lodclamp || !ss.UseMipmapFiltering()) ? 0.25f : FLT_MAX;
-	sd.MaxAnisotropy = std::clamp<u8>(GSConfig.MaxAnisotropy, 1, 16);
-	sd.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+	const D3D12_SAMPLER_DESC sd = {
+		filters[index], // Filter
+		ss.tau ? D3D12_TEXTURE_ADDRESS_MODE_WRAP : D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // Address u
+		ss.tav ? D3D12_TEXTURE_ADDRESS_MODE_WRAP : D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // Address v
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // Address w
+		0.0f, // Lod bias
+		1, // Anisotropy
+		D3D12_COMPARISON_FUNC_NEVER, // comparison function
+		{}, // Border colour
+		0.0f, // Min lod
+		(ss.lodclamp || !ss.UseMipmapFiltering()) ? 0.25f : FLT_MAX, // Max lod
+	};
 
 	if (!GetSamplerHeapManager().Allocate(cpu_handle))
 		return false;
@@ -3217,6 +3211,7 @@ const ID3DBlob* GSDevice12::GetTFXPixelShader(const GSHWDrawConfig::PSSelector& 
 	sm.AddMacro("PS_ZTST", sel.ztst);
 	sm.AddMacro("PS_AA1", static_cast<u32>(sel.aa1));
 	sm.AddMacro("PS_ABE", sel.abe);
+	sm.AddMacro("PS_ANISOTROPIC_FILTERING", sel.sw_aniso);
 
 	ComPtr<ID3DBlob> ps(m_shader_cache.GetPixelShader(m_tfx_source, sm.GetPtr(), "ps_main"));
 	it = m_tfx_pixel_shaders.emplace(sel, std::move(ps)).first;
@@ -4374,7 +4369,7 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 		}
 	}
 
-	GSTexture12* draw_ds_as_rt = static_cast<GSTexture12*>(config.ds_as_rt);
+	GSTexture12* draw_ds_as_rt = static_cast<GSTexture12*>(m_ds_as_rt);
 
 	const bool feedback_rt = draw_rt && (config.require_one_barrier || (config.require_full_barrier && m_features.texture_barrier) || (config.tex && config.tex == config.rt));
 	const bool feedback_depth = draw_ds_as_rt != nullptr;
@@ -4615,7 +4610,7 @@ void GSDevice12::UpdateHWPipelineSelector(GSHWDrawConfig& config)
 	m_pipeline_selector.topology = static_cast<u32>(config.topology);
 	m_pipeline_selector.rt = config.rt != nullptr;
 	m_pipeline_selector.ds = config.ds != nullptr;
-	m_pipeline_selector.ds_as_rt = config.ds_as_rt != nullptr;
+	m_pipeline_selector.ds_as_rt = m_ds_as_rt != nullptr;
 }
 
 void GSDevice12::UploadHWDrawVerticesAndIndices(GSHWDrawConfig& config)

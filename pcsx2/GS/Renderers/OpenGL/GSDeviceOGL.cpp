@@ -845,38 +845,12 @@ bool GSDeviceOGL::CheckFeatures()
 	m_features.prefer_new_textures = false;
 	m_features.stencil_buffer = true;
 	m_features.test_and_sample_depth = m_features.texture_barrier;
-	if (m_features.texture_barrier)
+	// Auto select chooses depth-as-rt as it appears to be more compatible across hardware.
+	m_features.depth_feedback = GSConfig.DepthFeedbackMode == GSDepthFeedbackMode::Depth;
+	if (!m_features.texture_barrier && m_features.multidraw_fb_copy)
 	{
-		// Auto select chooses depth-as-rt as it appears to be more compatible across hardware.
-		if (GSConfig.DepthFeedbackMode == GSDepthFeedbackMode::DepthAsRT ||
-			GSConfig.DepthFeedbackMode == GSDepthFeedbackMode::Auto)
-		{
-			m_features.depth_feedback = GSDevice::DepthFeedbackSupport::DepthAsRT;
-		}
-		else if (GSConfig.DepthFeedbackMode == GSDepthFeedbackMode::Depth)
-		{
-			m_features.depth_feedback = GSDevice::DepthFeedbackSupport::Depth;
-		}
-		else
-		{
-			m_features.depth_feedback = GSDevice::DepthFeedbackSupport::None;
-		}
-	}
-	else if (m_features.multidraw_fb_copy)
-	{
-		if (GSConfig.DepthFeedbackMode == GSDepthFeedbackMode::Depth ||
-			GSConfig.DepthFeedbackMode == GSDepthFeedbackMode::Auto)
-		{
-			m_features.depth_feedback = GSDevice::DepthFeedbackSupport::Depth;
-		}
-		else
-		{
-			m_features.depth_feedback = GSDevice::DepthFeedbackSupport::None;
-		}
-	}
-	else
-	{
-		m_features.depth_feedback = GSDevice::DepthFeedbackSupport::None;
+		// Multidraw fb copy can do depth feedback just fine
+		m_features.depth_feedback |= GSConfig.DepthFeedbackMode == GSDepthFeedbackMode::Auto;
 	}
 
 	if (GLAD_GL_ARB_shader_storage_buffer_object)
@@ -909,7 +883,7 @@ bool GSDeviceOGL::CheckFeatures()
 		Console.Warning("GLAD_GL_ARB_conservative_depth is not supported. This will reduce performance.");
 	}
 	
-	m_features.aa1 = GSConfig.HWAA1 && m_features.vs_expand && (m_features.depth_feedback != GSDevice::DepthFeedbackSupport::None);
+	m_features.aa1 = GSConfig.HWAA1 && m_features.vs_expand && m_features.feedback_loops();
 
 	return true;
 }
@@ -1387,15 +1361,6 @@ GLuint GSDeviceOGL::CreateSampler(PSSamplerSelector sel)
 
 	glSamplerParameteri(sampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
-	const int anisotropy = GSConfig.MaxAnisotropy;
-	if (anisotropy > 1 && sel.aniso)
-	{
-		if (GLAD_GL_ARB_texture_filter_anisotropic)
-			glSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY, static_cast<float>(anisotropy));
-		else if (GLAD_GL_EXT_texture_filter_anisotropic)
-			glSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, static_cast<float>(anisotropy));
-	}
-
 	return sampler;
 }
 
@@ -1490,22 +1455,17 @@ std::string GSDeviceOGL::GenGlslHeader(const std::string_view entry, GLenum type
 		header += "#define PS_HAS_CONSERVATIVE_DEPTH 0\n";
 	}
 
-	switch (m_features.depth_feedback)
+	if (!m_features.texture_barrier && !m_features.multidraw_fb_copy)
 	{
-		case GSDevice::DepthFeedbackSupport::None:
-			header += "#define DEPTH_FEEDBACK_SUPPORT 0\n"; // None
-			static_assert(static_cast<int>(GSDevice::DepthFeedbackSupport::None) == 0);
-			break;
-		case GSDevice::DepthFeedbackSupport::Depth:
-			header += "#define DEPTH_FEEDBACK_SUPPORT 1\n"; // Depth
-			static_assert(static_cast<int>(GSDevice::DepthFeedbackSupport::Depth) == 1);
-			break;
-		case GSDevice::DepthFeedbackSupport::DepthAsRT:
-			header += "#define DEPTH_FEEDBACK_SUPPORT 2\n"; // Depth as RT
-			static_assert(static_cast<int>(GSDevice::DepthFeedbackSupport::DepthAsRT) == 2);
-			break;
-		default:
-			pxFail("Incorrect depth feedback support."); // Impossible
+		header += "#define DEPTH_FEEDBACK_SUPPORT 0\n"; // None
+	}
+	else if (m_features.depth_feedback)
+	{
+		header += "#define DEPTH_FEEDBACK_SUPPORT 1\n"; // Depth
+	}
+	else
+	{
+		header += "#define DEPTH_FEEDBACK_SUPPORT 2\n"; // Depth as RT
 	}
 
 	// Allow to puts several shader in 1 files
@@ -1615,6 +1575,7 @@ std::string GSDeviceOGL::GetPSSource(const PSSelector& sel)
 		+ fmt::format("#define PS_ZTST {}\n", sel.ztst)
 		+ fmt::format("#define PS_AA1 {}\n", static_cast<u32>(sel.aa1))
 		+ fmt::format("#define PS_ABE {}\n", sel.abe)
+		+ fmt::format("#define PS_ANISOTROPIC_FILTERING {}", sel.sw_aniso)
 	;
 
 	std::string src = GenGlslHeader("ps_main", GL_FRAGMENT_SHADER, macro);
@@ -2842,10 +2803,9 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 		PSSetShaderResource(1, config.pal);
 	if (m_features.texture_barrier && (config.require_one_barrier || config.require_full_barrier))
 		PSSetShaderResource(2, colclip_rt ? colclip_rt : config.rt);
-	const bool depth_feedback = m_features.depth_feedback == GSDevice::DepthFeedbackSupport::Depth;
-	if (m_features.texture_barrier && (config.require_one_barrier || config.require_full_barrier) && config.ps.IsFeedbackLoopDepth() &&
-		(depth_feedback || m_features.depth_feedback == GSDevice::DepthFeedbackSupport::DepthAsRT))
-		PSSetShaderResource(4, depth_feedback ? config.ds : config.ds_as_rt);
+	if (m_features.texture_barrier && (config.require_one_barrier || config.require_full_barrier) && config.ps.IsFeedbackLoopDepth())
+		PSSetShaderResource(4, m_features.depth_feedback ? config.ds : m_ds_as_rt);
+
 	SetupSampler(config.sampler);
 
 	if (m_vs_cb_cache.Update(config.cb_vs))
@@ -2861,7 +2821,7 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 
 	SetupPipeline(psel);
 
-	bool rt_hazard_barrier = config.tex && (config.tex == config.ds || config.tex == config.rt || config.tex == config.ds_as_rt);
+	bool rt_hazard_barrier = config.tex && (config.tex == config.ds || config.tex == config.rt);
 	// In Time Crisis:
 	// 1. Fullscreen sprite reads depth and writes alpha (rt_hazard_barrier true from config.ds == config.tex)
 	// 2. Fullscreen sprite writes gray, rta hw blend blends based on dst alpha.
@@ -2919,7 +2879,7 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 		PSSetShaderResource(3, primid_texture);
 	}
 
-	if (config.ds_as_rt)
+	if (m_ds_as_rt)
 	{
 		// We must clear the blend equation of any dual source blending factors or
 		// it may interact badly with MRTs, even if blending is disabled.
@@ -2939,7 +2899,7 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	}
 
 	GSTexture* draw_rt = colclip_rt ? colclip_rt : config.rt;
-	GSTexture* draw_ds_as_rt = config.ds_as_rt;
+	GSTexture* draw_ds_as_rt = m_ds_as_rt;
 	GSTexture* draw_ds = config.ds;
 
 	// Clear texture binding when it's bound to RT or DS.
@@ -2981,7 +2941,7 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	}
 
 	if (draw_ds && (config.require_one_barrier || (config.require_full_barrier && m_features.multidraw_fb_copy)) &&
-		!m_features.texture_barrier && depth_feedback && config.ps.IsFeedbackLoopDepth())
+		!m_features.texture_barrier && m_features.depth_feedback && config.ps.IsFeedbackLoopDepth())
 	{
 		// Requires a copy of the DS.
 		draw_ds_clone = CreateTexture(rtsize.x, rtsize.y, 1, draw_ds->GetFormat(), true);
