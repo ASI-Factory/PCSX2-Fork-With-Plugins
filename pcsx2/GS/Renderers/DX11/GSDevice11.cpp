@@ -57,7 +57,7 @@ GSDevice11::GSDevice11()
 
 	m_features.primitive_id = true;
 	m_features.texture_barrier = false;
-	m_features.multidraw_fb_copy = GSConfig.OverrideTextureBarriers != 0;
+	m_features.multidraw_fb_copy = false;
 	m_features.provoking_vertex_last = false;
 	m_features.point_expand = false;
 	m_features.line_expand = false;
@@ -68,7 +68,8 @@ GSDevice11::GSDevice11()
 	m_features.stencil_buffer = true;
 	m_features.cas_sharpening = true;
 	m_features.test_and_sample_depth = false;
-	m_features.depth_feedback = true;
+	m_features.depth_feedback = false;
+	m_features.aa1 = false;
 }
 
 GSDevice11::~GSDevice11() = default;
@@ -636,16 +637,19 @@ void GSDevice11::Destroy()
 
 void GSDevice11::SetFeatures(IDXGIAdapter1* adapter)
 {
+	// Check these first as others depend on them.
+	m_features.multidraw_fb_copy = GSConfig.OverrideTextureBarriers != 0;
+	m_features.vs_expand = (!GSConfig.DisableVertexShaderExpand && m_feature_level >= D3D_FEATURE_LEVEL_11_0);
+
 	// Check all three formats, since the feature means any can be used.
 	m_features.dxt_textures = SupportsTextureFormat(m_dev.get(), DXGI_FORMAT_BC1_UNORM) &&
 	                          SupportsTextureFormat(m_dev.get(), DXGI_FORMAT_BC2_UNORM) &&
 	                          SupportsTextureFormat(m_dev.get(), DXGI_FORMAT_BC3_UNORM);
 
 	m_features.bptc_textures = SupportsTextureFormat(m_dev.get(), DXGI_FORMAT_BC7_UNORM);
-
-	m_features.vs_expand = (!GSConfig.DisableVertexShaderExpand && m_feature_level >= D3D_FEATURE_LEVEL_11_0);
 	m_features.cas_sharpening = (m_feature_level >= D3D_FEATURE_LEVEL_11_0);
 	m_features.test_and_sample_depth = (m_feature_level >= D3D_FEATURE_LEVEL_11_0);
+	m_features.depth_feedback = m_features.feedback_loops();
 	m_features.aa1 = GSConfig.HWAA1 && m_features.vs_expand && m_features.feedback_loops();
 
 	m_max_texture_size = (m_feature_level >= D3D_FEATURE_LEVEL_11_0) ?
@@ -2944,19 +2948,30 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 		draw_ds = m_state.current_ds;
 	}
 
-	if (draw_rt && (config.require_one_barrier || (config.require_full_barrier && m_features.multidraw_fb_copy) || (config.tex && config.tex == config.rt)))
+	const bool tex_is_fb = config.tex && config.tex == draw_rt;
+	const bool rt_feedbackloop_pass1 = config.ps.IsFeedbackLoopRT() || tex_is_fb;
+	const bool rt_feedbackloop_pass2 = config.alpha_second_pass.ps.IsFeedbackLoopRT() || tex_is_fb;
+	if (draw_rt && (((config.require_one_barrier || (config.require_full_barrier && m_features.multidraw_fb_copy)) &&
+		(rt_feedbackloop_pass1 || rt_feedbackloop_pass2))))
 	{
+		config.require_one_barrier |= (tex_is_fb && !config.require_full_barrier);
+		config.alpha_second_pass.require_one_barrier |= (tex_is_fb && !config.require_full_barrier);
+
 		// Requires a copy of the RT.
 		draw_rt_clone = CreateTexture(rtsize.x, rtsize.y, 1, draw_rt->GetFormat(), true);
+
 		if (!draw_rt_clone)
 			Console.Warning("D3D11: Failed to allocate temp texture for RT copy.");
 	}
 
-	if (draw_ds && (config.require_one_barrier || (config.require_full_barrier && m_features.multidraw_fb_copy)) &&
-		m_features.depth_feedback && config.ps.IsFeedbackLoopDepth())
+	const bool ds_feedbackloop_pass1 = config.ps.IsFeedbackLoopDepth();
+	const bool ds_feedbackloop_pass2 = config.alpha_second_pass.ps.IsFeedbackLoopDepth();
+	if (draw_ds && m_features.depth_feedback && (config.require_one_barrier || (config.require_full_barrier && m_features.multidraw_fb_copy)) &&
+		(ds_feedbackloop_pass1 || ds_feedbackloop_pass2))
 	{
 		// Requires a copy of the DS.
 		draw_ds_clone = CreateTexture(rtsize.x, rtsize.y, 1, draw_ds->GetFormat(), true);
+
 		if (!draw_ds_clone)
 			Console.Warning("D3D11: Failed to allocate temp texture for DS copy.");
 	}
@@ -2969,7 +2984,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 	if (config.destination_alpha == GSHWDrawConfig::DestinationAlphaMode::StencilOne && need_barrier)
 		m_ctx->ClearDepthStencilView(*static_cast<GSTexture11*>(draw_ds), D3D11_CLEAR_STENCIL, 0.0f, 1);
 
-	SendHWDraw(config, draw_rt_clone, draw_rt, draw_ds_clone, draw_ds,
+	SendHWDraw(config, rt_feedbackloop_pass1 ? draw_rt_clone : nullptr, draw_rt, ds_feedbackloop_pass1 ? draw_ds_clone : nullptr, draw_ds,
 		config.require_one_barrier, config.require_full_barrier);
 
 	if (config.blend_multi_pass.enable)
@@ -2995,9 +3010,10 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 			SetupPS(config.alpha_second_pass.ps, nullptr, config.sampler);
 		}
 
+		const bool one_barrier = config.alpha_second_pass.require_one_barrier && m_features.multidraw_fb_copy;
 		SetupOM(config.alpha_second_pass.depth, OMBlendSelector(config.alpha_second_pass.colormask, config.blend), config.blend.constant);
-		SendHWDraw(config, draw_rt_clone, draw_rt, draw_ds_clone, draw_ds,
-			false, config.alpha_second_pass.require_full_barrier);
+		SendHWDraw(config, rt_feedbackloop_pass2 ? draw_rt_clone : nullptr, draw_rt, ds_feedbackloop_pass2 ? draw_ds_clone : nullptr, draw_ds,
+			one_barrier, config.alpha_second_pass.require_full_barrier);
 	}
 
 	if (colclip_rt)
@@ -3021,57 +3037,54 @@ void GSDevice11::SendHWDraw(const GSHWDrawConfig& config,
 	GSTexture* draw_rt_clone, GSTexture* draw_rt, GSTexture* draw_ds_clone, GSTexture* draw_ds,
 	const bool one_barrier, const bool full_barrier)
 {
-	if (draw_rt_clone || draw_ds_clone)
-	{
 #ifdef PCSX2_DEVBUILD
-		if ((one_barrier || full_barrier) && !(config.ps.IsFeedbackLoopRT() || config.ps.IsFeedbackLoopDepth())) [[unlikely]]
-			Console.Warning("D3D11: Possible unnecessary copy detected.");
+	if ((one_barrier || full_barrier) && !(config.ps.IsFeedbackLoopRT() || config.ps.IsFeedbackLoopDepth())) [[unlikely]]
+		Console.Warning("D3D11: Possible unnecessary copy detected.");
 #endif
 
-		auto CopyAndBind = [&](GSVector4i drawarea) {
-			if (draw_rt_clone)
-			{
-				CopyRect(draw_rt, draw_rt_clone, drawarea, drawarea.left, drawarea.top);
-				if ((one_barrier || full_barrier))
-					PSSetShaderResource(2, draw_rt_clone);
-				if (config.tex && config.tex == draw_rt)
-					PSSetShaderResource(0, draw_rt_clone);
-			}
-			if (draw_ds_clone)
-			{
-				CopyRect(draw_ds, draw_ds_clone, drawarea, drawarea.left, drawarea.top);
-				PSSetShaderResource(4, draw_ds_clone);
-			}
-		};
-
-		const GSVector4i rtsize(0, 0, (draw_rt ? draw_rt : draw_ds)->GetWidth(), (draw_rt ? draw_rt : draw_ds)->GetHeight());
-
-		if (full_barrier)
+	auto CopyAndBind = [&](GSVector4i drawarea) {
+		if (draw_rt_clone)
 		{
-			const u32 draw_list_size = static_cast<u32>(config.drawlist->size());
-			const u32 indices_per_prim = config.indices_per_prim;
+			CopyRect(draw_rt, draw_rt_clone, drawarea, drawarea.left, drawarea.top);
+			if ((one_barrier || full_barrier))
+				PSSetShaderResource(2, draw_rt_clone);
+			if (config.tex && config.tex == draw_rt)
+				PSSetShaderResource(0, draw_rt_clone);
+		}
+		if (draw_ds_clone)
+		{
+			CopyRect(draw_ds, draw_ds_clone, drawarea, drawarea.left, drawarea.top);
+			PSSetShaderResource(4, draw_ds_clone);
+		}
+	};
 
-			pxAssert(config.drawlist && !config.drawlist->empty());
-			pxAssert(config.drawlist_bbox && static_cast<u32>(config.drawlist_bbox->size()) == draw_list_size);
+	const GSVector4i rtsize(0, 0, (draw_rt ? draw_rt : draw_ds)->GetWidth(), (draw_rt ? draw_rt : draw_ds)->GetHeight());
 
-			for (u32 n = 0, p = 0; n < draw_list_size; n++)
-			{
-				const u32 count = (*config.drawlist)[n] * indices_per_prim;
+	if (full_barrier)
+	{
+		const u32 draw_list_size = static_cast<u32>(config.drawlist->size());
+		const u32 indices_per_prim = config.indices_per_prim;
 
-				const GSVector4i original_bbox = (*config.drawlist_bbox)[n].rintersect(config.drawarea);
-				CopyAndBind(ProcessCopyArea(rtsize, original_bbox));
+		pxAssert(config.drawlist && !config.drawlist->empty());
+		pxAssert(config.drawlist_bbox && static_cast<u32>(config.drawlist_bbox->size()) == draw_list_size);
 
-				Draw(config, p, count);
-				
-				p += count;
-			}
+		for (u32 n = 0, p = 0; n < draw_list_size; n++)
+		{
+			const u32 count = (*config.drawlist)[n] * indices_per_prim;
 
-			return;
+			const GSVector4i original_bbox = (*config.drawlist_bbox)[n].rintersect(config.drawarea);
+			CopyAndBind(ProcessCopyArea(rtsize, original_bbox));
+
+			Draw(config, p, count);
+
+			p += count;
 		}
 
-		// Optimization: For alpha second pass we can reuse the copy snapshot from the first pass.
-		CopyAndBind(ProcessCopyArea(rtsize, config.drawarea));
+		return;
 	}
+
+	if (one_barrier)
+		CopyAndBind(ProcessCopyArea(rtsize, config.drawarea));
 
 	Draw(config);
 }
