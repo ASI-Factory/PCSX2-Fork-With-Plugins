@@ -873,6 +873,26 @@ void MainWindow::saveStateToConfig()
 		changed = true;
 	}
 
+	if (Host::ContainsBaseSettingValue("UI", "MainWindowMaximized"))
+	{
+		const bool maximized = Host::GetBaseBoolSettingValue("UI", "MainWindowMaximized");
+		if (maximized != isMaximized())
+		{
+			Host::SetBaseBoolSettingValue("UI", "MainWindowMaximized", isMaximized());
+			changed = true;
+		}
+	}
+
+	if (Host::ContainsBaseSettingValue("UI", "MainWindowFullscreen"))
+	{
+		const bool fullscreen = Host::GetBaseBoolSettingValue("UI", "MainWindowFullscreen");
+		if (fullscreen != isFullScreen())
+		{
+			Host::SetBaseBoolSettingValue("UI", "MainWindowFullscreen", isFullScreen());
+			changed = true;
+		}
+	}
+
 	if (changed)
 		Host::CommitBaseSettingChanges();
 }
@@ -899,6 +919,24 @@ void MainWindow::restoreStateFromConfig()
 		{
 			QSignalBlocker sb(m_ui.actionViewStatusBar);
 			m_ui.actionViewStatusBar->setChecked(!m_ui.statusBar->isHidden());
+		}
+	}
+
+	{
+		if (Host::ContainsBaseSettingValue("UI", "MainWindowMaximized"))
+		{
+			const bool maximized = Host::GetBaseBoolSettingValue("UI", "MainWindowMaximized");
+			if (maximized)
+				showMaximized();
+		}
+	}
+
+	{
+		if (Host::ContainsBaseSettingValue("UI", "MainWindowFullscreen"))
+		{
+			const bool fullscreen = Host::GetBaseBoolSettingValue("UI", "MainWindowFullscreen");
+			if (fullscreen)
+				showFullScreen();
 		}
 	}
 }
