@@ -790,11 +790,14 @@ void GSRendererHW::DetectTextureShuffle()
 
 void GSRendererHW::DetectTextureShuffleSecondPass(GSTextureCache::Target* rt, GSTextureCache::Source* tex)
 {
-	const auto HasLowerOnes = [&](u32 x) { return x != 0 && (x & (x + 1)) == 0; };
+	if (!m_process_texture || !rt)
+	{
+		GL_INS("HW: Texture shuffle detection (2): Not detected.");
+		m_texture_shuffle.Disable();
+		return;
+	}
 
-	const GSLocalMemory::psm_t& tex_psm = GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM];
 	const GSLocalMemory::psm_t& frame_psm = GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM];
-
 	if (frame_psm.bpp != 16)
 	{
 		GL_INS("HW: Texture shuffle detection (2): Failed (not 16 bit RT).");
@@ -804,7 +807,7 @@ void GSRendererHW::DetectTextureShuffleSecondPass(GSTextureCache::Target* rt, GS
 
 	if (m_texture_shuffle)
 	{
-		if (tex->m_32_bits_fmt)
+		if (tex && tex->m_32_bits_fmt)
 		{
 			GL_INS("HW: Texture shuffle detection (2): Passed.");
 		}
@@ -812,9 +815,9 @@ void GSRendererHW::DetectTextureShuffleSecondPass(GSTextureCache::Target* rt, GS
 		{
 			// Detects when the source texture is really a 16 bit texture instead of 32 bit being reinterpreted as 16 bit.
 			// Make sure it's opaque and not bilinear to reduce false positives.
-
+			const auto HasLowerOnes = [&](u32 x) { return x != 0 && (x & (x + 1)) == 0; };
 			if (m_cached_ctx.TEX0.TBP0 != m_cached_ctx.FRAME.Block() &&
-				rt->m_32_bits_fmt == true && IsOpaque() && !m_vt.IsRealLinear() &&
+				rt && rt->m_32_bits_fmt == true && IsOpaque() && !m_vt.IsRealLinear() &&
 				HasLowerOnes(m_cached_ctx.FRAME.FBMSK))
 			{
 				GL_INS("HW: Texture shuffle detection (2): Passed (real 16 bit source).");
@@ -832,10 +835,10 @@ void GSRendererHW::DetectTextureShuffleSecondPass(GSTextureCache::Target* rt, GS
 		// Last ditch check for reinterpreting a 32 bit source and RT as 16 bits.
 		// These "shuffles" appear to not do anything useful for games, but using the texture shuffle
 		// path helps to maintain correct sizes in the texture cache. Occurs in NFS Most Wanted.
-
+		const GSLocalMemory::psm_t& tex_psm = GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM];
 		if (PRIM->TME &&
 			((m_vt.m_primclass == GS_SPRITE_CLASS || m_vt.m_primclass == GS_TRIANGLE_CLASS) && TrianglesAreQuads(true)) &&
-			(tex_psm.bpp == 16) && (frame_psm.bpp == 16) && rt->m_32_bits_fmt && tex->m_32_bits_fmt)
+			(tex_psm.bpp == 16) && (frame_psm.bpp == 16) && rt && rt->m_32_bits_fmt && tex && tex->m_32_bits_fmt)
 		{
 			GL_INS("HW: Texture shuffle detection (2): Passed (HACK: reinterpreting both source/RT as 16 bit).");
 			m_texture_shuffle.type = TextureShuffleType::HackShuffle;
@@ -2918,7 +2921,7 @@ void GSRendererHW::Draw()
 	}
 
 	//  Test if we can optimize Alpha Test as a NOP
-	m_cached_ctx.TEST.ATE = m_cached_ctx.TEST.ATE && !GSRenderer::TryAlphaTest(fm, zm);
+	m_cached_ctx.TEST.ATE = !!m_cached_ctx.TEST.ATE && !GSRenderer::TryAlphaTest(fm, zm);
 
 	// Need to fix the alpha test, since the alpha will be fixed to 1.0 if ABE is disabled and AA1 is enabled
 	// So if it doesn't meet the condition, always fail, if it does, always pass (turn off the test).
@@ -4388,15 +4391,15 @@ void GSRendererHW::Draw()
 		}
 	}
 
+	// Second pass texture shuffle detection using RT and source.
+	DetectTextureShuffleSecondPass(rt, src);
+
 	if (m_process_texture)
 	{
 		GIFRegCLAMP MIP_CLAMP = m_cached_ctx.CLAMP;
 
 		if (rt)
 		{
-			// Second pass texture shuffle detection using RT and source.
-			DetectTextureShuffleSecondPass(rt, src);
-
 			if (m_texture_shuffle)
 			{
 				if (IsSplitTextureShuffle(rt->m_TEX0, rt->m_valid))
@@ -6261,7 +6264,7 @@ void GSRendererHW::EmulateTextureShuffleAndFbmask(GSTextureCache::Target* rt, GS
 
 		// If date is enabled you need to test the green channel instead of the alpha channel.
 		// Only enable this code in DATE mode to reduce the number of shaders.
-		m_conf.ps.write_rg = (process_rg & SHUFFLE_WRITE) &&  m_cached_ctx.TEST.DATE;
+		m_conf.ps.write_rg = !!(process_rg & SHUFFLE_WRITE) && !!m_cached_ctx.TEST.DATE;
 
 		m_conf.ps.real16src = m_texture_shuffle.real_16_bit_source;
 
@@ -8804,7 +8807,7 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	EmulateDATESelectMethod(date_options, rt, blend_alpha_min, blend_alpha_max);
 
 	// Before emulateblending, dither will be used
-	m_conf.ps.dither = GSConfig.Dithering > 0 && m_conf.ps.dst_fmt == GSLocalMemory::PSM_FMT_16 && env.DTHE.DTHE;
+	m_conf.ps.dither = GSConfig.Dithering > 0 && m_conf.ps.dst_fmt == GSLocalMemory::PSM_FMT_16 && !!env.DTHE.DTHE;
 
 	if (m_conf.ps.dst_fmt == GSLocalMemory::PSM_FMT_24)
 	{
@@ -9761,12 +9764,12 @@ bool GSRendererHW::TryGSMemClear(bool no_rt, bool preserve_rt, bool invalidate_r
 				rt_end_bp, m_cached_ctx.FRAME.PSM, m_cached_ctx.FRAME.FBW, m_cached_ctx.FRAME.FBMSK);
 
 			GSUploadQueue clear_queue;
+			clear_queue.transfer_type = EEGS_TransferType::Clear;
 			clear_queue.draw = s_n;
 			clear_queue.rect = m_r;
 			clear_queue.blit.DBP = m_cached_ctx.FRAME.Block();
 			clear_queue.blit.DBW = m_cached_ctx.FRAME.FBW;
 			clear_queue.blit.DPSM = m_cached_ctx.FRAME.PSM;
-			clear_queue.zero_clear = true;
 			m_draw_transfers.push_back(clear_queue);
 		}
 		else
@@ -9791,12 +9794,12 @@ bool GSRendererHW::TryGSMemClear(bool no_rt, bool preserve_rt, bool invalidate_r
 				ds_end_bp, m_cached_ctx.ZBUF.PSM, m_cached_ctx.FRAME.FBW);
 
 			GSUploadQueue clear_queue;
+			clear_queue.transfer_type = EEGS_TransferType::Clear;
 			clear_queue.draw = s_n;
 			clear_queue.rect = m_r;
 			clear_queue.blit.DBP = m_cached_ctx.ZBUF.Block();
 			clear_queue.blit.DBW = m_cached_ctx.FRAME.FBW;
 			clear_queue.blit.DPSM = m_cached_ctx.ZBUF.PSM;
-			clear_queue.zero_clear = true;
 			m_draw_transfers.push_back(clear_queue);
 		}
 	}
