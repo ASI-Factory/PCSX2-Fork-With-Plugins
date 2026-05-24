@@ -4207,13 +4207,6 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 	// figure out the pipeline
 	UpdateHWPipelineSelector(config);
 
-	// Handle RT hazard when no barrier was requested
-	if (m_features.texture_barrier && config.tex && (config.tex == config.rt) && !(config.require_one_barrier || config.require_full_barrier))
-	{
-		g_perfmon.Put(GSPerfMon::Barriers, 1);
-		FeedbackBarrier(draw_rt);
-	}
-
 	// now blit the colclip texture back to the original target
 	if (colclip_rt)
 	{
@@ -4371,8 +4364,8 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 
 	GSTexture12* draw_ds_as_rt = static_cast<GSTexture12*>(m_ds_as_rt);
 
-	const bool feedback_rt = draw_rt && (((config.require_one_barrier || (config.require_full_barrier && m_features.texture_barrier)) && (config.ps.IsFeedbackLoopRT() ||
-		config.alpha_second_pass.ps.IsFeedbackLoopRT())) || (config.tex && config.tex == config.rt));
+	const bool feedback_rt = draw_rt && (((config.require_one_barrier || (config.require_full_barrier && m_features.texture_barrier)) && (config.IsFeedbackLoopRT(config.ps) ||
+		config.IsFeedbackLoopRT(config.alpha_second_pass.ps))));
 	const bool feedback_depth = draw_ds_as_rt != nullptr;
 
 	if (feedback_rt && !m_features.texture_barrier)
@@ -4385,11 +4378,34 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 				config.drawarea.left, config.drawarea.top,
 				config.drawarea.width(), config.drawarea.height());
 			EndRenderPass();
-			const GSVector4i snapped_drawarea = ProcessCopyArea(GSVector4i(0, 0, rtsize.x, rtsize.y), config.drawarea);
-			CopyRect(draw_rt, draw_rt_clone, snapped_drawarea, snapped_drawarea.left, snapped_drawarea.top);
+			if (config.tex_hazard)
+			{
+				const GSVector4i union_rect = config.drawarea.runion(config.samplearea);
+				const u32 size_union = union_rect.width() * union_rect.height();
+				const u32 size_indiv = config.drawarea.width() * config.drawarea.height() +
+				                       config.samplearea.width() * config.samplearea.height();
+
+				// Do an individual copy if the union is larger than the sum of individual areas.
+				if (size_union > size_indiv)
+				{
+					const GSVector4i snapped_drawarea = ProcessCopyArea(GSVector4i(0, 0, rtsize.x, rtsize.y), config.drawarea);
+					const GSVector4i snapped_samplearea = ProcessCopyArea(GSVector4i(0, 0, rtsize.x, rtsize.y), config.samplearea);
+					CopyRect(draw_rt, draw_rt_clone, snapped_drawarea, snapped_drawarea.left, snapped_drawarea.top);
+					CopyRect(draw_rt, draw_rt_clone, snapped_samplearea, snapped_samplearea.left, snapped_samplearea.top);
+				}
+				else
+				{
+					CopyRect(draw_rt, draw_rt_clone, union_rect, union_rect.left, union_rect.top);
+				}
+			}
+			else
+			{
+				CopyRect(draw_rt, draw_rt_clone, config.drawarea, config.drawarea.left, config.drawarea.top);
+			}
+
 			if (config.require_one_barrier)
 				PSSetShaderResource(2, draw_rt_clone, true);
-			if (config.tex && config.tex == config.rt)
+			if (config.tex_hazard == GSHWDrawConfig::TEX_HAZARD_RT)
 				PSSetShaderResource(0, draw_rt_clone, true);
 		}
 		else
@@ -4548,12 +4564,12 @@ void GSDevice12::SendHWDraw(const PipelineSelector& pipe, const GSHWDrawConfig& 
 	if (feedback_rt || feedback_depth)
 	{
 #ifdef PCSX2_DEVBUILD
-		if ((one_barrier || full_barrier) && !(config.ps.IsFeedbackLoopRT() || config.ps.IsFeedbackLoopDepth())) [[unlikely]]
+		if ((one_barrier || full_barrier) && !(config.IsFeedbackLoopRT(config.ps) || config.IsFeedbackLoopDepth(config.ps))) [[unlikely]]
 			Console.Warning("D3D12: Possible unnecessary barrier detected.");
 #endif
 		if ((one_barrier || full_barrier) && feedback_rt)
 			PSSetShaderResource(2, draw_rt, false, true);
-		if (config.tex && config.tex == config.rt)
+		if (config.tex_hazard == GSHWDrawConfig::TEX_HAZARD_RT)
 			PSSetShaderResource(0, draw_rt, false, true);
 		if ((one_barrier || full_barrier) && feedback_depth)
 			PSSetShaderResource(4, draw_ds, false, true);

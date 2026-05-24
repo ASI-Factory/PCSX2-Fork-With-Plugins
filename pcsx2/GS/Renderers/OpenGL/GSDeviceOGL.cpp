@@ -844,7 +844,7 @@ bool GSDeviceOGL::CheckFeatures()
 		GLAD_GL_VERSION_4_2 || GLAD_GL_ARB_texture_compression_bptc || GLAD_GL_EXT_texture_compression_bptc;
 	m_features.prefer_new_textures = false;
 	m_features.stencil_buffer = true;
-	m_features.test_and_sample_depth = m_features.texture_barrier;
+	m_features.test_and_sample_depth = true;
 	// Auto select chooses depth-as-rt as it appears to be more compatible across hardware.
 	m_features.depth_feedback = GSConfig.DepthFeedbackMode == GSDepthFeedbackMode::Depth;
 	if (!m_features.texture_barrier && m_features.multidraw_fb_copy)
@@ -2797,7 +2797,7 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	}
 	IASetPrimitiveTopology(topology);
 
-	if (config.tex && (m_features.texture_barrier || (config.tex != config.rt)))
+	if (config.tex && (m_features.texture_barrier || config.tex_hazard == GSHWDrawConfig::TEX_HAZARD_NONE))
 		PSSetShaderResource(0, config.tex);
 	if (config.pal)
 		PSSetShaderResource(1, config.pal);
@@ -2821,19 +2821,6 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 
 	SetupPipeline(psel);
 
-	bool rt_hazard_barrier = config.tex && config.tex == config.rt;
-	if (config.tex && config.tex == config.ds)
-	{
-		if (m_features.test_and_sample_depth && !config.depth.zwe && !config.ps.IsFeedbackLoopDepth() && !config.alpha_second_pass.ps.IsFeedbackLoopDepth())
-		{
-			// Do nothing.
-		}
-		else if (m_features.texture_barrier)
-			rt_hazard_barrier = true;
-		else
-			config.tex = nullptr;
-	}
-
 	// In Time Crisis:
 	// 1. Fullscreen sprite reads depth and writes alpha (rt_hazard_barrier true from config.ds == config.tex)
 	// 2. Fullscreen sprite writes gray, rta hw blend blends based on dst alpha.
@@ -2841,10 +2828,9 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	// Pretty sure GL is supposed to guarantee that the blend unit is coherent with previous pixel write out, so calling this a bug.
 	bool broken_blend_coherency_barrier = false;
 	if (m_bugs.broken_blend_coherency)
-		broken_blend_coherency_barrier = (psel.ps.IsFeedbackLoopRT() || psel.ps.blend_c == 1) && GLState::rt == config.rt;
+		broken_blend_coherency_barrier = (config.IsFeedbackLoopRT(psel.ps) || psel.ps.blend_c == 1) && GLState::rt == config.rt;
 	if (config.require_one_barrier || !m_features.texture_barrier)
 	{
-		rt_hazard_barrier = false; // Already in place or not available
 		broken_blend_coherency_barrier = false;
 	}
 
@@ -2935,7 +2921,7 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	}
 
 	// Be careful of the rt already being bound and the blend using the RT without a barrier.
-	if ((fb_optimization_needs_barrier && broken_blend_coherency_barrier) || rt_hazard_barrier)
+	if (fb_optimization_needs_barrier && broken_blend_coherency_barrier)
 	{
 		// Ensure all depth writes are finished before sampling
 		GL_INS("GL: Texture barrier to flush depth or rt before reading");
@@ -2943,15 +2929,11 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 		glTextureBarrier();
 	}
 
-	const bool tex_is_fb = config.tex && config.tex == draw_rt;
-	const bool rt_feedbackloop_pass1 = config.ps.IsFeedbackLoopRT() || tex_is_fb;
-	const bool rt_feedbackloop_pass2 = config.alpha_second_pass.ps.IsFeedbackLoopRT() || tex_is_fb;
-	if (draw_rt && !m_features.texture_barrier && (((config.require_one_barrier || (config.require_full_barrier && m_features.multidraw_fb_copy) || tex_is_fb) &&
+	const bool rt_feedbackloop_pass1 = config.IsFeedbackLoopRT(config.ps);
+	const bool rt_feedbackloop_pass2 = config.IsFeedbackLoopRT(config.alpha_second_pass.ps);
+	if (draw_rt && !m_features.texture_barrier && (((config.require_one_barrier || (config.require_full_barrier && m_features.multidraw_fb_copy)) &&
 		(rt_feedbackloop_pass1 || rt_feedbackloop_pass2))))
 	{
-		config.require_one_barrier |= (tex_is_fb && !config.require_full_barrier);
-		config.alpha_second_pass.require_one_barrier |= (tex_is_fb && !config.alpha_second_pass.require_full_barrier);
-
 		// Requires a copy of the RT.
 		draw_rt_clone = CreateTexture(rtsize.x, rtsize.y, 1, draw_rt->GetFormat(), true);
 
@@ -3056,8 +3038,7 @@ void GSDeviceOGL::SendHWDraw(const GSHWDrawConfig& config,
 	const bool one_barrier, const bool full_barrier)
 {
 #ifdef PCSX2_DEVBUILD
-	if ((one_barrier || full_barrier) &&
-		!((!m_features.texture_barrier && config.tex && config.tex == draw_rt) || config.ps.IsFeedbackLoopRT() || config.ps.IsFeedbackLoopDepth())) [[unlikely]]
+	if ((one_barrier || full_barrier) && !(config.IsFeedbackLoopRT(config.ps) || config.IsFeedbackLoopDepth(config.ps))) [[unlikely]]
 		Console.Warning("OpenGL: Possible unnecessary barrier detected.");
 #endif
 
@@ -3067,13 +3048,16 @@ void GSDeviceOGL::SendHWDraw(const GSHWDrawConfig& config,
 			CopyRect(draw_rt, draw_rt_clone, drawarea, drawarea.left, drawarea.top);
 			if ((one_barrier || full_barrier))
 				PSSetShaderResource(2, draw_rt_clone);
-			if (config.tex && config.tex == draw_rt)
+			if (config.tex_hazard == GSHWDrawConfig::TEX_HAZARD_RT)
 				PSSetShaderResource(0, draw_rt_clone);
 		}
 		if (draw_ds_clone)
 		{
 			CopyRect(draw_ds, draw_ds_clone, drawarea, drawarea.left, drawarea.top);
-			PSSetShaderResource(4, draw_ds_clone);
+			if ((one_barrier || full_barrier))
+				PSSetShaderResource(4, draw_ds_clone);
+			if (config.tex_hazard == GSHWDrawConfig::TEX_HAZARD_DEPTH)
+				PSSetShaderResource(0, draw_ds_clone);
 		}
 	};
 
@@ -3122,7 +3106,28 @@ void GSDeviceOGL::SendHWDraw(const GSHWDrawConfig& config,
 		else
 		{
 			// Optimization: For alpha second pass we can reuse the copy snapshot from the first pass.
-			CopyAndBind(ProcessCopyArea(rtsize, config.drawarea));
+			if (config.tex_hazard)
+			{
+				const GSVector4i union_rect = config.drawarea.runion(config.samplearea);
+				const u32 size_union = union_rect.width() * union_rect.height();
+				const u32 size_indiv = config.drawarea.width() * config.drawarea.height() +
+				                       config.samplearea.width() * config.samplearea.height();
+
+				// Do an individual copy if the union is larger than the sum of individual areas.
+				if (size_union > size_indiv)
+				{
+					CopyAndBind(ProcessCopyArea(rtsize, config.drawarea));
+					CopyAndBind(ProcessCopyArea(rtsize, config.samplearea));
+				}
+				else
+				{
+					CopyAndBind(ProcessCopyArea(rtsize, union_rect));
+				}
+			}
+			else
+			{
+				CopyAndBind(ProcessCopyArea(rtsize, config.drawarea));
+			}
 		}
 	}
 

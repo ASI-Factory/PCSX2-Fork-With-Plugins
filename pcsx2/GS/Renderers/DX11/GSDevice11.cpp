@@ -2907,10 +2907,8 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 	ID3D11DepthStencilView* read_only_dsv = nullptr;
 	if (config.tex && config.tex == config.ds)
 	{
-		if (m_features.test_and_sample_depth && !config.depth.zwe && !config.ps.IsFeedbackLoopDepth() && !config.alpha_second_pass.ps.IsFeedbackLoopDepth())
+		if (m_features.test_and_sample_depth && !config.depth.zwe && !config.IsFeedbackLoopDepth(config.ps) && !config.IsFeedbackLoopDepth(config.alpha_second_pass.ps))
 			read_only_dsv = static_cast<GSTexture11*>(config.ds)->ReadOnlyDepthStencilView();
-		else
-			config.tex = nullptr;
 	}
 
 	SetupVS(config.vs, &config.cb_vs);
@@ -2948,15 +2946,11 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 		draw_ds = m_state.current_ds;
 	}
 
-	const bool tex_is_fb = config.tex && config.tex == draw_rt;
-	const bool rt_feedbackloop_pass1 = config.ps.IsFeedbackLoopRT() || tex_is_fb;
-	const bool rt_feedbackloop_pass2 = config.alpha_second_pass.ps.IsFeedbackLoopRT() || tex_is_fb;
-	if (draw_rt && (((config.require_one_barrier || (config.require_full_barrier && m_features.multidraw_fb_copy) || tex_is_fb) &&
+	const bool rt_feedbackloop_pass1 = config.IsFeedbackLoopRT(config.ps);
+	const bool rt_feedbackloop_pass2 = config.IsFeedbackLoopRT(config.alpha_second_pass.ps);
+	if (draw_rt && (((config.require_one_barrier || (config.require_full_barrier && m_features.multidraw_fb_copy)) &&
 		(rt_feedbackloop_pass1 || rt_feedbackloop_pass2))))
 	{
-		config.require_one_barrier |= (tex_is_fb && !config.require_full_barrier);
-		config.alpha_second_pass.require_one_barrier |= (tex_is_fb && !config.alpha_second_pass.require_full_barrier);
-
 		// Requires a copy of the RT.
 		draw_rt_clone = CreateTexture(rtsize.x, rtsize.y, 1, draw_rt->GetFormat(), true);
 
@@ -2964,8 +2958,8 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 			Console.Warning("D3D11: Failed to allocate temp texture for RT copy.");
 	}
 
-	const bool ds_feedbackloop_pass1 = config.ps.IsFeedbackLoopDepth();
-	const bool ds_feedbackloop_pass2 = config.alpha_second_pass.ps.IsFeedbackLoopDepth();
+	const bool ds_feedbackloop_pass1 = config.IsFeedbackLoopDepth(config.ps);
+	const bool ds_feedbackloop_pass2 = config.IsFeedbackLoopDepth(config.alpha_second_pass.ps);
 	if (draw_ds && m_features.depth_feedback && (config.require_one_barrier || (config.require_full_barrier && m_features.multidraw_fb_copy)) &&
 		(ds_feedbackloop_pass1 || ds_feedbackloop_pass2))
 	{
@@ -3038,7 +3032,7 @@ void GSDevice11::SendHWDraw(const GSHWDrawConfig& config,
 	const bool one_barrier, const bool full_barrier)
 {
 #ifdef PCSX2_DEVBUILD
-	if ((one_barrier || full_barrier) && !((config.tex && config.tex == draw_rt) || config.ps.IsFeedbackLoopRT() || config.ps.IsFeedbackLoopDepth())) [[unlikely]]
+	if ((one_barrier || full_barrier) && !(config.IsFeedbackLoopRT(config.ps) || config.IsFeedbackLoopDepth(config.ps))) [[unlikely]]
 		Console.Warning("D3D11: Possible unnecessary copy detected.");
 #endif
 
@@ -3048,13 +3042,16 @@ void GSDevice11::SendHWDraw(const GSHWDrawConfig& config,
 			CopyRect(draw_rt, draw_rt_clone, drawarea, drawarea.left, drawarea.top);
 			if ((one_barrier || full_barrier))
 				PSSetShaderResource(2, draw_rt_clone);
-			if (config.tex && config.tex == draw_rt)
+			if (config.tex_hazard == GSHWDrawConfig::TEX_HAZARD_RT)
 				PSSetShaderResource(0, draw_rt_clone);
 		}
 		if (draw_ds_clone)
 		{
 			CopyRect(draw_ds, draw_ds_clone, drawarea, drawarea.left, drawarea.top);
-			PSSetShaderResource(4, draw_ds_clone);
+			if ((one_barrier || full_barrier))
+				PSSetShaderResource(4, draw_ds_clone);
+			if (config.tex_hazard == GSHWDrawConfig::TEX_HAZARD_DEPTH)
+				PSSetShaderResource(0, draw_ds_clone);
 		}
 	};
 
@@ -3084,14 +3081,38 @@ void GSDevice11::SendHWDraw(const GSHWDrawConfig& config,
 	}
 
 	if (one_barrier)
-		CopyAndBind(ProcessCopyArea(rtsize, config.drawarea));
+	{
+		// DX11 can't do partial depth copies.
+		if (config.tex_hazard == GSHWDrawConfig::TEX_HAZARD_RT)
+		{
+			const GSVector4i union_rect = config.drawarea.runion(config.samplearea);
+			const u32 size_union = union_rect.width() * union_rect.height();
+			const u32 size_indiv = config.drawarea.width() * config.drawarea.height() +
+			                       config.samplearea.width() * config.samplearea.height();
+
+			// Do an individual copy if the union is larger than the sum of individual areas.
+			if (size_union > size_indiv)
+			{
+				CopyAndBind(ProcessCopyArea(rtsize, config.drawarea));
+				CopyAndBind(ProcessCopyArea(rtsize, config.samplearea));
+			}
+			else
+			{
+				CopyAndBind(ProcessCopyArea(rtsize, union_rect));
+			}
+		}
+		else
+		{
+			CopyAndBind(ProcessCopyArea(rtsize, config.drawarea));
+		}
+	}
 
 	Draw(config);
 }
 
 void GSDevice11::SetRenderHWShaderResources(const GSHWDrawConfig& config, GSTexture* primid_texture)
 {
-	if (config.tex && config.tex != config.rt)
+	if (config.tex && config.tex_hazard == GSHWDrawConfig::TEX_HAZARD_NONE)
 	{
 		CommitClear(config.tex);
 		PSSetShaderResource(0, config.tex);
