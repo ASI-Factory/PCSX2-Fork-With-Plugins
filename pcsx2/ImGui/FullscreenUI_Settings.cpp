@@ -3286,7 +3286,7 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_FORWARD, "Skip Presenting Duplicate Frames"),
 			FSUI_CSTR("Skips displaying frames that don't change in 25/30fps games. Can improve speed, but increase input lag/make frame pacing "
 					  "worse."),
-			"EmuCore/GS", "SkipDuplicateFrames", false);
+			"EmuCore/GS", "SkipDuplicateFrames", true);
 		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_ENVELOPE, "Disable Mailbox Presentation"),
 			FSUI_CSTR("Forces the use of FIFO over Mailbox presentation, i.e. double buffering instead of triple buffering. "
 					  "Usually results in worse frame pacing."),
@@ -4900,9 +4900,8 @@ void FullscreenUI::DrawAdvancedSettingsPage()
 
 	static constexpr const char* s_savestate_compression_type[] = {
 		FSUI_NSTR("Uncompressed"),
-		FSUI_NSTR("Deflate64"),
+		FSUI_NSTR("Deflate"),
 		FSUI_NSTR("Zstandard"),
-		FSUI_NSTR("LZMA2"),
 	};
 
 	static constexpr const char* s_savestate_compression_ratio[] = {
@@ -5721,9 +5720,8 @@ TRANSLATE_NOOP("FullscreenUI", "Internal");
 TRANSLATE_NOOP("FullscreenUI", "Negative");
 TRANSLATE_NOOP("FullscreenUI", "Positive");
 TRANSLATE_NOOP("FullscreenUI", "Chop/Zero (Default)");
-TRANSLATE_NOOP("FullscreenUI", "Deflate64");
+TRANSLATE_NOOP("FullscreenUI", "Deflate");
 TRANSLATE_NOOP("FullscreenUI", "Zstandard");
-TRANSLATE_NOOP("FullscreenUI", "LZMA2");
 TRANSLATE_NOOP("FullscreenUI", "Low (Fast)");
 TRANSLATE_NOOP("FullscreenUI", "Medium (Recommended)");
 TRANSLATE_NOOP("FullscreenUI", "Very High (Slow, Not Recommended)");

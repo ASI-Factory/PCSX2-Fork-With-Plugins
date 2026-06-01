@@ -398,17 +398,26 @@ private:
 
 	std::unordered_map<u32, VkSampler> m_samplers;
 
-	std::array<VkPipeline, static_cast<int>(ShaderConvert::Count)> m_convert{};
+	std::vector<VkPipeline> m_convert;
 	std::array<VkPipeline, static_cast<int>(PresentShader::Count)> m_present{};
-	std::array<VkPipeline, 32> m_color_copy{};
 	std::array<VkPipeline, 2> m_merge{};
 	std::array<VkPipeline, NUM_INTERLACE_SHADERS> m_interlace{};
 	VkPipeline m_colclip_setup_pipelines[2][2] = {}; // [depth][feedback_loop]
 	VkPipeline m_colclip_finish_pipelines[2][2] = {}; // [depth][feedback_loop]
-	VkRenderPass m_date_image_setup_render_passes[2][2] = {}; // [depth][clear]
-	VkPipeline m_date_image_setup_pipelines[2][4] = {}; // [depth][datm]
+	VkRenderPass m_primid_image_setup_render_passes[2][2] = {}; // [depth][clear]
+	VkPipeline m_primid_image_setup_pipelines[2][4] = {}; // [depth][datm]
 	VkPipeline m_fxaa_pipeline = {};
 	VkPipeline m_shadeboost_pipeline = {};
+
+	VkPipeline GetConvertPipeline(ShaderConvertSelector shader) const
+	{
+		return m_convert[shader.Index()];
+	}
+
+	VkPipeline GetConvertPipeline(ShaderConvert shader) const
+	{
+		return m_convert[ShaderConvertSelector(shader).Index()];
+	}
 
 	std::unordered_map<u32, VkShaderModule> m_tfx_vertex_shaders;
 	std::unordered_map<GSHWDrawConfig::PSSelector, VkShaderModule, GSHWDrawConfig::PSSelectorHash>
@@ -441,9 +450,9 @@ private:
 		GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) override;
 
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE,
-		const GSRegEXTBUF& EXTBUF, u32 c, const bool linear) final;
+		const GSRegEXTBUF& EXTBUF, u32 c, const Filter filter) final;
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
-		ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) final;
+		ShaderInterlace shader, Filter filter, const InterlaceConstantBuffer& cb) final;
 	void DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4]) final;
 	void DoFXAA(GSTexture* sTex, GSTexture* dTex) final;
 
@@ -482,9 +491,11 @@ private:
 	void DestroyResources();
 
 protected:
+	using GSDevice::DoStretchRect; // Suppress overloaded virtual function warning
 	virtual void DoStretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
-		GSHWDrawConfig::ColorMaskSelector cms, ShaderConvert shader, bool linear) override;
-
+		ShaderConvertSelector shader, Filter filter) override;
+	virtual void DoStretchRect(GSTexture* sTex, const GSVector4& sRect, const GSVector4& dRect,
+		PresentShader shader, Filter filter) override;
 public:
 	GSDeviceVK();
 	~GSDeviceVK() override;
@@ -548,19 +559,19 @@ public:
 	void CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY) override;
 
 	void PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
-		PresentShader shader, float shaderTime, bool linear) override;
+		PresentShader shader, float shaderTime, Filter filter) override;
 	void DrawMultiStretchRects(
-		const MultiStretchRect* rects, u32 num_rects, GSTexture* dTex, ShaderConvert shader) override;
-	void DoMultiStretchRects(const MultiStretchRect* rects, u32 num_rects, GSTextureVK* dTex, ShaderConvert shader);
+		const MultiStretchRect* rects, u32 num_rects, GSTexture* dTex, ShaderConvertSelector shader) override;
+	void DoMultiStretchRects(const MultiStretchRect* rects, u32 num_rects, GSTextureVK* dTex, ShaderConvertSelector shader);
 
 	void BeginRenderPassForStretchRect(
 		GSTextureVK* dTex, const GSVector4i& dtex_rc, const GSVector4i& dst_rc, bool allow_discard = true);
 	void DoStretchRect(GSTextureVK* sTex, const GSVector4& sRect, GSTextureVK* dTex, const GSVector4& dRect,
-		VkPipeline pipeline, bool linear, bool allow_discard);
+		VkPipeline pipeline, Filter filter, bool allow_discard);
 	void DrawStretchRect(const GSVector4& sRect, const GSVector4& dRect, const GSVector2i& ds);
 
 	void BlitRect(GSTexture* sTex, const GSVector4i& sRect, u32 sLevel, GSTexture* dTex, const GSVector4i& dRect,
-		u32 dLevel, bool linear);
+		u32 dLevel, Filter filter);
 
 	void UpdateCLUTTexture(
 		GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize) override;
