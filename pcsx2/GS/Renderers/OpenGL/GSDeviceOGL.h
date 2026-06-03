@@ -115,6 +115,15 @@ public:
 	using OMDepthStencilSelector = GSHWDrawConfig::DepthStencilSelector;
 	using OMColorMaskSelector = GSHWDrawConfig::ColorMaskSelector;
 
+	enum TextureUnit : u32
+	{
+		TEXTURE_TEXTURE,
+		TEXTURE_PALETTE,
+		TEXTURE_RT,
+		TEXTURE_PRIMID,
+		TEXTURE_DEPTH,
+	};
+
 	struct alignas(16) ProgramSelector
 	{
 		PSSelector ps;
@@ -124,7 +133,7 @@ public:
 		__fi bool operator==(const ProgramSelector& p) const { return BitEqual(*this, p); }
 		__fi bool operator!=(const ProgramSelector& p) const { return !BitEqual(*this, p); }
 	};
-	static_assert(sizeof(ProgramSelector) == 16, "Program selector is 16 bytes");
+	static_assert(sizeof(ProgramSelector) == 32, "Program selector is 32 bytes");
 
 	struct ProgramSelectorHash
 	{

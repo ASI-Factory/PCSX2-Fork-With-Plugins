@@ -59,7 +59,7 @@
 #define NEEDS_DEPTH_FOR_ZTST (PS_ZTST == ZTST_GEQUAL || PS_ZTST == ZTST_GREATER)
 #define NEEDS_DEPTH_FOR_AA1 (PS_AA1 == PS_AA1_TRIANGLE_SW_Z)
 
-#define NEEDS_RT (NEEDS_RT_EARLY || NEEDS_RT_FOR_AFAIL || (!PS_PRIMID_INIT && (PS_FBMASK || SW_BLEND_NEEDS_RT || SW_AD_TO_HW)) || PS_COLOR_FEEDBACK)
+#define NEEDS_RT (NEEDS_RT_EARLY || NEEDS_RT_FOR_AFAIL || (!PS_PRIMID_INIT && (PS_FBMASK || SW_BLEND_NEEDS_RT || SW_AD_TO_HW)))
 #define NEEDS_TEX (PS_TFX != 4)
 #define SW_DEPTH (NEEDS_DEPTH_FOR_AFAIL || NEEDS_DEPTH_FOR_ZTST || NEEDS_DEPTH_FOR_AA1)
 #define ZWRITE (SW_DEPTH || PS_ZCLAMP || PS_ZFLOOR)
@@ -121,7 +121,7 @@ in SHADER
 	#if defined(GL_EXT_shader_framebuffer_fetch)
 		#undef TARGET_0_QUALIFIER
 		#define TARGET_0_QUALIFIER inout
-		#define LAST_FRAG_COLOR SV_Target0
+		#define LAST_FRAG_COLOR o_col0
 	#elif defined(GL_ARM_shader_framebuffer_fetch)
 		#define LAST_FRAG_COLOR gl_LastFragColorARM
 	#endif
@@ -129,20 +129,20 @@ in SHADER
 
 #if !PS_NO_COLOR && !PS_NO_COLOR1
 	// Same buffer but 2 colors for dual source blending
-	layout(location = 0, index = 0) TARGET_0_QUALIFIER vec4 SV_Target0;
-	layout(location = 0, index = 1) out vec4 SV_Target1;
+	layout(location = 0, index = 0) TARGET_0_QUALIFIER vec4 o_col0;
+	layout(location = 0, index = 1) out vec4 o_col1;
 #elif !PS_NO_COLOR
-	layout(location = 0) TARGET_0_QUALIFIER vec4 SV_Target0;
+	layout(location = 0) TARGET_0_QUALIFIER vec4 o_col0;
 #endif
 
 // Depth feedback mode 2 is for depth as color.
 // Use FB fetch for the feedback if it's available.
 #if SW_DEPTH && PS_NO_COLOR1 && (DEPTH_FEEDBACK_SUPPORT == 2)
-#if HAS_FRAMEBUFFER_FETCH
-	layout(location = 1) inout float SV_Target1;
-#else
-	layout(location = 1) out float SV_Target1;
-#endif
+	#if HAS_FRAMEBUFFER_FETCH
+		layout(location = 1) inout float o_col1;
+	#else
+		layout(location = 1) out float o_col1;
+	#endif
 #endif
 
 #if NEEDS_TEX
@@ -180,14 +180,14 @@ vec4 sample_from_rt()
 #endif
 }
 
-vec4 sample_from_depth()
+float sample_from_depth()
 {
 #if !SW_DEPTH
-	return vec4(0.0);
+	return 0.0f;
 #elif HAS_FRAMEBUFFER_FETCH && (DEPTH_FEEDBACK_SUPPORT == 2)
-	return SV_Target1;
+	return o_col1;
 #else
-	return texelFetch(DepthSampler, ivec2(gl_FragCoord.xy), 0);
+	return texelFetch(DepthSampler, ivec2(gl_FragCoord.xy), 0).r;
 #endif
 }
 
@@ -1193,10 +1193,10 @@ void ps_main()
 #endif
 
 #if PS_ZTST == ZTST_GEQUAL
-	if (input_z < sample_from_depth().r)
+	if (input_z < sample_from_depth())
 		discard;
 #elif PS_ZTST == ZTST_GREATER
-	if (input_z <= sample_from_depth().r)
+	if (input_z <= sample_from_depth())
 		discard;
 #endif
 
@@ -1264,7 +1264,7 @@ void ps_main()
 
 	bool atst_pass = atst(C);
 
-#if PS_AFAIL == AFAIL_KEEP
+#if PS_ATST != PS_ATST_NONE && PS_AFAIL == AFAIL_KEEP
 	if (!atst_pass)
 		discard;
 #endif
@@ -1293,12 +1293,12 @@ void ps_main()
 #if PS_DATE == 1
 	// DATM == 0
 	// Pixel with alpha equal to 1 will failed (128-255)
-	SV_Target0 = (C.a > 127.5f) ? vec4(gl_PrimitiveID) : vec4(0x7FFFFFFF);
+	o_col0 = (C.a > 127.5f) ? vec4(gl_PrimitiveID) : vec4(0x7FFFFFFF);
 	return;
 #elif PS_DATE == 2
 	// DATM == 1
 	// Pixel with alpha equal to 0 will failed (0-127)
-	SV_Target0 = (C.a < 127.5f) ? vec4(gl_PrimitiveID) : vec4(0x7FFFFFFF);
+	o_col0 = (C.a < 127.5f) ? vec4(gl_PrimitiveID) : vec4(0x7FFFFFFF);
 	return;
 #endif
 
@@ -1372,7 +1372,7 @@ void ps_main()
 	// Alpha test with feedback
 	#if PS_AFAIL == AFAIL_FB_ONLY
 		if (!atst_pass)
-			input_z = sample_from_depth().r;
+			input_z = sample_from_depth();
 	#elif PS_AFAIL == AFAIL_ZB_ONLY
 		if (!atst_pass)
 			C = sample_from_rt();
@@ -1381,17 +1381,17 @@ void ps_main()
 		{
 			C.a = sample_from_rt().a;
 		#if PS_AFAIL == AFAIL_RGB_ONLY_SW_Z
-			input_z = sample_from_depth().r;
+			input_z = sample_from_depth();
 		#endif
 		}
 	#endif
 
-	// Warning: do not write SV_Target0 until the end since the value might be needed for
+	// Warning: do not write o_col0 until the end since the value might be needed for
 	// FB fetch in sample_from_rt().
-	SV_Target0 = C;
+	o_col0 = C;
 
 	#if !PS_NO_COLOR1
-		SV_Target1 = alpha_blend;
+		o_col1 = alpha_blend;
 	#endif
 #endif
 
@@ -1401,16 +1401,17 @@ void ps_main()
 
 #if PS_AA1 == PS_AA1_TRIANGLE_SW_Z
 	if (!bool(PSin.interior))
-		input_z = sample_from_depth().r; // No depth update for triangle edges.
+		input_z = sample_from_depth(); // No depth update for triangle edges.
 #endif
 
+// Writing back depth
 #if ZWRITE
 	#if SW_DEPTH && PS_NO_COLOR1 && (DEPTH_FEEDBACK_SUPPORT == 2)
 		// Depth as color write. For depth as color feedback we write to both
 		// color copy and real depth to avoid having to copy back to real depth.
-		// Warning: do not write SV_Target1 until the end since the value might
+		// Warning: do not write o_col1 until the end since the value might
 		// be needed for FB fetch in sample_from_depth().
-		SV_Target1 = input_z;
+		o_col1 = input_z;
 	#endif
 	// Standard depth write.
 	gl_FragDepth = input_z;
