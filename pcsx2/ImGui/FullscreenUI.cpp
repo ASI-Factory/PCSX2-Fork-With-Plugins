@@ -447,6 +447,28 @@ void FullscreenUI::OnVMDestroyed()
 	});
 }
 
+void FullscreenUI::OnVMResumed()
+{
+	if (!IsInitialized())
+		return;
+
+	MTGS::RunOnGSThread([]() {
+		if (!IsInitialized())
+			return;
+
+		if (s_current_main_window == MainWindowType::PauseMenu ||
+			s_current_main_window == MainWindowType::Settings ||
+			s_current_main_window == MainWindowType::Achievements ||
+			s_current_main_window == MainWindowType::Leaderboards)
+		{
+			s_current_main_window = MainWindowType::None;
+			s_current_pause_submenu = PauseSubMenu::None;
+			s_pause_menu_was_open = false;
+			QueueResetFocus(FocusResetType::WindowChanged);
+		}
+	});
+}
+
 void FullscreenUI::GameChanged(std::string path, std::string serial, std::string title, u32 disc_crc, u32 crc)
 {
 	if (!IsInitialized())
@@ -2606,6 +2628,11 @@ void FullscreenUI::DrawGameListWindow()
 	{
 		OpenCoverDownloaderWindow();
 	}
+	else if (ImGui::IsKeyPressed(ImGuiKey_GamepadL2, false) || ImGui::IsKeyPressed(ImGuiKey_F5, false))
+	{
+		ShowToast(std::string(), FSUI_STR("Scanning for new games..."), 4.0f);
+		Host::RefreshGameListAsync(false);
+	}
 
 	switch (s_game_list_view)
 	{
@@ -2640,6 +2667,7 @@ void FullscreenUI::DrawGameListWindow()
 			std::make_pair(glyphs.dpad, FSUI_VSTR("Select Game")),
 			std::make_pair(glyphs.select, FSUI_VSTR("Cover Downloader")),
 			std::make_pair(glyphs.start, FSUI_VSTR("Settings")),
+			std::make_pair(ICON_PF_LEFT_TRIGGER_L2, FSUI_VSTR("Refresh List")),
 			std::make_pair(swapNorthWest ? glyphs.west : glyphs.north, FSUI_VSTR("Change View")),
 			std::make_pair(swapNorthWest ? glyphs.north : glyphs.west, FSUI_VSTR("Launch Options")),
 			std::make_pair(glyphs.confirm(circleOK), FSUI_VSTR("Start Game")),
@@ -2654,6 +2682,7 @@ void FullscreenUI::DrawGameListWindow()
 			std::make_pair(ICON_PF_F2, FSUI_VSTR("Settings")),
 			std::make_pair(ICON_PF_F3, FSUI_VSTR("Launch Options")),
 			std::make_pair(ICON_PF_F4, FSUI_VSTR("Cover Downloader")),
+			std::make_pair(ICON_PF_F5, FSUI_VSTR("Refresh List")),
 			std::make_pair(ICON_PF_ENTER, FSUI_VSTR("Start Game")),
 			std::make_pair(ICON_PF_ESC, FSUI_VSTR("Back")),
 		});
@@ -4008,6 +4037,7 @@ TRANSLATE_NOOP("FullscreenUI", "Your memory card is still saving data.\n\nWARNIN
 TRANSLATE_NOOP("FullscreenUI", "No save present in this slot.");
 TRANSLATE_NOOP("FullscreenUI", "No save states found.");
 TRANSLATE_NOOP("FullscreenUI", "Failed to delete save state.");
+TRANSLATE_NOOP("FullscreenUI", "Scanning for new games...");
 TRANSLATE_NOOP("FullscreenUI", "empty title");
 TRANSLATE_NOOP("FullscreenUI", "no serial");
 TRANSLATE_NOOP("FullscreenUI", "Failed to copy text to clipboard.");
@@ -4111,6 +4141,7 @@ TRANSLATE_NOOP("FullscreenUI", "Options");
 TRANSLATE_NOOP("FullscreenUI", "Load/Save State");
 TRANSLATE_NOOP("FullscreenUI", "Select Game");
 TRANSLATE_NOOP("FullscreenUI", "Cover Downloader");
+TRANSLATE_NOOP("FullscreenUI", "Refresh List");
 TRANSLATE_NOOP("FullscreenUI", "Change View");
 TRANSLATE_NOOP("FullscreenUI", "Launch Options");
 TRANSLATE_NOOP("FullscreenUI", "Startup Error");
