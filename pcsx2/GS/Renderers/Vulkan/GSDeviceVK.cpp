@@ -1150,7 +1150,7 @@ GPUPipelineStatistics GSDeviceVK::GetAndResetAccumulatedGPUPipelineStatistics()
 bool GSDeviceVK::SetGPUPipelineStatisticsEnabled(bool enabled)
 {
 	m_gpu_pipeline_statistics_enabled = enabled && m_gpu_pipeline_statistics_supported;
-	return true;
+	return (enabled == m_gpu_pipeline_statistics_enabled);
 }
 
 void GSDeviceVK::ScanForCommandBufferCompletion()
@@ -5416,6 +5416,17 @@ void GSDeviceVK::PSSetROVs(GSTexture* rt, GSTexture* ds, bool write_rt, bool wri
 	{
 		// Unbind to avoid conflicts with OM targets.
 		PSSetShaderResource(TFX_TEXTURE_DEPTH_ROV, nullptr, false);
+	}
+
+	if (IsDeviceNVIDIA() && InRenderPass())
+	{
+		// Nvidia doesn't like switching ROV targets mid-render pass, doing so causes flickering or missing geometry.
+		// End the render pass to avoid such issues.
+		if (vkRt != oldVkRt || vkDs != oldVkDs)
+		{
+			GL_INS("VK: Ending render pass due to UAV switch");
+			EndRenderPass();
+		}
 	}
 
 	if (GSConfig.HWROVBarriersVK)
