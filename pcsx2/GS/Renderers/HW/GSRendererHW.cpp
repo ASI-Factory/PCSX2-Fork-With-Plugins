@@ -222,9 +222,7 @@ void GSRendererHW::Lines2Sprites()
 
 	// each sprite converted to quad needs twice the space
 
-	const int tail = m_vertex->tail * 2;
-	const int max_count = m_vertex->maxcount;
-	while (tail > max_count)
+	while (m_vertex->tail * 2 > m_max_vertex_count)
 	{
 		GrowVertexBuffer();
 	}
@@ -5384,7 +5382,7 @@ void GSRendererHW::HandleFlatShadedVertices()
 		return;
 
 	// De-index the vertices using the copy buffer
-	while (vtx_buff.maxcount < idx_buff.tail)
+	while (m_max_vertex_count < idx_buff.tail)
 		GrowVertexBuffer();
 
 	for (int i = static_cast<int>(idx_buff.tail) - 1; i >= 0; i--)
