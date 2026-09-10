@@ -31,7 +31,7 @@ jobs:
     if: github.repository != 'PCSX2/pcsx2' || github.event_name == 'pull_request'
     uses: ./.github/workflows/windows_build_qt_fork.yml
     with:
-      jobName: "MSVC SSE4"
+      jobName: "MSVC-SSE4"
       artifactPrefixName: "PCSX2-windows-Qt-x64-sse4-msvc"
       configuration: Release
       simd: "SSE4"
@@ -43,7 +43,7 @@ jobs:
     if: github.repository != 'PCSX2/pcsx2' || github.event_name == 'pull_request'
     uses: ./.github/workflows/windows_build_qt_fork.yml
     with:
-      jobName: "MSVC AVX2"
+      jobName: "MSVC-AVX2"
       artifactPrefixName: "PCSX2-windows-Qt-x64-avx2-msvc"
       configuration: Release AVX2
     secrets: inherit
@@ -54,7 +54,7 @@ jobs:
     if: github.repository != 'PCSX2/pcsx2' || github.event_name == 'pull_request'
     uses: ./.github/workflows/windows_build_qt_fork.yml
     with:
-      jobName: "CMake MSVC"
+      jobName: "CMake-MSVC"
       artifactPrefixName: "PCSX2-windows-Qt-x64-cmake-msvc"
       configuration: CMake
       buildSystem: cmake
@@ -66,7 +66,7 @@ jobs:
     if: github.repository != 'PCSX2/pcsx2' || github.event_name == 'pull_request'
     uses: ./.github/workflows/windows_build_qt_fork.yml
     with:
-      jobName: "Clang SSE4"
+      jobName: "Clang-SSE4"
       artifactPrefixName: "PCSX2-windows-Qt-x64-sse4-clang"
       configuration: Release Clang
       simd: "SSE4"
@@ -78,7 +78,7 @@ jobs:
     if: github.repository != 'PCSX2/pcsx2' || github.event_name == 'pull_request'
     uses: ./.github/workflows/windows_build_qt_fork.yml
     with:
-      jobName: "Clang AVX2"
+      jobName: "Clang-AVX2"
       artifactPrefixName: "PCSX2-windows-Qt-x64-avx2-clang"
       configuration: Release Clang AVX2
     secrets: inherit
@@ -89,7 +89,7 @@ jobs:
     if: github.repository != 'PCSX2/pcsx2' || github.event_name == 'pull_request'
     uses: ./.github/workflows/windows_build_qt_fork.yml
     with:
-      jobName: "CMake Clang"
+      jobName: "CMake-Clang"
       artifactPrefixName: "PCSX2-windows-Qt-x64-cmake-clang"
       configuration: CMake
       buildSystem: cmake
