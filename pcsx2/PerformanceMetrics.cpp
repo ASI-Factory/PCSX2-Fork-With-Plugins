@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <vector>
+#include <cmath>
 
 #include "common/Timer.h"
 #include "common/Threading.h"
@@ -75,6 +76,10 @@ static double s_average_gpu_ps_invocations = 0.0;
 static u64 s_accumulated_gpu_vs_invocations = 0;
 static u64 s_accumulated_gpu_ps_invocations = 0;
 
+static PerformanceMetrics::SavedMetrics s_saved_metrics;
+static PerformanceMetrics::SavedMetrics s_saved_metrics_std;
+static float s_saved_metrics_remaining_seconds = 0.0f;
+
 void PerformanceMetrics::Clear()
 {
 	Reset();
@@ -85,6 +90,8 @@ void PerformanceMetrics::Clear()
 	s_average_frame_time = 0.0f;
 	s_maximum_frame_time = 0.0f;
 	s_internal_fps_method = PerformanceMetrics::InternalFPSMethod::None;
+	s_average_gpu_vs_invocations = 0.0;
+	s_average_gpu_ps_invocations = 0.0;
 
 	s_cpu_thread_usage = 0.0f;
 	s_cpu_thread_time = 0.0f;
@@ -102,6 +109,10 @@ void PerformanceMetrics::Clear()
 
 	s_frame_time_history.fill(0.0f);
 	s_frame_time_history_pos = 0;
+
+	s_saved_metrics = {};
+	s_saved_metrics_std = {};
+	s_saved_metrics_remaining_seconds = 0.0f;
 }
 
 void PerformanceMetrics::Reset()
@@ -113,6 +124,8 @@ void PerformanceMetrics::Reset()
 	s_minimum_frame_time_accumulator = 0.0f;
 	s_average_frame_time_accumulator = 0.0f;
 	s_maximum_frame_time_accumulator = 0.0f;
+	s_accumulated_gpu_vs_invocations = 0;
+	s_accumulated_gpu_ps_invocations = 0;
 
 	s_accumulated_gpu_time = 0.0f;
 	s_presents_since_last_update = 0;
@@ -128,6 +141,17 @@ void PerformanceMetrics::Reset()
 
 	for (GSSWThreadStats& stat : s_gs_sw_threads)
 		stat.last_cpu_time = stat.handle.GetCPUTime();
+}
+
+static double GetCPUTimeToPCTFactor(u64 ticks_delta)
+{
+	return 100.0 * static_cast<double>(GetTickFrequency()) /
+		(static_cast<double>(ticks_delta) * static_cast<double>(Threading::GetThreadTicksPerSecond()));
+}
+
+static double GetCPUTimeToMSFactor(u64 frames)
+{
+	return 1000.0 / static_cast<double>(Threading::GetThreadTicksPerSecond()) / static_cast<double>(frames);
 }
 
 void PerformanceMetrics::Update(bool gs_register_write, bool fb_blit, bool is_skipping_present)
@@ -191,11 +215,8 @@ void PerformanceMetrics::Update(bool gs_register_write, bool fb_blit, bool is_sk
 	const u64 ticks_delta = ticks - s_last_ticks;
 	s_last_ticks = ticks;
 
-	const double pct_divider =
-		100.0 * (1.0 / ((static_cast<double>(ticks_delta) * static_cast<double>(Threading::GetThreadTicksPerSecond())) /
-						   static_cast<double>(GetTickFrequency())));
-	const double time_divider = 1000.0 * (1.0 / static_cast<double>(Threading::GetThreadTicksPerSecond())) *
-								(1.0 / static_cast<double>(s_frames_since_last_update));
+	const double pct_divider = GetCPUTimeToPCTFactor(ticks_delta);
+	const double time_divider = GetCPUTimeToMSFactor(s_frames_since_last_update);
 
 	const u64 cpu_time = s_cpu_thread_handle.GetCPUTime();
 	const u64 gs_time = MTGS::GetThreadHandle().GetCPUTime();
@@ -227,6 +248,32 @@ void PerformanceMetrics::Update(bool gs_register_write, bool fb_blit, bool is_sk
 		thread.last_cpu_time = time;
 		thread.usage = static_cast<double>(delta) * pct_divider;
 		thread.time = static_cast<double>(delta) * time_divider;
+	}
+
+	if (s_saved_metrics_remaining_seconds > 0.0f)
+	{
+		auto UpdateSavedMetrics = [&](PerformanceMetrics::SavedMetrics& metrics, bool square) {
+			auto Transform = [square](float f) { return square ? f * f : f; };
+
+			metrics.num_samples += 1.0f;
+			metrics.frames += static_cast<float>(s_frames_since_last_update);
+			metrics.time += time;
+			metrics.fps += Transform(s_fps);
+			metrics.internal_fps += Transform(s_internal_fps);
+			metrics.cpu_thread_usage += Transform(s_cpu_thread_usage);
+			metrics.cpu_thread_time += Transform(s_cpu_thread_time);
+			metrics.gs_thread_usage += Transform(s_gs_thread_usage);
+			metrics.gs_thread_time += Transform(s_gs_thread_time);
+			metrics.gpu_time += Transform(s_average_gpu_time);;
+			metrics.gpu_usage += Transform(s_gpu_usage);
+		};
+
+		UpdateSavedMetrics(s_saved_metrics, false);
+		UpdateSavedMetrics(s_saved_metrics_std, true);
+
+		s_saved_metrics_remaining_seconds -= std::min(s_saved_metrics_remaining_seconds, time);
+
+		std::atomic_thread_fence(std::memory_order_release); // results might be read on another thread
 	}
 
 	s_frames_since_last_update = 0;
@@ -390,4 +437,63 @@ const PerformanceMetrics::FrameTimeHistory& PerformanceMetrics::GetFrameTimeHist
 u32 PerformanceMetrics::GetFrameTimeHistoryPos()
 {
 	return s_frame_time_history_pos;
+}
+
+void PerformanceMetrics::StartSavingMetrics(u32 seconds)
+{
+	s_saved_metrics_remaining_seconds = static_cast<float>(seconds);
+	s_saved_metrics = {};
+	s_saved_metrics_std = {};
+}
+
+bool PerformanceMetrics::IsSavingMetrics()
+{
+	return s_saved_metrics_remaining_seconds > 0.0f;
+}
+
+void PerformanceMetrics::DumpSavedMetrics()
+{
+	s_saved_metrics_remaining_seconds = 0.0f;
+	
+	SavedMetrics metrics = std::exchange(s_saved_metrics, SavedMetrics{});
+	SavedMetrics metrics_std = std::exchange(s_saved_metrics_std, SavedMetrics{});
+
+	const float num_samples = metrics.num_samples;
+
+	if (num_samples > 0.0f)
+	{
+		const auto Square = [](float f) { return f * f; };
+		const auto Average = [num_samples](float f) { return f / num_samples; };
+
+		metrics.fps = Average(metrics.fps);
+		metrics.internal_fps = Average(metrics.internal_fps);
+		metrics.cpu_thread_usage = Average(metrics.cpu_thread_usage);
+		metrics.cpu_thread_time = Average(metrics.cpu_thread_time);
+		metrics.gs_thread_usage = Average(metrics.gs_thread_usage);
+		metrics.gs_thread_time = Average(metrics.gs_thread_time);
+		metrics.gpu_time = Average(metrics.gpu_time);
+		metrics.gpu_usage = Average(metrics.gpu_usage);
+
+		metrics_std.fps = std::sqrt((Average(metrics_std.fps) - Square(metrics.fps)));
+		metrics_std.internal_fps = std::sqrt((Average(metrics_std.internal_fps) - Square(metrics.internal_fps)));
+		metrics_std.cpu_thread_usage = std::sqrt((Average(metrics_std.cpu_thread_usage) - Square(metrics.cpu_thread_usage)));
+		metrics_std.cpu_thread_time = std::sqrt((Average(metrics_std.cpu_thread_time) - Square(metrics.cpu_thread_time)));
+		metrics_std.gs_thread_usage = std::sqrt((Average(metrics_std.gs_thread_usage) - Square(metrics.gs_thread_usage)));
+		metrics_std.gs_thread_time = std::sqrt((Average(metrics_std.gs_thread_time) - Square(metrics.gs_thread_time)));
+		metrics_std.gpu_time = std::sqrt((Average(metrics_std.gpu_time) - Square(metrics.gpu_time)));
+		metrics_std.gpu_usage = std::sqrt((Average(metrics_std.gpu_usage) - Square(metrics.gpu_usage)));
+
+		Console.WriteLnFmt("@HWSTAT@ Frames: {} ({} samples)", metrics.frames, metrics.num_samples);
+		Console.WriteLnFmt("@HWSTAT@ Time: {:.3f} sec", metrics.time);
+		Console.WriteLnFmt("@HWSTAT@ FPS: {:.3f} ± {:.3f} ({:.3f} ± {:.3f} internal)", metrics.fps, metrics_std.fps, metrics.internal_fps, metrics_std.internal_fps);
+		Console.WriteLnFmt("@HWSTAT@ Minimum Frame Time: {:.3f} ms ({:.3f} FPS)", GetMinimumFrameTime(), 1000.0f / GetMinimumFrameTime());
+		Console.WriteLnFmt("@HWSTAT@ Average Frame Time: {:.3f} ms ({:.3f} FPS)", GetAverageFrameTime(), 1000.0f / GetAverageFrameTime());
+		Console.WriteLnFmt("@HWSTAT@ Maximum Frame Time: {:.3f} ms ({:.3f} FPS)", GetMaximumFrameTime(), 1000.0f / GetMaximumFrameTime());
+		Console.WriteLnFmt("@HWSTAT@ Average CPU Thread Usage: {:.3f} ± {:.3f} %", metrics.cpu_thread_usage, metrics_std.cpu_thread_usage);
+		Console.WriteLnFmt("@HWSTAT@ Average GS Thread Usage: {:.3f} ± {:.3f} %", metrics.gs_thread_usage, metrics_std.gs_thread_usage);
+		Console.WriteLnFmt("@HWSTAT@ Average GPU Usage: {:.3f} ± {:.3f} %", metrics.gpu_usage, metrics_std.gpu_usage);
+		Console.WriteLnFmt("@HWSTAT@ Average CPU Thread Time: {:.3f} ± {:.3f} ms", metrics.cpu_thread_time, metrics_std.cpu_thread_time);
+		Console.WriteLnFmt("@HWSTAT@ Average GS Thread Time: {:.3f} ± {:.3f} ms", metrics.gs_thread_time, metrics_std.gs_thread_time);
+		Console.WriteLnFmt("@HWSTAT@ Average GPU Time: {:.3f} ± {:.3f} ms", metrics.gpu_time, metrics_std.gpu_time);
+	}
 }

@@ -16,7 +16,8 @@ namespace GSDumpReplayer
 	void SetLoopCount(s32 loop_count = 0);
 	int GetLoopCount();
 	bool IsRunner();
-	void SetIsDumpRunner(bool is_runner);
+	void SetIsDumpRunner(bool is_runner, bool dump_perf = true);
+	void SetFrameRange(bool use, u32 start, u32 end);
 
 	bool Initialize(const char* filename, Error* error = nullptr);
 	bool ChangeDump(const char* filename);
@@ -28,4 +29,8 @@ namespace GSDumpReplayer
 	u32 GetFrameNumber();
 
 	void RenderUI();
+
+	void UpdateGSStats();
+
+	void DumpStats();
 } // namespace GSDumpReplayer

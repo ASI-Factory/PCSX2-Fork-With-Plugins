@@ -76,6 +76,9 @@ std::string GSGetBaseSnapshotFilename();
 std::string GSGetBaseVideoFilename();
 void GSQueueSnapshot(const std::string& path, u32 gsdump_frames = 0);
 void GSStopGSDump();
+void GSStartSavingMetrics(float time);
+void GSDumpSavedMetrics();
+bool GSIsSavingMetrics();
 bool GSBeginCapture(std::string filename);
 void GSEndCapture();
 void GSPresentCurrentFrame();
@@ -86,6 +89,7 @@ bool GSHasDisplayWindow();
 void GSResizeDisplayWindow(u32 width, u32 height, float scale);
 void GSUpdateDisplayWindow();
 void GSSetVSyncMode(GSVSyncMode mode, bool allow_present_throttle);
+void GSResetStats();
 
 GSRendererType GSGetCurrentRenderer();
 bool GSIsHardwareRenderer();
