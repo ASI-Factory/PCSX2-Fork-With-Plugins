@@ -10,6 +10,10 @@ on:
   workflow_dispatch:
 
 jobs:
+  build_qt_deps:
+    name: "Dependencies"
+    uses: ./.github/workflows/windows_deps_build.yml
+
   # MSBUILD
   lint_vs_proj_files:
     name: Lint VS Project Files
@@ -22,7 +26,7 @@ jobs:
         run: .github\workflows\scripts\windows\validate-vs-filters.ps1
 
   build_qt_sse4:
-    needs: lint_vs_proj_files
+    needs: [build_qt_deps, lint_vs_proj_files]
     name: "SSE4"
     if: github.repository != 'PCSX2/pcsx2' || github.event_name == 'pull_request'
     uses: ./.github/workflows/windows_build_qt_fork.yml
@@ -34,7 +38,7 @@ jobs:
     secrets: inherit
 
   build_qt_avx2:
-    needs: lint_vs_proj_files
+    needs: [build_qt_deps, lint_vs_proj_files]
     name: "AVX2"
     if: github.repository != 'PCSX2/pcsx2' || github.event_name == 'pull_request'
     uses: ./.github/workflows/windows_build_qt_fork.yml
@@ -45,6 +49,7 @@ jobs:
     secrets: inherit
 
   build_qt_cmake:
+    needs: build_qt_deps
     name: "CMake"
     if: github.repository != 'PCSX2/pcsx2' || github.event_name == 'pull_request'
     uses: ./.github/workflows/windows_build_qt_fork.yml
@@ -56,7 +61,7 @@ jobs:
     secrets: inherit
 
   build_qt_clang_sse4:
-    needs: lint_vs_proj_files
+    needs: [build_qt_deps, lint_vs_proj_files]
     name: "SSE4"
     if: github.repository != 'PCSX2/pcsx2' || github.event_name == 'pull_request'
     uses: ./.github/workflows/windows_build_qt_fork.yml
@@ -68,7 +73,7 @@ jobs:
     secrets: inherit
 
   build_qt_clang_avx2:
-    needs: lint_vs_proj_files
+    needs: [build_qt_deps, lint_vs_proj_files]
     name: "AVX2"
     if: github.repository != 'PCSX2/pcsx2' || github.event_name == 'pull_request'
     uses: ./.github/workflows/windows_build_qt_fork.yml
@@ -79,6 +84,7 @@ jobs:
     secrets: inherit
 
   build_qt_cmake_clang:
+    needs: build_qt_deps
     name: "CMake"
     if: github.repository != 'PCSX2/pcsx2' || github.event_name == 'pull_request'
     uses: ./.github/workflows/windows_build_qt_fork.yml

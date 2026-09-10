@@ -50,7 +50,7 @@ jobs:
     name: ${{ inputs.jobName }}
     runs-on: ${{ inputs.os }}
     # Set some sort of timeout in the event of run-away builds.  We are limited on concurrent jobs so, get rid of them.
-    timeout-minutes: 90
+    timeout-minutes: 30
     env:
       POWERSHELL_TELEMETRY_OPTOUT: 1
 
@@ -124,17 +124,12 @@ jobs:
 
       - name: Cache Dependencies
         id: cache-deps
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
+          fail-on-cache-miss: true
           path: deps
           key: ${{ inputs.os }} ${{ inputs.platform }} deps ${{ hashFiles('.github/workflows/scripts/windows/build-dependencies.bat', '.github/workflows/scripts/common/*.patch') }}
 
-      - name: Build Dependencies
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        env:
-          DEBUG: 0
-          BUILD_FFMPEG: 1
-        run: .github/workflows/scripts/windows/build-dependencies.bat
 
       - name: Generate CMake
         if: inputs.configuration == 'CMake'
@@ -158,7 +153,7 @@ jobs:
           del bin\resources\fonts\Twemoji*
 
       - name: Download Plugin Injector artifact
-        uses: robinraju/release-downloader@v1.10
+        uses: robinraju/release-downloader@v1.13
         with:
           repository: "ThirteenAG/PCSX2PluginInjector"
           tag: "latest"
@@ -183,7 +178,7 @@ jobs:
         with:
           tag: latest
       - name: Upload Release
-        uses: ncipollo/release-action@v1.14.0
+        uses: ncipollo/release-action@v1.21.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
