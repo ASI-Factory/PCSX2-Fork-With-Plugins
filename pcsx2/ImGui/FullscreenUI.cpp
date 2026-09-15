@@ -5,6 +5,7 @@
 #include "CDVD/CDVDcommon.h"
 #include "GS/Renderers/Common/GSDevice.h"
 #include "GS/Renderers/Common/GSTexture.h"
+#include "GS/GSCapture.h"
 #include "Achievements.h"
 #include "CDVD/CDVDdiscReader.h"
 #include "GameList.h"
@@ -58,8 +59,15 @@ TinyString FullscreenUI::TimeToPrintableString(time_t t)
 #endif
 
 	TinyString ret;
+#ifdef _WIN32
+	wchar_t buf[65];
+	pxAssert(std::size(buf) == ret.buffer_size());
+	std::wcsftime(buf, std::size(buf), L"%c", &lt);
+	ret.assign(StringUtil::WideStringToUTF8String(buf));
+#else
 	std::strftime(ret.data(), ret.buffer_size(), "%c", &lt);
 	ret.update_size();
+#endif
 	return ret;
 }
 
@@ -1309,9 +1317,16 @@ void FullscreenUI::DrawLandingTemplate(ImVec2* menu_pos, ImVec2* menu_size)
 #else
 			localtime_r(&utc_time_t, &tm_local);
 #endif
+
+#ifdef _WIN32
+			wchar_t buf[256];
+			std::wcsftime(buf, std::size(buf), L"%X", &tm_local);
+			heading_str.assign(StringUtil::WideStringToUTF8String(buf));
+#else
 			char buf[256];
-			std::strftime(buf, sizeof(buf), "%X", &tm_local);
+			std::strftime(buf, std::size(buf), "%X", &tm_local);
 			heading_str.assign(buf);
+#endif
 
 			const ImVec2 time_size = heading_font.first->CalcTextSizeA(heading_font.second, FLT_MAX, 0.0f, heading_str.c_str());
 			time_pos = ImVec2(heading_size.x - LayoutScale(LAYOUT_MENU_BUTTON_X_PADDING) - time_size.x,
@@ -1668,7 +1683,7 @@ void FullscreenUI::DrawPauseMenu(MainWindowType type)
 			ImVec2(10.0f, 10.0f), ImGuiWindowFlags_NoBackground))
 	{
 		static constexpr u32 submenu_item_count[] = {
-			11, // None
+			12, // None
 			4, // Exit
 			3, // Achievements
 		};
@@ -1766,6 +1781,16 @@ void FullscreenUI::DrawPauseMenu(MainWindowType type)
 				if (ActiveButton(FSUI_ICONSTR(ICON_FA_CAMERA, "Save Screenshot"), false))
 				{
 					GSQueueSnapshot(std::string());
+					ClosePauseMenu();
+				}
+
+				const bool is_capturing = GSCapture::IsCapturing();
+				const bool can_start_capture = GSConfig.EnableVideoCapture || GSConfig.EnableAudioCapture;
+				if (ActiveButton(is_capturing ? FSUI_ICONSTR(ICON_FA_VIDEO_SLASH, "Stop Recording") :
+												FSUI_ICONSTR(ICON_FA_VIDEO, "Start Recording"),
+						false, is_capturing || can_start_capture))
+				{
+					GSToggleVideoCapture();
 					ClosePauseMenu();
 				}
 
@@ -4145,6 +4170,8 @@ TRANSLATE_NOOP("FullscreenUI", "Toggle Frame Limit");
 TRANSLATE_NOOP("FullscreenUI", "Game Properties");
 TRANSLATE_NOOP("FullscreenUI", "Achievements");
 TRANSLATE_NOOP("FullscreenUI", "Save Screenshot");
+TRANSLATE_NOOP("FullscreenUI", "Stop Recording");
+TRANSLATE_NOOP("FullscreenUI", "Start Recording");
 TRANSLATE_NOOP("FullscreenUI", "Switch To Software Renderer");
 TRANSLATE_NOOP("FullscreenUI", "Switch To Hardware Renderer");
 TRANSLATE_NOOP("FullscreenUI", "Change Disc");
