@@ -424,13 +424,13 @@ static const std::map<std::string, const unsigned char*> s_baked_shaders = {
 	{ "shaders/opengl/tfx_vgs.glsl"    , opengl_tfx_vgs },
 #ifdef _WIN32
 	{ "shaders/dx11/cas.hlsl"          , dx11_cas },
-	{ "shaders/direct3d/convert.fx"    , dx11_convert },
-	{ "shaders/direct3d/imgui.fx"      , dx11_imgui },
-	{ "shaders/direct3d/interlace.fx"  , dx11_interlace },
-	{ "shaders/direct3d/merge.fx"      , dx11_merge },
-	{ "shaders/direct3d/present.fx"    , dx11_present },
-	{ "shaders/direct3d/shadeboost.fx" , dx11_shadeboost },
-	{ "shaders/direct3d/tfx.fx"        , dx11_tfx },
+	{ "shaders/dx11/convert.fx"        , dx11_convert },
+	{ "shaders/dx11/imgui.fx"          , dx11_imgui },
+	{ "shaders/dx11/interlace.fx"      , dx11_interlace },
+	{ "shaders/dx11/merge.fx"          , dx11_merge },
+	{ "shaders/dx11/present.fx"        , dx11_present },
+	{ "shaders/dx11/shadeboost.fx"     , dx11_shadeboost },
+	{ "shaders/dx11/tfx.fx"            , dx11_tfx },
 #endif
 };
 #endif
@@ -1742,7 +1742,7 @@ static void DumpAlphaPass(DrawConfigWriter& out, const GSHWDrawConfig::AlphaPass
 	out.WriteLn("enable: {}", ap.enable);
 	out.WriteLn("require_one_barrier: {}", ap.require_one_barrier);
 	out.WriteLn("require_full_barrier: {}", ap.require_full_barrier);
-	out.WriteLn("colormask: {:x}", ap.colormask.wrgba);
+	out.WriteLn("colormask: 0x{:x}", ap.colormask.wrgba);
 	out.WriteLn("ps_aref: {}", ap.ps_aref);
 
 	out.WriteLn("ps:");
@@ -1763,7 +1763,7 @@ static void DumpBlendMultipass(DrawConfigWriter& out, const GSHWDrawConfig::Blen
 	DumpBlendState(out.WithIndent(), bmp.blend);
 }
 
-template<typename T, typename U = int>
+template<typename T>
 static void DumpVector4(DrawConfigWriter& out, const char* name, const T& val)
 {
 	out.WriteLn("{}: [{}, {}, {}, {}]", name, val.x, val.y, val.z, val.w);
@@ -1821,7 +1821,13 @@ static void DumpConfig(DrawConfigWriter& out, const GSHWDrawConfig& conf,
 	out.WriteLn("destination_alpha: {} ({})", GetDestinationAlphaModeName(conf.destination_alpha), static_cast<u32>(conf.destination_alpha));
 	out.WriteLn("datm: {} ({})", GetSetDATMName(conf.datm), static_cast<u32>(conf.datm));
 	out.WriteLn("line_expand: {}", conf.line_expand);
-	out.WriteLn("colormask: {:x}", conf.colormask.wrgba);
+	out.WriteLn("colormask: 0x{:x}", conf.colormask.wrgba);
+
+	out.WriteLn("colclip_mode: {}", GetColClipModeName(conf.colclip_mode));
+	out.WriteLn("colclip_frame: {{ FBP: 0x{:04x}, FBW: {}, PSM: {}, FBMSK: 0x{:08x} }}",
+		conf.colclip_frame.FBP, conf.colclip_frame.FBW, GSUtil::GetPSMName(conf.colclip_frame.PSM),
+		conf.colclip_frame.FBMSK);
+	DumpVector4(out, "colclip_update_area", conf.colclip_update_area);
 
 	if (ps)
 	{
