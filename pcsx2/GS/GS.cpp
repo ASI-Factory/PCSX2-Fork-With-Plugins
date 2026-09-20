@@ -23,6 +23,12 @@
 #include "GS/Renderers/HW/GSTextureReplacements.h"
 #include "VMManager.h"
 
+// PCSX2F: drawing into the frame of the game, under its UI, for the plugins of the
+// plugin injector. This is the one source file the implementation of that is compiled
+// into, see the header for why it is header only.
+#define PCSX2F_GUEST_RENDER_IMPLEMENTATION
+#include "GS/PCSX2FGuestRender.h"
+
 #ifdef ENABLE_OPENGL
 #include "GS/Renderers/OpenGL/GSDeviceOGL.h"
 #endif

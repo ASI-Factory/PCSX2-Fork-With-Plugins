@@ -12,6 +12,10 @@
 #include "common/StringUtil.h"
 #include <bit>
 
+// PCSX2F: drawing into the frame of the game, under its UI, for the plugins of the
+// plugin injector.
+#include "GS/PCSX2FGuestRender.h"
+
 using PS_ATST  = GSShader::PS_ATST;
 using PS_AFAIL = GSShader::PS_AFAIL;
 
@@ -142,6 +146,13 @@ void GSRendererHW::VSync(u32 field, bool registers_written, bool idle_frame)
 
 	m_skip = 0;
 	m_skip_offset = 0;
+
+	// PCSX2F: the frame that was measured is over, see GS/PCSX2FGuestRender.h.
+	PCSX2F::GuestRenderFrameEnded();
+
+	// PCSX2F: the frame is presented, the next one starts with no target of its own
+	// until it draws, see GS/PCSX2FGuestRender.h.
+	m_last_drawn_rt = nullptr;
 
 	GSRenderer::VSync(field, registers_written, idle_frame);
 }
@@ -2786,6 +2797,13 @@ void GSRendererHW::Draw()
 	m_cached_ctx.TEST = context->TEST;
 	m_cached_ctx.FRAME = context->FRAME;
 	m_cached_ctx.ZBUF = context->ZBUF;
+
+	// PCSX2F: the plugins of the plugin injector draw into the frame of the game at the point
+	// its UI starts at, which is found from the draws of the frame, so every one of them is
+	// seen here: this is the top of the draw, before the draws that are handled by a path of
+	// their own leave it, since those are part of the frame as much as the others are.
+	PCSX2F::GuestRenderDraw(m_cached_ctx.TEST.ZTE ? 1u : 0u, static_cast<u32>(m_cached_ctx.TEST.ZTST),
+		m_cached_ctx.ZBUF.ZMSK ? 1u : 0u, m_cached_ctx.FRAME.Block());
 
 	if (IsBadFrame())
 	{
@@ -9552,6 +9570,13 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 
 	if (g_gs_device->IsDSInRTActive())
 		g_gs_device->EndDSAsRT();
+
+	// PCSX2F: the frame of the game, as far as the plugins of the plugin injector are
+	// concerned: the target of the last draw, see GS/PCSX2FGuestRender.h. A draw that
+	// writes depth only does not take the frame away from them, and neither does one
+	// that has no target at all.
+	if (rt)
+		m_last_drawn_rt = rt;
 }
 
 // If the EE uploaded a new CLUT since the last draw, use that.

@@ -22,7 +22,11 @@ enum Syscall : u8
 	sysPrintOut = 117,
 	sceSifSetDma = 119,
 	Deci2Call = 124,
-	GetMemorySize = 127
+	GetMemorySize = 127,
+
+	// PCSX2F: a guest plugin of the plugin injector reports a point of the frame of its
+	// game with this one, see GS/PCSX2FGuestRender.h. No game of its own uses it.
+	PluginRenderPhase = 240
 };
 
 // TODO : Move these into the OpcodeTables namespace
