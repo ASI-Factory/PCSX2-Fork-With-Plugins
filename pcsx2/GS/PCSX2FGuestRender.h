@@ -45,8 +45,9 @@
 // they drew.
 //
 // Every draw of the GS has to be seen for that, so GSRendererHW::Draw() calls
-// GuestRenderDraw() for each one, GSRendererHW::VSync() calls GuestRenderFrameEnded() at
-// the end of the frame, and the syscall calls GuestRenderPhase().
+// GuestRenderDraw() for each one, GSRendererHW::VSync() calls GuestRenderFrameEnded() when
+// the renderer forgets its target, and the syscall calls GuestRenderPhase(), which is where
+// one frame of the game ends and the measurement of the next one starts.
 //
 // This file is header only so that the list of sources of the build does not have to know
 // about it: exactly one source file defines PCSX2F_GUEST_RENDER_IMPLEMENTATION before
@@ -75,8 +76,9 @@ namespace PCSX2F
 	// post processing. See the head of this file for what is measured with them.
 	void GuestRenderDraw(u32 zte, u32 ztst, u32 zmsk, u32 target_block);
 
-	// Called at the end of every frame of the GS, from GSRendererHW::VSync(), which is where the
-	// frame that was measured ends and the next one starts.
+	// Called at every vsync of the GS, from GSRendererHW::VSync(), which is where the renderer
+	// forgets the target it drew last. A frame of a game is not a frame of the GS (a game that
+	// runs at 30 frames has two vsyncs per frame), so the measurement goes on past it.
 	void GuestRenderFrameEnded();
 } // namespace PCSX2F
 
@@ -423,11 +425,12 @@ void PCSX2F::GuestRenderDraw(u32 zte, u32 ztst, u32 zmsk, u32 target_block)
 
 void PCSX2F::GuestRenderFrameEnded()
 {
-	s_passes = 0;
-	s_draw_was_elsewhere = false;
+	// Only the target is forgotten here, the renderer forgets its own at this point as well. The
+	// measurement goes from one report to the next and not from one vsync to the next: a game that
+	// runs at less than the rate of the vsync has frames whose draws are cut in two by one, and a
+	// count that started over in the middle of a frame has the plugins drawn at the wrong pass of
+	// the next one (where a later pass draws over them) or not at all, see GuestRenderPhase.
 	s_frame_texture = nullptr;
-	s_armed = false;
-	s_inserted = false;
 }
 
 void PCSX2F::GuestRenderPhase(u32 phase, u32 magic)
@@ -469,11 +472,12 @@ void PCSX2F::GuestRenderPhase(u32 phase, u32 magic)
 		// see the head of this file, so this is where that frame ends: what is drawn into the
 		// block it was drawn into from now on is the frame that is being drawn next, and the
 		// passes of the frame that ended are the ones it is drawn with.
-		if (renderer)
-		{
+		// A vsync between the UI of the frame and the report leaves the renderer with no target
+		// drawn, and the block of the frame is then the one of the report before.
+		if (renderer && renderer->GetLastDrawnRenderTargetBlock() != 0)
 			s_frame_block = renderer->GetLastDrawnRenderTargetBlock();
-			s_passes_expected = s_passes;
-		}
+
+		s_passes_expected = s_passes;
 
 		// everything the guest sent up to the report is processed now, but the API may still hold
 		// it in a command buffer it would submit at the end of the frame, which is after the draw
@@ -481,10 +485,18 @@ void PCSX2F::GuestRenderPhase(u32 phase, u32 magic)
 		// Submitting it here puts the frame up to the report under what they draw.
 		FlushRecordedFrame();
 
+		// The guest stands still until this is done, so nothing of its next frame has reached the
+		// GS yet: this is where the measurement of that frame starts.
+		const bool inserted = s_inserted;
+		s_passes = 0;
+		s_draw_was_elsewhere = false;
+		s_armed = false;
+		s_inserted = false;
+
 		// The plugins drew into the frame in the middle of it already, which is the point the UI
 		// of it starts at: drawing them again now would put them over that UI. That is the case
 		// once a report has been measured, which is every frame but the first one after it.
-		if (s_inserted)
+		if (inserted)
 			return;
 
 		// A report without a measurement to draw at is the first one of a game, or one where the

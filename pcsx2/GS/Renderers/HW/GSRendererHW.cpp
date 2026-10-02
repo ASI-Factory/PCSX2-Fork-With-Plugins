@@ -147,7 +147,8 @@ void GSRendererHW::VSync(u32 field, bool registers_written, bool idle_frame)
 	m_skip = 0;
 	m_skip_offset = 0;
 
-	// PCSX2F: the frame that was measured is over, see GS/PCSX2FGuestRender.h.
+	// PCSX2F: the target of the frame is forgotten with the one of the renderer below, the
+	// measurement itself goes on until the next report, see GS/PCSX2FGuestRender.h.
 	PCSX2F::GuestRenderFrameEnded();
 
 	// PCSX2F: the frame is presented, the next one starts with no target of its own
