@@ -121,6 +121,7 @@ extern "C"
 
 
 
+#include "PluginHookState.inc"
 #include "PluginModuleRuntime.inc"
 
 namespace VMManager::Internal

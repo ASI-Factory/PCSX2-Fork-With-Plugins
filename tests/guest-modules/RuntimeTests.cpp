@@ -53,6 +53,16 @@ namespace VMManager::Internal
     bool TryStartGuestModules();
     bool TryReturnFromGuestModule();
 }
+#include "../../pcsx2/PluginHookState.h"
+static std::array<uint8_t, 1680> test_vu{};
+static constexpr PluginHookState::VULayout test_vu_layout{1680, 1208, 1260, 1080, 512, 1072,
+    1464, 1468, 1472, 1656, 1660, 1664};
+static void finish_test_vu() {}
+static bool TransferGuestHookState(uint8_t* image, uint32_t flags, bool restore)
+{
+    return PluginHookState::Transfer(image, flags, restore,
+        reinterpret_cast<uint8_t*>(&fpuRegs.words[64]), test_vu.data(), test_vu_layout, finish_test_vu);
+}
 #include "../../pcsx2/PluginModuleRuntime.inc"
 static unsigned checks = 0;
 static void Check(bool condition, const char* description)
@@ -63,6 +73,7 @@ static void Check(bool condition, const char* description)
 int main()
 {
     using namespace VMManager::Internal;
+    (void)&TransferGuestHookState;
     try
     {
         ResetGuestModules();
@@ -141,7 +152,7 @@ int main()
             Check(test_cpu.cleared.size() == before + 1 && test_cpu.cleared.back().address == range.address &&
                 test_cpu.cleared.back().words == range.words / 4, "cache invalidation range or word count");
         }
-        const auto valid_clears = test_cpu.cleared.size();
+        auto valid_clears = test_cpu.cleared.size();
         for (const auto& range : {TestCpu::Range{0x00100001, 4}, TestCpu::Range{0x00100000, 3},
             TestCpu::Range{0x00100000, 0}, TestCpu::Range{0x07fffffc, 8},
             TestCpu::Range{0xfffffffc, 8}, TestCpu::Range{0x08000000, 4}})
@@ -158,6 +169,79 @@ int main()
         Check(!HandleGuestModuleSyscall(), "cache syscall in delay slot accepted");
         cpuRegs.IsDelaySlot = 0;
         Check(test_cpu.cleared.size() == valid_clears, "foreign cache syscall reached CPU provider");
+        if (cache_service[1] & 2)
+        {
+            const auto publish = [](u32 address, u32 source, u32 bytes) {
+                cpuRegs.GPR.n.v1.UL[0] = 0xf3;
+                cpuRegs.GPR.n.a0.UL[0] = address;
+                cpuRegs.GPR.n.a1.UL[0] = source;
+                cpuRegs.GPR.n.a2.UL[0] = bytes;
+                cpuRegs.pc = 0x02000048;
+                return HandleGuestModuleSyscall();
+            };
+            const u32 instructions[] = {0x08000400, 0};
+            std::memcpy(eeMem->Main + 0x02001040, instructions, sizeof(instructions));
+            Check(publish(0x00100000, 0x02001040, 8) && cpuRegs.GPR.n.v0.UD[0] == 1,
+                "valid instruction publication failed");
+            Check(!std::memcmp(eeMem->Main + 0x00100000, instructions, sizeof(instructions)) &&
+                test_cpu.cleared.size() == valid_clears + 1 && test_cpu.cleared.back().address == 0x00100000 &&
+                test_cpu.cleared.back().words == 2, "instruction publication or invalidation incorrect");
+            Check(publish(0x00100004, 0x00100000, 8) && cpuRegs.GPR.n.v0.UD[0] == 1 &&
+                !std::memcmp(eeMem->Main + 0x00100004, instructions, sizeof(instructions)),
+                "overlapping instruction publication failed");
+            valid_clears = test_cpu.cleared.size();
+            const auto written = std::vector<uint8_t>(eeMem->Main, eeMem->Main + Ps2MemSize::ExposedRam);
+            struct WriteRange { u32 destination, source, bytes; };
+            for (const auto& range : {WriteRange{0x00100001, 0x02001040, 8}, WriteRange{0x00100000, 0x07fffffc, 8},
+                WriteRange{0x00100000, 0, 8}, WriteRange{0x00100000, 0x02001040, 0},
+                WriteRange{0x00100000, 0x02001040, 3}, WriteRange{0xfffffffc, 0x02001040, 8},
+                WriteRange{0x02000040, 0x02001040, 8}, WriteRange{0x01fffffc, 0x02001040, 8}})
+            {
+                Check(publish(range.destination, range.source, range.bytes) && cpuRegs.GPR.n.v0.UD[0] == 0,
+                    "invalid instruction publication accepted");
+                Check(test_cpu.cleared.size() == valid_clears &&
+                    !std::memcmp(written.data(), eeMem->Main, written.size()), "failed publication modified memory or cache");
+            }
+            cpuRegs.pc = 0x02000028;
+            Check(!HandleGuestModuleSyscall(), "write syscall accepted through cache stub");
+            cpuRegs.pc = 0x02000048; cpuRegs.branch = 1;
+            Check(!HandleGuestModuleSyscall(), "write syscall during branch accepted");
+            cpuRegs.branch = 0; cpuRegs.IsDelaySlot = 1;
+            Check(!HandleGuestModuleSyscall(), "write syscall in delay slot accepted");
+            cpuRegs.IsDelaySlot = 0;
+        }
+        if (cache_service[1] & 4)
+        {
+            const auto transfer = [](u32 address, u32 flags, u32 operation) {
+                cpuRegs.GPR.n.v1.UL[0] = 0xf4; cpuRegs.GPR.n.a0.UL[0] = address;
+                cpuRegs.GPR.n.a1.UL[0] = flags; cpuRegs.GPR.n.a2.UL[0] = operation;
+                cpuRegs.pc = 0x02000068; return HandleGuestModuleSyscall();
+            };
+            fpuRegs.words[64] = 0x7f800001; fpuRegs.words[65] = 1;
+            test_vu[16] = 0x5a; test_vu[1024] = 0xab; test_vu[1210] = 0xcd;
+            Check(transfer(0x02010000, 3, 0) && cpuRegs.GPR.n.v0.UD[0] == 1, "hook state save");
+            Check(transfer(0x02011000, 3, 0) && cpuRegs.GPR.n.v0.UD[0] == 1, "nested hook state save");
+            fpuRegs.words[64] = 0; fpuRegs.words[65] = 0;
+            test_vu[16] = 0; test_vu[1024] = 0; test_vu[1210] = 0xee;
+            test_vu[512 + 29 * 16 + 1] = 1; // VU1 running while callback finishes.
+            const u64 cycle = 500; std::memcpy(test_vu.data() + 1080, &cycle, 8);
+            Check(transfer(0x02010000, 3, 1) && cpuRegs.GPR.n.v0.UD[0] == 1, "hook state restore");
+            Check(fpuRegs.words[64] == 0x7f800001 && fpuRegs.words[65] == 1 && test_vu[16] == 0x5a &&
+                test_vu[1024] == 0xab, "ACC/VU raw bits lost");
+            Check(test_vu[1210] == 0xee && test_vu[512 + 29 * 16 + 1] == 1, "host pointer or VU1 state restored");
+            u64 after; std::memcpy(&after, test_vu.data() + 1080, 8);
+            Check(after == cycle, "VU cycle rolled back");
+            const auto before = test_vu;
+            eeMem->Main[0x02010008] ^= 1;
+            Check(transfer(0x02010000, 3, 1) && !cpuRegs.GPR.n.v0.UD[0] && test_vu == before, "corrupt snapshot accepted");
+            Check(transfer(0x02011000, 3, 1) && cpuRegs.GPR.n.v0.UD[0], "nested snapshot damaged");
+            for (u32 address : {0u, 0x02000060u, 0x02010001u, 0x07fffff8u, 0xfffffff8u})
+                Check(transfer(address, 3, 0) && !cpuRegs.GPR.n.v0.UD[0], "invalid state range accepted");
+            Check(transfer(0x02010000, 4, 0) && !cpuRegs.GPR.n.v0.UD[0], "invalid state flags accepted");
+            Check(transfer(0x02010000, 1, 2) && !cpuRegs.GPR.n.v0.UD[0], "invalid state operation accepted");
+            cpuRegs.pc = 0x00100068;
+            Check(!HandleGuestModuleSyscall(), "foreign state syscall accepted");
+        }
         cpuRegs.GPR.n.v1.UL[0] = 0xf1;
         cpuRegs.pc = 0x01000008;
         Check(!TryReturnFromGuestModule(), "foreign syscall accepted");

@@ -16,6 +16,11 @@ Enable **128 MB RAM**. Memory-card saves work normally; save/load states are blo
 while guest modules are active until module persistence is implemented. The fork
 retains guest before-UI rendering for native rain plugins.
 
+The hook runtime also provides optional EE floating-point ACC and VU0 register
+preservation. Existing hooks keep their fast path; hooks requesting these flags
+use a negotiated service and fail before installation on older hosts.
+VU1, VIF and VU micro/data memory are outside this register-preservation service.
+
 The compatible original PCSX2 download below is an optional alternative. It does
 not replace the compiled fork binaries in this release.
 <!-- pcsx2f-runtime:end -->

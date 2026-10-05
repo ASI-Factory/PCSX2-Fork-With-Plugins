@@ -3,6 +3,8 @@
 #include "PCSX2FGuestModule.h"
 #include "PluginModuleRuntime.h"
 
+static bool TransferGuestHookState(uint8_t* image, uint32_t flags, bool restore);
+
 namespace
 {
 	constexpr u32 MODULE_ARENA_BEGIN = 0x02000000;
@@ -10,7 +12,8 @@ namespace
 	constexpr u32 MODULE_RETURN = MODULE_ARENA_BEGIN;
 	constexpr u32 MODULE_CACHE_SERVICE = MODULE_ARENA_BEGIN + 32;
 	constexpr u32 MODULE_WRITE_SERVICE = MODULE_ARENA_BEGIN + 64;
-	constexpr u32 MODULE_CACHE_CAPABILITY = 0x00010003; // Service ABI 1: invalidate and atomic write.
+	constexpr u32 MODULE_STATE_SERVICE = MODULE_ARENA_BEGIN + 96;
+    constexpr u32 MODULE_CACHE_CAPABILITY = 0x00010007; // ABI 1: cache, atomic write, optional hook state.
 	struct QueuedGuestModule
 	{
 		u32 entry, stack, gp, context;
@@ -69,6 +72,8 @@ namespace
 		std::memcpy(eeMem->Main + MODULE_CACHE_SERVICE, cache_stub, sizeof(cache_stub));
 		const u32 write_stub[] = {0x240300f3, 0x0000000c, 0x03e00008, 0x00000000};
 		std::memcpy(eeMem->Main + MODULE_WRITE_SERVICE, write_stub, sizeof(write_stub));
+        const u32 state_stub[] = {0x240300f4, 0x0000000c, 0x03e00008, 0x00000000};
+        std::memcpy(eeMem->Main + MODULE_STATE_SERVICE, state_stub, sizeof(state_stub));
 		s_guest_modules_committed = true;
 		return true;
 	}
@@ -170,6 +175,17 @@ bool VMManager::Internal::HandleGuestModuleSyscall()
 		}
 		return true;
 	}
+    if (s_guest_modules_committed && code == 0xf4 && cpuRegs.pc == MODULE_STATE_SERVICE + 8 &&
+        !cpuRegs.branch && !cpuRegs.IsDelaySlot)
+    {
+        const u32 address = cpuRegs.GPR.n.a0.UL[0], flags = cpuRegs.GPR.n.a1.UL[0];
+        const u32 operation = cpuRegs.GPR.n.a2.UL[0], bytes = 8 + ((flags & 2) ? 2048 : 0);
+        const u32 end = std::min<u32>(Ps2MemSize::ExposedRam, MODULE_ARENA_END);
+        const bool valid = address >= MODULE_ARENA_BEGIN + 4096 && !(address & 7) &&
+            static_cast<u64>(address) + bytes <= end && operation <= 1 && flags && !(flags & ~3u);
+        cpuRegs.GPR.n.v0.UD[0] = valid && TransferGuestHookState(eeMem->Main + address, flags, operation != 0);
+        return true;
+    }
 	const auto call = static_cast<Syscall>((code & 0x80000000u) ? 0u - code : code);
 	if (s_guest_modules_committed && call == Syscall::GetMemorySize)
 	{
