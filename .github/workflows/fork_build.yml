@@ -1,0 +1,70 @@
+name: Fork Windows Builds
+
+on:
+  push:
+    branches-ignore: [l10n_master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependencies:
+    if: github.repository != 'PCSX2/pcsx2'
+    uses: ./.github/workflows/windows_deps_build.yml
+
+  lint:
+    if: github.repository != 'PCSX2/pcsx2'
+    runs-on: windows-2025-vs2026
+    steps:
+      - uses: actions/checkout@v7
+      - run: .github\workflows\scripts\windows\validate-vs-filters.ps1
+
+  build:
+    needs: [dependencies, lint]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: MSVC SSE4
+            artifact: sse4-msvc
+            configuration: Release
+            simd: SSE4
+            system: msbuild
+          - name: MSVC AVX2
+            artifact: avx2-msvc
+            configuration: Release AVX2
+            simd: AVX2
+            system: msbuild
+          - name: CMake MSVC
+            artifact: cmake-msvc
+            configuration: CMake
+            simd: AVX2
+            system: cmake
+          - name: Clang SSE4
+            artifact: sse4-clang
+            configuration: Release Clang
+            simd: SSE4
+            system: msbuild
+          - name: Clang AVX2
+            artifact: avx2-clang
+            configuration: Release Clang AVX2
+            simd: AVX2
+            system: msbuild
+          - name: CMake Clang
+            artifact: cmake-clang
+            configuration: CMake
+            simd: AVX2
+            system: cmake
+            flags: -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DPCSX2_EXE_NAME=pcsx2-qt-clang
+    uses: ./.github/workflows/windows_build_qt.yml
+    with:
+      jobName: ${{ matrix.name }}
+      artifactPrefixName: PCSX2-windows-Qt-x64-${{ matrix.artifact }}
+      configuration: ${{ matrix.configuration }}
+      simd: ${{ matrix.simd }}
+      buildSystem: ${{ matrix.system }}
+      cmakeFlags: ${{ matrix.flags || '' }}
+    secrets: inherit

@@ -118,11 +118,13 @@ class Packaging(unittest.TestCase):
 
     def test_run_provenance_blocks_prs_other_repos_paths_branches_and_stale_runs(self):
         run = dict(conclusion='success', event='push', head_repository={'full_name': 'example/fork'},
-                   head_branch='master', path='.github/workflows/windows_build_matrix.yml', head_sha=SHA)
+                   head_branch='master', path='.github/workflows/fork_build.yml', head_sha=SHA)
         self.assertEqual(packager.validate_run(run, 'example/fork', 'master', SHA), SHA)
+        manual = dict(run, event='workflow_dispatch')
+        self.assertEqual(packager.validate_run(manual, 'example/fork', 'master', SHA), SHA)
         for field, value in [('conclusion', 'failure'), ('event', 'pull_request'), ('head_branch', 'other'),
                              ('head_sha', '0' * 40), ('head_repository', {'full_name': 'PCSX2/pcsx2'}),
-                             ('path', '.github/workflows/windows_build_matrix_fork.yml')]:
+                             ('path', '.github/workflows/windows_build_matrix.yml')]:
             bad = copy.deepcopy(run)
             bad[field] = value
             with self.subTest(field=field), self.assertRaises(ValueError):

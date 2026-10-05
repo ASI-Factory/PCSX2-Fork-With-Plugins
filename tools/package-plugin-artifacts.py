@@ -15,10 +15,10 @@ EXCLUDED = {'.bsc', '.exp', '.ilk', '.iobj', '.ipdb', '.pdb', '.lib', '.map', '.
 
 
 def validate_run(run, repository, branch, branch_sha):
-    if (run.get('conclusion') != 'success' or run.get('event') != 'push' or
+    if (run.get('conclusion') != 'success' or run.get('event') not in ('push', 'workflow_dispatch') or
         run.get('head_repository', {}).get('full_name') != repository or
         run.get('head_branch') != branch or
-        run.get('path') != '.github/workflows/windows_build_matrix.yml' or
+        run.get('path') != '.github/workflows/fork_build.yml' or
         run.get('head_sha') != branch_sha or not re.fullmatch('[0-9a-f]{40}', branch_sha)):
         raise ValueError('Expected a successful Windows build of this fork at the current default-branch commit')
     return branch_sha

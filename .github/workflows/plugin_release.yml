@@ -2,12 +2,12 @@ name: Package Fork with Plugins
 
 on:
   workflow_run:
-    workflows: ['🖥️ Windows Builds']
+    workflows: ['Fork Windows Builds']
     types: [completed]
   workflow_dispatch:
     inputs:
       build_run_id:
-        description: 'Successful Windows Builds run from the current default-branch commit'
+        description: 'Successful Fork Windows Builds run from the current default-branch commit'
         required: true
         type: string
 
@@ -15,19 +15,18 @@ permissions:
   contents: read
   actions: read
 
-concurrency:
-  group: fork-plugin-release
-  cancel-in-progress: true
-
 jobs:
   package:
     if: >-
       github.repository != 'PCSX2/pcsx2' &&
       (github.event_name == 'workflow_dispatch' ||
        (github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
+        (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch') &&
         github.event.workflow_run.head_repository.full_name == github.repository &&
         github.event.workflow_run.head_branch == github.event.repository.default_branch))
+    concurrency:
+      group: fork-plugin-release
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: write

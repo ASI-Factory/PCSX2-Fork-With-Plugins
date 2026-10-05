@@ -8,6 +8,8 @@ namespace
 	constexpr u32 MODULE_ARENA_BEGIN = 0x02000000;
 	constexpr u32 MODULE_ARENA_END = 0x08000000;
 	constexpr u32 MODULE_RETURN = MODULE_ARENA_BEGIN;
+	constexpr u32 MODULE_CACHE_SERVICE = MODULE_ARENA_BEGIN + 32;
+	constexpr u32 MODULE_CACHE_CAPABILITY = 0x00010001; // Service ABI 1, cache invalidation.
 	struct QueuedGuestModule
 	{
 		u32 entry, stack, gp, context;
@@ -62,6 +64,8 @@ namespace
 		// private syscall stub, where the complete game GPR/FPU state is restored.
 		const u32 stub[] = {0x240300f1, 0x0000000c, 0x00000000};
 		std::memcpy(eeMem->Main + MODULE_RETURN, stub, sizeof(stub));
+		const u32 cache_stub[] = {0x240300f2, 0x0000000c, 0x03e00008, 0x00000000};
+		std::memcpy(eeMem->Main + MODULE_CACHE_SERVICE, cache_stub, sizeof(cache_stub));
 		s_guest_modules_committed = true;
 		return true;
 	}
@@ -81,6 +85,8 @@ namespace
 		cpuRegs.GPR.n.t9.UD[0] = module.entry;
 		const u32 game_gp = s_guest_saved_gpr.n.gp.UL[0];
 		std::memcpy(eeMem->Main + module.context + 8, &game_gp, sizeof(game_gp));
+		const u32 services[] = {MODULE_CACHE_SERVICE, MODULE_CACHE_CAPABILITY};
+		std::memcpy(eeMem->Main + module.context + 24, services, sizeof(services));
 		cpuRegs.pc = module.entry;
 		cpuRegs.branch = 0;
 		cpuRegs.IsDelaySlot = 0;
@@ -130,6 +136,18 @@ bool VMManager::Internal::HandleGuestModuleSyscall()
 	if (TryReturnFromGuestModule())
 		return true;
 	const u32 code = cpuRegs.GPR.n.v1.UL[0];
+	if (s_guest_modules_committed && code == 0xf2 && cpuRegs.pc == MODULE_CACHE_SERVICE + 8 &&
+		!cpuRegs.branch && !cpuRegs.IsDelaySlot)
+	{
+		const u32 address = cpuRegs.GPR.n.a0.UL[0];
+		const u32 size = cpuRegs.GPR.n.a1.UL[0];
+		const bool valid = size && !((address | size) & 3) &&
+			static_cast<u64>(address) + size <= std::min<u32>(Ps2MemSize::ExposedRam, MODULE_ARENA_END);
+		cpuRegs.GPR.n.v0.UD[0] = valid;
+		if (valid)
+			Cpu->Clear(address, size / 4); // CPU thread; native SYSCALL ends its JIT block.
+		return true;
+	}
 	const auto call = static_cast<Syscall>((code & 0x80000000u) ? 0u - code : code);
 	if (s_guest_modules_committed && call == Syscall::GetMemorySize)
 	{
