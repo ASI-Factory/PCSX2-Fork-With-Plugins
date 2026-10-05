@@ -9,7 +9,8 @@ namespace
 	constexpr u32 MODULE_ARENA_END = 0x08000000;
 	constexpr u32 MODULE_RETURN = MODULE_ARENA_BEGIN;
 	constexpr u32 MODULE_CACHE_SERVICE = MODULE_ARENA_BEGIN + 32;
-	constexpr u32 MODULE_CACHE_CAPABILITY = 0x00010001; // Service ABI 1, cache invalidation.
+	constexpr u32 MODULE_WRITE_SERVICE = MODULE_ARENA_BEGIN + 64;
+	constexpr u32 MODULE_CACHE_CAPABILITY = 0x00010003; // Service ABI 1: invalidate and atomic write.
 	struct QueuedGuestModule
 	{
 		u32 entry, stack, gp, context;
@@ -66,6 +67,8 @@ namespace
 		std::memcpy(eeMem->Main + MODULE_RETURN, stub, sizeof(stub));
 		const u32 cache_stub[] = {0x240300f2, 0x0000000c, 0x03e00008, 0x00000000};
 		std::memcpy(eeMem->Main + MODULE_CACHE_SERVICE, cache_stub, sizeof(cache_stub));
+		const u32 write_stub[] = {0x240300f3, 0x0000000c, 0x03e00008, 0x00000000};
+		std::memcpy(eeMem->Main + MODULE_WRITE_SERVICE, write_stub, sizeof(write_stub));
 		s_guest_modules_committed = true;
 		return true;
 	}
@@ -146,6 +149,25 @@ bool VMManager::Internal::HandleGuestModuleSyscall()
 		cpuRegs.GPR.n.v0.UD[0] = valid;
 		if (valid)
 			Cpu->Clear(address, size / 4); // CPU thread; native SYSCALL ends its JIT block.
+		return true;
+	}
+	if (s_guest_modules_committed && code == 0xf3 && cpuRegs.pc == MODULE_WRITE_SERVICE + 8 &&
+		!cpuRegs.branch && !cpuRegs.IsDelaySlot)
+	{
+		const u32 address = cpuRegs.GPR.n.a0.UL[0];
+		const u32 source = cpuRegs.GPR.n.a1.UL[0];
+		const u32 size = cpuRegs.GPR.n.a2.UL[0];
+		const u32 end = std::min<u32>(Ps2MemSize::ExposedRam, MODULE_ARENA_END);
+		const bool valid = size && !((address | size) & 3) && source &&
+			static_cast<u64>(address) + size <= end && static_cast<u64>(source) + size <= end &&
+			(static_cast<u64>(address) + size <= MODULE_ARENA_BEGIN || address >= MODULE_ARENA_BEGIN + 4096);
+		cpuRegs.GPR.n.v0.UD[0] = valid;
+		if (valid)
+		{
+			// No guest interrupt/thread can observe a partly published instruction window.
+			std::memmove(eeMem->Main + address, eeMem->Main + source, size);
+			Cpu->Clear(address, size / 4);
+		}
 		return true;
 	}
 	const auto call = static_cast<Syscall>((code & 0x80000000u) ? 0u - code : code);

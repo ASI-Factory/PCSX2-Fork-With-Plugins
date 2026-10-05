@@ -33,6 +33,16 @@ fpuRegisters fpuRegs{};
 namespace Ps2MemSize { constexpr u32 ExposedRam = 0x08000000; }
 struct EEMem { uint8_t Main[Ps2MemSize::ExposedRam]; };
 static std::unique_ptr<EEMem> eeMem = std::make_unique<EEMem>();
+// Match the CPU provider interface used by the runtime. Sizes are instruction
+// words, not bytes; record calls to verify invalid ranges never reach the JIT.
+struct TestCpu
+{
+    struct Range { u32 address, words; };
+    std::vector<Range> cleared;
+    void Clear(u32 address, u32 words) { cleared.push_back({address, words}); }
+};
+static TestCpu test_cpu;
+static TestCpu* Cpu = &test_cpu;
 namespace Host { void AddKeyedOSDMessage(std::string, std::string, float) {} }
 namespace VMManager::Internal
 {
@@ -112,6 +122,42 @@ int main()
         uint32_t game_gp = 0;
         std::memcpy(&game_gp, eeMem->Main + 0x02002008, 4);
         Check(game_gp == gpr.n.gp.UL[0], "game gp was lost");
+        u32 cache_service[2]{};
+        std::memcpy(cache_service, eeMem->Main + 0x02002018, sizeof(cache_service));
+        Check(cache_service[0] == 0x02000020 && (cache_service[1] >> 16) == 1 &&
+            (cache_service[1] & 1), "cache service negotiation");
+        const auto invalidate = [](u32 address, u32 size) {
+            cpuRegs.GPR.n.v1.UL[0] = 0xf2;
+            cpuRegs.GPR.n.a0.UL[0] = address;
+            cpuRegs.GPR.n.a1.UL[0] = size;
+            cpuRegs.pc = 0x02000028;
+            return HandleGuestModuleSyscall();
+        };
+        for (const auto& range : {TestCpu::Range{0x00100000, 16}, TestCpu::Range{0x07fffffc, 4}})
+        {
+            const auto before = test_cpu.cleared.size();
+            Check(invalidate(range.address, range.words) && cpuRegs.GPR.n.v0.UD[0] == 1,
+                "valid cache invalidation failed");
+            Check(test_cpu.cleared.size() == before + 1 && test_cpu.cleared.back().address == range.address &&
+                test_cpu.cleared.back().words == range.words / 4, "cache invalidation range or word count");
+        }
+        const auto valid_clears = test_cpu.cleared.size();
+        for (const auto& range : {TestCpu::Range{0x00100001, 4}, TestCpu::Range{0x00100000, 3},
+            TestCpu::Range{0x00100000, 0}, TestCpu::Range{0x07fffffc, 8},
+            TestCpu::Range{0xfffffffc, 8}, TestCpu::Range{0x08000000, 4}})
+        {
+            Check(invalidate(range.address, range.words) && cpuRegs.GPR.n.v0.UD[0] == 0,
+                "invalid cache range accepted");
+            Check(test_cpu.cleared.size() == valid_clears, "invalid cache range reached CPU provider");
+        }
+        cpuRegs.pc = 0x00100028;
+        Check(!HandleGuestModuleSyscall(), "foreign cache syscall accepted");
+        cpuRegs.pc = 0x02000028; cpuRegs.branch = 1;
+        Check(!HandleGuestModuleSyscall(), "cache syscall during branch accepted");
+        cpuRegs.branch = 0; cpuRegs.IsDelaySlot = 1;
+        Check(!HandleGuestModuleSyscall(), "cache syscall in delay slot accepted");
+        cpuRegs.IsDelaySlot = 0;
+        Check(test_cpu.cleared.size() == valid_clears, "foreign cache syscall reached CPU provider");
         cpuRegs.GPR.n.v1.UL[0] = 0xf1;
         cpuRegs.pc = 0x01000008;
         Check(!TryReturnFromGuestModule(), "foreign syscall accepted");
@@ -136,6 +182,8 @@ int main()
         Check(!GuestModulesReserveArena() && !TryReturnFromGuestModule(), "reset left modules active");
         Check(GuestModuleMemorySize() == Ps2MemSize::ExposedRam, "reset left memory size restricted");
         Check(AllowGuestModuleSaveState(nullptr), "reset left save states restricted");
+        Check(!invalidate(0x00100000, 4), "cache syscall intercepted after reset");
+        Check(test_cpu.cleared.size() == valid_clears, "cache cleared after reset");
         cpuRegs.GPR.n.v1.UL[0] = 127;
         Check(!HandleGuestModuleSyscall(), "memory size query intercepted without modules");
         Check(GetGuestPluginHostApi(1, sizeof(*api))->generation > generation, "generation not advanced");
