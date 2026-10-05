@@ -16,9 +16,7 @@
 
 #include "fmt/format.h"
 
-// PCSX2F: a guest plugin of the plugin injector reports a point of the frame of its game
-// with a syscall, which is handled at Syscall::PluginRenderPhase below.
-#include "GS/PCSX2FGuestRender.h"
+#include "PluginModuleRuntime.h"
 
 GS_VideoMode gsVideoMode = GS_VideoMode::Uninitialized;
 bool gsIsInterlaced = false;
@@ -911,6 +909,7 @@ void MOVN() {
 
 void SYSCALL()
 {
+	if (VMManager::Internal::HandlePluginSyscall()) return;
 	u8 call;
 
 	if (cpuRegs.GPR.n.v1.SL[0] < 0)
@@ -992,19 +991,10 @@ void SYSCALL()
 			}
 		}
 		break;
-		case Syscall::PluginRenderPhase:
-			// PCSX2F: the plugins of the injector draw into the frame of the game here, under
-			// the UI it draws afterwards, see GS/PCSX2FGuestRender.h.
-			//
-			// The return is not decoration: a case that only breaks out of the switch lands in
-			// the exception below it, which is what hands a call PCSX2 does not handle to the
-			// BIOS. This call is handled here, and the BIOS dispatch has nothing for it.
-			PCSX2F::GuestRenderPhase(cpuRegs.GPR.n.a1.UL[0], cpuRegs.GPR.n.a0.UL[0]);
-			return;
 		case Syscall::RFU060:
 			if (CHECK_EXTRAMEM && cpuRegs.GPR.n.a1.UL[0] == 0xFFFFFFFF)
 			{
-				cpuRegs.GPR.n.a1.UL[0] = Ps2MemSize::ExposedRam - cpuRegs.GPR.n.a2.SL[0];
+				cpuRegs.GPR.n.a1.UL[0] = VMManager::Internal::GuestModuleMemorySize() - cpuRegs.GPR.n.a2.SL[0];
 			}
 			break;
 		case Syscall::SetOsdConfigParam:

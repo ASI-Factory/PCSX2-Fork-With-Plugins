@@ -56,7 +56,7 @@
 
 namespace PCSX2F
 {
-	// Called from the SYSCALL opcode for Syscall::PluginRenderPhase, see R5900OpcodeImpl.cpp.
+	// Called by the private render syscall handler in PluginHostRuntime.inc (syscall 240).
 	// a1 is the phase of the frame the guest plugin reported and a0 the magic of the API, which
 	// is what tells a call of the plugin injector apart from a game that happens to use the same
 	// number of syscall. Only the phase of PCSX2FRenderPhase_BeforeGuestUI draws into the frame;

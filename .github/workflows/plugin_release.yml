@@ -1,0 +1,104 @@
+name: Package Fork with Plugins
+
+on:
+  workflow_run:
+    workflows: ['🖥️ Windows Builds']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: 'Successful Windows Builds run from the current default-branch commit'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: fork-plugin-release
+  cancel-in-progress: true
+
+jobs:
+  package:
+    if: >-
+      github.repository != 'PCSX2/pcsx2' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.head_branch == github.event.repository.default_branch))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id || github.event.workflow_run.id }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Verify source run before downloading artifacts
+        id: source
+        shell: bash
+        run: |
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN_ID" > build-run.json
+          gh api "repos/$GH_REPO/git/ref/heads/$DEFAULT_BRANCH" --jq '.object.sha' > branch-sha.txt
+          python tools/package-plugin-artifacts.py --validate-run build-run.json --repository "$GH_REPO" --branch "$DEFAULT_BRANCH" --branch-sha "$(cat branch-sha.txt)" >> "$GITHUB_OUTPUT"
+      - name: Download this fork's compiled Windows artifacts
+        uses: actions/download-artifact@v8
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BUILD_RUN_ID }}
+          pattern: PCSX2-windows-Qt-x64-*
+          path: build/artifacts
+      - name: Test packaging and release-note composition
+        run: python -B -m unittest discover -s tests/plugin-release -v
+      - name: Test guest module runtime
+        shell: bash
+        run: |
+          mkdir -p build
+          c++ -std=c++20 -O2 -pthread -Wall -Wextra -Werror tests/guest-modules/RuntimeTests.cpp -o build/guest-module-tests
+          ./build/guest-module-tests
+      - name: Download current Plugin Injector package
+        shell: bash
+        run: |
+          mkdir -p build/injector
+          gh release download latest --repo ThirteenAG/PCSX2PluginInjector --pattern PCSX2PluginInjector.zip --dir build/injector
+      - name: Package the compiled fork and injector
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: python tools/package-plugin-artifacts.py --artifacts build/artifacts --injector build/injector/PCSX2PluginInjector.zip --output build/packages --source-sha "$SOURCE_SHA"
+      - name: Preserve existing release notes
+        id: release
+        uses: cardinalby/git-get-release-action@master
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          tag: latest
+      - name: Compose fork release Markdown
+        env:
+          EXISTING_RELEASE_BODY: ${{ steps.release.outputs.body }}
+        run: python tools/plugin-release-notes.py docs/plugin-release.md docs/plugin-upstream-download.md --output build/release-notes.md
+      - name: Check source is still current before publishing
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          current=$(gh api "repos/$GH_REPO/git/ref/heads/$DEFAULT_BRANCH" --jq '.object.sha')
+          [[ "$current" == "$SOURCE_SHA" ]] || { echo 'A newer commit is now on the default branch; skip this stale release.'; exit 1; }
+      - name: Update fork release
+        uses: ncipollo/release-action@v1.21.0
+        with:
+          token: ${{ github.token }}
+          allowUpdates: true
+          name: ${{ steps.release.outputs.name }}
+          bodyFile: build/release-notes.md
+          tag: latest
+          artifacts: build/packages/*.zip
+          artifactErrorsFailBuild: true

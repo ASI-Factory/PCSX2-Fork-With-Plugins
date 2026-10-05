@@ -28,6 +28,7 @@
 #include "StateWrapper.h"
 #include "USB/USB.h"
 #include "VMManager.h"
+#include "PluginModuleRuntime.h"
 #include "VUmicro.h"
 #include "ps2/BiosTools.h"
 
@@ -712,6 +713,8 @@ static const std::unique_ptr<BaseSavestateEntry> SavestateEntries[] = {
 
 std::unique_ptr<ArchiveEntryList> SaveState_DownloadState(Error* error)
 {
+	if (!VMManager::Internal::AllowGuestModuleSaveState(error))
+		return nullptr;
 	std::unique_ptr<ArchiveEntryList> destlist = std::make_unique<ArchiveEntryList>();
 	destlist->GetBuffer().resize(1024 * 1024 * 64);
 
@@ -1164,6 +1167,8 @@ static bool LoadInternalStructuresState(zip_t* zf, s64 index, Error* error)
 
 bool SaveState_UnzipFromDisk(const std::string& filename, Error* error)
 {
+	if (!VMManager::Internal::AllowGuestModuleSaveState(error))
+		return false;
 	zip_error_t ze = {};
 	auto zf = zip_open_managed(filename.c_str(), ZIP_RDONLY, &ze);
 	if (!zf)

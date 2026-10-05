@@ -46,6 +46,7 @@
 #include <limits>
 #include <span>
 #include <tuple>
+#include "PluginOverlays.inc"
 
 InputRecordingUI::InputRecordingData g_InputRecordingData;
 
@@ -140,8 +141,6 @@ bool ShouldUseLeftAlignment(OsdOverlayPos position)
 {
 	return (position == OsdOverlayPos::TopLeft || position == OsdOverlayPos::CenterLeft || position == OsdOverlayPos::BottomLeft);
 }
-
-extern "C" bool GetIsThrottlerTempDisabled();
 
 namespace ImGuiManager
 {
@@ -574,10 +573,8 @@ __ri void ImGuiManager::DrawPerformanceOverlay(float& position_y, float scale, f
 			}
 		}
 
-        if (GetIsThrottlerTempDisabled())
-        {
-            DRAW_LINE(osd_font, font_size, ICON_FA_FORWARD, IM_COL32(255, 0, 0, 255));
-        }
+		if (GetIsThrottlerTempDisabled())
+			DRAW_LINE(osd_font, font_size, ICON_FA_FORWARD, IM_COL32(255, 0, 0, 255));
 
 		// Check every OSD frame because this is an animation.
 		if (GSConfig.OsdShowFrameTimes)
@@ -1327,31 +1324,31 @@ __ri void ImGuiManager::DrawIndicatorsOverlay(float& position_y, float scale, fl
 	ImVec2 text_size;
 
 	text.reserve(64);
-#define DRAW_LINE(font, size, text, color) \
-	do \
-	{ \
-		text_size = font->CalcTextSizeA(size, std::numeric_limits<float>::max(), -1.0f, (text), nullptr, nullptr); \
-		dl->AddText(font, size, \
-			ImVec2(GetWindowWidth() - margin - text_size.x + shadow_offset, position_y + shadow_offset), \
-			IM_COL32(0, 0, 0, 100), (text)); \
-		dl->AddText(font, size, ImVec2(GetWindowWidth() - margin - text_size.x, position_y), color, (text)); \
-		position_y += text_size.y + spacing; \
-	} while (0)
+	#define DRAW_LINE(font, size, text, color) \
+		do \
+		{ \
+			text_size = font->CalcTextSizeA(size, std::numeric_limits<float>::max(), -1.0f, (text), nullptr, nullptr); \
+			dl->AddText(font, size, \
+				ImVec2(GetWindowWidth() - margin - text_size.x + shadow_offset, position_y + shadow_offset), \
+				IM_COL32(0, 0, 0, 100), (text)); \
+			dl->AddText(font, size, ImVec2(GetWindowWidth() - margin - text_size.x, position_y), color, (text)); \
+			position_y += text_size.y + spacing; \
+		} while (0)
 
-	if (VMManager::GetState() != VMState::Paused)
-	{
-		// Draw Speed indicator
-		const float target_speed = VMManager::GetTargetSpeed();
-		const bool is_normal_speed = (target_speed == EmuConfig.EmulationSpeed.NominalScalar ||
-									  VMManager::IsTargetSpeedAdjustedToHost());
-		if (!is_normal_speed)
+		if (VMManager::GetState() != VMState::Paused)
 		{
-			if (target_speed == EmuConfig.EmulationSpeed.SlomoScalar) // Slow-Motion
-				s_speed_icon = ICON_PF_SLOW_MOTION;
-			else if (target_speed == EmuConfig.EmulationSpeed.TurboScalar) // Turbo
-				s_speed_icon = ICON_FA_FORWARD_FAST;
-			else // Unlimited
-				s_speed_icon = ICON_FA_FORWARD;
+			// Draw Speed indicator
+			const float target_speed = VMManager::GetTargetSpeed();
+			const bool is_normal_speed = (target_speed == EmuConfig.EmulationSpeed.NominalScalar ||
+										  VMManager::IsTargetSpeedAdjustedToHost());
+			if (!is_normal_speed)
+			{
+				if (target_speed == EmuConfig.EmulationSpeed.SlomoScalar) // Slow-Motion
+					s_speed_icon = ICON_PF_SLOW_MOTION;
+				else if (target_speed == EmuConfig.EmulationSpeed.TurboScalar) // Turbo
+					s_speed_icon = ICON_FA_FORWARD_FAST;
+				else // Unlimited
+					s_speed_icon = ICON_FA_FORWARD;
 
 				DRAW_LINE(osd_font, font_size, s_speed_icon, white_color);
 			}
@@ -1792,10 +1789,6 @@ void SaveStateSelectorUI::ShowSlotOSDMessage()
 		Host::OSD_QUICK_DURATION);
 }
 
-#ifdef _WIN32
-void DrawPluginsOverlay();
-#endif
-
 void ImGuiManager::RenderOverlays()
 {
 	const float scale = ImGuiManager::GetGlobalScale();
@@ -1813,9 +1806,7 @@ void ImGuiManager::RenderOverlays()
 	DrawShaderCompileIndicator(scale, margin, spacing);
 	DrawInputsOverlay(scale, margin, spacing);
 
-#ifdef _WIN32
 	DrawPluginsOverlay();
-#endif
 
 	if (SaveStateSelectorUI::s_open)
 		SaveStateSelectorUI::Draw();
@@ -1864,68 +1855,3 @@ std::string SaveStateSelectorUI::GetSaveStateTimestampSummary(const std::time_t&
 			tm_modification_local);
 	}
 }
-
-#ifdef _WIN32
-#define NOMINMAX
-#include <Windows.h>
-
-void DrawPluginsOverlay()
-{
-#ifdef _WIN32
-	auto GetPCSX2PluginInjector = []() -> HMODULE {
-		constexpr auto dll = L"PCSX2PluginInjector.asi";
-		auto hm = GetModuleHandleW(dll);
-		return (hm ? hm : LoadLibraryW(dll));
-	};
-	auto GetOSDVectorSize = (size_t (*)())GetProcAddress(GetPCSX2PluginInjector(), "GetOSDVectorSize");
-	auto GetOSDVectorData = (const char* (*)(size_t index))GetProcAddress(GetPCSX2PluginInjector(), "GetOSDVectorData");
-	if (GetOSDVectorSize != NULL && GetOSDVectorData != NULL)
-	{
-		if (GetOSDVectorSize())
-		{
-			const float scale = ImGuiManager::GetGlobalScale();
-			const float shadow_offset = std::ceil(1.0f * scale);
-			const float margin = std::ceil(10.0f * scale);
-			const float spacing = std::ceil(5.0f * scale);
-			float position_y = margin;
-
-			ImDrawList* dl = ImGui::GetBackgroundDrawList();
-			std::string text;
-			ImVec2 text_size;
-			text.reserve(255);
-
-#define DRAW_LINE(font, size, text, color) \
-	do \
-	{ \
-		text_size = font->CalcTextSizeA(size, std::numeric_limits<float>::max(), -1.0f, (text), nullptr, nullptr); \
-		dl->AddText(font, size, \
-			ImVec2(margin + shadow_offset, position_y + shadow_offset), \
-			IM_COL32(0, 0, 0, 100), (text)); \
-		dl->AddText(font, size, ImVec2(margin, position_y), color, (text)); \
-		position_y += text_size.y + spacing; \
-	} while (0)
-
-			const bool paused = (VMManager::GetState() == VMState::Paused);
-
-			if (!paused)
-			{
-				ImFont* const fixed_font = ImGuiManager::GetFixedFont();
-				const float font_size = ImGuiManager::GetFontSizeStandard();
-				for (size_t i = 0; i < GetOSDVectorSize(); i++)
-				{
-					std::string_view s(GetOSDVectorData(i), 255);
-					if (!s.empty() && s[0] != 0)
-					{
-						text.clear();
-						fmt::format_to(std::back_inserter(text), "{}", s);
-						DRAW_LINE(fixed_font, font_size, text.c_str(), IM_COL32(255, 255, 255, 255));
-					}
-				}
-			}
-#undef DRAW_LINE
-		}
-	}
-#endif
-}
-#undef NOMINMAX
-#endif
