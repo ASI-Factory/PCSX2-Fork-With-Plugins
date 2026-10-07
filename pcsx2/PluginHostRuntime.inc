@@ -123,6 +123,7 @@ extern "C"
 
 #include "PluginHookState.inc"
 #include "PluginModuleRuntime.inc"
+#include "PluginSettingsBridge.h"
 
 namespace VMManager::Internal
 {
@@ -163,6 +164,11 @@ namespace VMManager::Internal
 			return true;
 		const u32 code = cpuRegs.GPR.n.v1.UL[0];
 		const u32 call = ((code & 0x80000000u) ? 0u - code : code) & 0xff;
+		if (call == 0xf5 && cpuRegs.GPR.n.a0.UL[0] == 0x50434653)
+		{
+			cpuRegs.GPR.n.v0.UD[0] = PCSX2F::InvokePluginSettings(cpuRegs.GPR.n.a1.UL[0], cpuRegs.pc - 4);
+			return true;
+		}
 		if (call != PluginRenderPhase)
 			return false;
 		PCSX2F::GuestRenderPhase(cpuRegs.GPR.n.a1.UL[0], cpuRegs.GPR.n.a0.UL[0]);
