@@ -2449,6 +2449,7 @@ SCAJ-20179:
     nativeScaling: 2 # Fixes lighting smoothness.
     textureInsideRT: 1 # Fixes broken crystalline surface textures.
     bilinearUpscale: 2 # Fixes off axis texture corruption in some areas.
+    targetPageRearranging: 1 # Fixes issues with transitions reusing targets.
 SCAJ-20180:
   name: "Xenosaga Episode III - Also Sprach Zarathustra [Disc 2 of 2]"
   region: "NTSC-Unk"
@@ -2458,6 +2459,7 @@ SCAJ-20180:
     nativeScaling: 2 # Fixes lighting smoothness.
     textureInsideRT: 1 # Fixes broken crystalline surface textures.
     bilinearUpscale: 2 # Fixes off axis texture corruption in some areas.
+    targetPageRearranging: 1 # Fixes issues with transitions reusing targets.
 SCAJ-20181:
   name: "Minna no Tennis"
   region: "NTSC-Unk"
@@ -14012,6 +14014,7 @@ SLED-52979:
   gsHWFixes:
     autoFlush: 2 # Fixes missing lighting.
     nativeScaling: 1 # Fixes post lighting.
+    textureInsideRT: 1 # Fixes binoculars.
     # halfPixelOffset: 1 # Fixes lighting misalignment. Do not enable this, it breaks a lot of graphics.
 SLED-53066:
   name: "TimeSplitters - Future Perfect"
@@ -20883,6 +20886,7 @@ SLES-52588:
   gsHWFixes:
     autoFlush: 2 # Fixes missing lighting.
     nativeScaling: 1 # Fixes post lighting.
+    textureInsideRT: 1 # Fixes binoculars.
     # halfPixelOffset: 1 # Fixes lighting misalignment. Do not enable this, it breaks a lot of graphics.
 SLES-52589:
   name: "Mercenaries - Playground of Destruction"
@@ -20890,6 +20894,7 @@ SLES-52589:
   gsHWFixes:
     autoFlush: 2 # Fixes missing lighting.
     nativeScaling: 1 # Fixes post lighting.
+    textureInsideRT: 1 # Fixes binoculars.
     # halfPixelOffset: 1 # Fixes lighting misalignment. Do not enable this, it breaks a lot of graphics.
 SLES-52590:
   name: "Mercenaries - Playground of Destruction"
@@ -20897,6 +20902,7 @@ SLES-52590:
   gsHWFixes:
     autoFlush: 2 # Fixes missing lighting.
     nativeScaling: 1 # Fixes post lighting.
+    textureInsideRT: 1 # Fixes binoculars.
     # halfPixelOffset: 1 # Fixes lighting misalignment. Do not enable this, it breaks a lot of graphics.
 SLES-52591:
   name: "Dynasty Warriors 4 - Empires"
@@ -22201,6 +22207,7 @@ SLES-53008:
   gsHWFixes:
     autoFlush: 2 # Fixes missing lighting.
     nativeScaling: 1 # Fixes post lighting.
+    textureInsideRT: 1 # Fixes binoculars.
     # halfPixelOffset: 1 # Fixes lighting misalignment. Do not enable this, it breaks a lot of graphics.
 SLES-53009:
   name: "Dance Factory"
@@ -37060,6 +37067,7 @@ SLPM-61147:
     nativeScaling: 2 # Fixes lighting smoothness.
     textureInsideRT: 1 # Fixes broken crystalline surface textures.
     bilinearUpscale: 2 # Fixes off axis texture corruption in some areas.
+    targetPageRearranging: 1 # Fixes issues with transitions reusing targets.
 SLPM-61148:
   name: "グローランサーⅤ ジェネレーションズ [体験版]"
   name-sort: "ぐろーらんさー5 じぇねれーしょんず [たいけんばん]"
@@ -46761,6 +46769,7 @@ SLPM-65942:
   gsHWFixes:
     autoFlush: 2 # Fixes missing lighting.
     nativeScaling: 1 # Fixes post lighting.
+    textureInsideRT: 1 # Fixes binoculars.
     # halfPixelOffset: 1 # Fixes lighting misalignment. Do not enable this, it breaks a lot of graphics.
 SLPM-65943:
   name: "Angel's Feather −黒の残影−"
@@ -50112,6 +50121,7 @@ SLPM-66465:
   gsHWFixes:
     autoFlush: 2 # Fixes missing lighting.
     nativeScaling: 1 # Fixes post lighting.
+    textureInsideRT: 1 # Fixes binoculars.
     # halfPixelOffset: 1 # Fixes lighting misalignment. Do not enable this, it breaks a lot of graphics.
 SLPM-66467:
   name: "ゲーセンUSA ミッドウェイアーケードトレジャーズ"
@@ -61307,6 +61317,7 @@ SLPS-25640:
     nativeScaling: 2 # Fixes lighting smoothness.
     textureInsideRT: 1 # Fixes broken crystalline surface textures.
     bilinearUpscale: 2 # Fixes off axis texture corruption in some areas.
+    targetPageRearranging: 1 # Fixes issues with transitions reusing targets.
   memcardFilters: # Allows import of Xenosaga II save data.
     - "SLPS-25640"
     - "SLPS-25368"
@@ -61322,6 +61333,7 @@ SLPS-25641:
     nativeScaling: 2 # Fixes lighting smoothness.
     textureInsideRT: 1 # Fixes broken crystalline surface textures.
     bilinearUpscale: 2 # Fixes off axis texture corruption in some areas.
+    targetPageRearranging: 1 # Fixes issues with transitions reusing targets.
   memcardFilters:
     - "SLPS-25640"
     - "SLPS-25368"
@@ -69204,6 +69216,7 @@ SLUS-20932:
   gsHWFixes:
     autoFlush: 2 # Fixes missing lighting.
     nativeScaling: 1 # Fixes post lighting.
+    textureInsideRT: 1 # Fixes binoculars.
     # halfPixelOffset: 1 # Fixes lighting misalignment. Do not enable this, it breaks a lot of graphics.
 SLUS-20933:
   name: "Smash Court Pro Tournament Tennis 2"
@@ -72280,6 +72293,7 @@ SLUS-21389:
     nativeScaling: 2 # Fixes lighting smoothness.
     textureInsideRT: 1 # Fixes broken crystalline surface textures.
     bilinearUpscale: 2 # Fixes off axis texture corruption in some areas.
+    targetPageRearranging: 1 # Fixes issues with transitions reusing targets.
   memcardFilters: # Allows import of Xenosaga II save data.
     - "SLUS-21389"
     - "SLUS-20892"
@@ -72449,6 +72463,7 @@ SLUS-21417:
     nativeScaling: 2 # Fixes lighting smoothness.
     textureInsideRT: 1 # Fixes broken crystalline surface textures.
     bilinearUpscale: 2 # Fixes off axis texture corruption in some areas.
+    targetPageRearranging: 1 # Fixes issues with transitions reusing targets.
   memcardFilters:
     - "SLUS-21389"
     - "SLUS-20892"
@@ -76005,6 +76020,7 @@ SLUS-29137:
   gsHWFixes:
     autoFlush: 2 # Fixes missing lighting.
     nativeScaling: 1 # Fixes post lighting.
+    textureInsideRT: 1 # Fixes binoculars.
     # halfPixelOffset: 1 # Fixes lighting misalignment. Do not enable this, it breaks a lot of graphics.
 SLUS-29138:
   name: "The Punisher [Demo]"
