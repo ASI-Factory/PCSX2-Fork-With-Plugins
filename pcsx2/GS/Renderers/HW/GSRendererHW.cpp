@@ -1566,6 +1566,8 @@ GSVector2i GSRendererHW::GetValidSize(const GSTextureCache::Source* tex, const b
 			src_width >>= 1;
 			src_height >>= 1;
 		}
+		else if (m_cached_ctx.FRAME.FBW != 1 && src_width > static_cast<int>(m_cached_ctx.FRAME.FBW * 64))
+			src_width = (m_cached_ctx.FRAME.FBW * 64);
 
 		width = (std::max(src_width, width) + page_x) & ~page_x;
 		height = (std::max(src_height, height) + page_y) & ~page_y;
@@ -4744,8 +4746,8 @@ void GSRendererHW::Draw()
 				}
 				rt->RearrangeTarget(FRAME_TEX0.TBW, can_recycle);
 			}
-
-			rt->m_TEX0.TBW = FRAME_TEX0.TBW;
+			else
+				rt->m_TEX0.TBW = FRAME_TEX0.TBW;
 		}
 
 		if (ds && (!is_possible_mem_clear || ds->m_TEX0.PSM != ZBUF_TEX0.PSM || (rt && ds->m_TEX0.TBW != rt->m_TEX0.TBW)) && !m_in_target_draw)
@@ -4792,8 +4794,8 @@ void GSRendererHW::Draw()
 
 				ds->RearrangeTarget(ZBUF_TEX0.TBW, can_recycle);
 			}
-
-			ds->m_TEX0.TBW = ZBUF_TEX0.TBW;
+			else
+				ds->m_TEX0.TBW = ZBUF_TEX0.TBW;
 		}
 
 		if (rt)
@@ -4821,8 +4823,9 @@ void GSRendererHW::Draw()
 				}
 				rt->RearrangeTarget(((src && src->m_from_target && src->m_from_target->m_32_bits_fmt) ? src->m_from_target->m_TEX0.TBW : FRAME_TEX0.TBW), can_recycle);
 			}
+			else
+				rt->m_TEX0.TBW = update_fbw ? ((src && src->m_from_target && src->m_from_target->m_32_bits_fmt) ? src->m_from_target->m_TEX0.TBW : FRAME_TEX0.TBW) : std::max(rt->m_TEX0.TBW, FRAME_TEX0.TBW);
 
-			rt->m_TEX0.TBW = update_fbw ? ((src && src->m_from_target && src->m_from_target->m_32_bits_fmt) ? src->m_from_target->m_TEX0.TBW : FRAME_TEX0.TBW) : std::max(rt->m_TEX0.TBW, FRAME_TEX0.TBW);
 			rt->m_TEX0.PSM = FRAME_TEX0.PSM;
 		}
 		if (ds)
@@ -4839,8 +4842,9 @@ void GSRendererHW::Draw()
 				}
 				ds->RearrangeTarget(ZBUF_TEX0.TBW, can_recycle);
 			}
+			else
+				ds->m_TEX0.TBW = std::max(ds->m_TEX0.TBW, ZBUF_TEX0.TBW);
 
-			ds->m_TEX0.TBW = std::max(ds->m_TEX0.TBW, ZBUF_TEX0.TBW);
 			ds->m_TEX0.PSM = ZBUF_TEX0.PSM;
 		}
 	}
@@ -4851,16 +4855,14 @@ void GSRendererHW::Draw()
 		{
 			rt->RearrangeTarget(FRAME_TEX0.TBW);
 
-			rt->m_TEX0.TBW = FRAME_TEX0.TBW;
-
 			if (ds)
 			{
 				if (!m_in_target_draw && ZBUF_TEX0.TBW != ds->m_TEX0.TBW)
 				{
 					ds->RearrangeTarget(ZBUF_TEX0.TBW);
 				}
-
-				ds->m_TEX0.TBW = ZBUF_TEX0.TBW;
+				else
+					ds->m_TEX0.TBW = ZBUF_TEX0.TBW;
 			}
 		}
 	}
@@ -10159,7 +10161,7 @@ bool GSRendererHW::DetectDoubleHalfClear(bool& no_rt, bool& no_ds)
 		int half_point_pages = 0;
 		half_point_pages = (half_point->m_valid.z + (zbuf_psm.pgs.x - 1)) / zbuf_psm.pgs.x;
 		half_point_pages *= (half_point->m_valid.w + (zbuf_psm.pgs.y - 1)) / zbuf_psm.pgs.y;
-		half_point = (half_point && half_point->m_valid_rgb && half_point->HasValidAlpha() == req_valid_alpha && half_point_pages >= written_pages) ? half_point : nullptr;
+		half_point = (half_point && half_point->m_valid_rgb && half_point->HasValidAlpha() == req_valid_alpha && half_point_pages >= static_cast<int>(written_pages)) ? half_point : nullptr;
 	}
 	if (half_point && half_point->m_age <= 1)
 		return false;
