@@ -3861,7 +3861,10 @@ void VMManager::UpdateDiscordPresence(bool update_session_time)
 	if (rp_title.empty())
 		rp.details = TRANSLATE("VMManager", "No Game Running");
 	else
+	{
 		rp.details = rp_title.c_str();
+		rp.status_display_type = DiscordStatusDisplayType_Details;
+	}
 
 	std::string state_string;
 
