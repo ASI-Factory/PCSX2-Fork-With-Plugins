@@ -3733,6 +3733,8 @@ void FullscreenUI::DrawOSDSettingsPage()
 	// TODO: Change this to a GPU icon when FA gets one or PromptFont fixes their codepoints.
 	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_IMAGE, "Show GPU Usage"),
 		FSUI_CSTR("Shows the host's GPU utilization."), "EmuCore/GS", "OsdShowGPU", false);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_IMAGE, "Show Shader Compilation"),
+		FSUI_CSTR("Displays shader compilation statistics in the on-screen display."), "EmuCore/GS", "OsdShowGPUShadersStats", false);
 	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_PLAY, "Show Status Indicators"),
 		FSUI_CSTR("Shows icon indicators for emulation states such as Pausing, Turbo, Fast-Forward, and Slow-Motion."), "EmuCore/GS",
 		"OsdShowIndicators", true);
@@ -6307,6 +6309,7 @@ TRANSLATE_NOOP("FullscreenUI", "Shows the current system CPU and GPU information
 TRANSLATE_NOOP("FullscreenUI", "Shows statistics about the emulated GS such as primitives and draw calls.");
 TRANSLATE_NOOP("FullscreenUI", "Shows the host's CPU utilization based on threads.");
 TRANSLATE_NOOP("FullscreenUI", "Shows the host's GPU utilization.");
+TRANSLATE_NOOP("FullscreenUI", "Displays shader compilation statistics in the on-screen display.");
 TRANSLATE_NOOP("FullscreenUI", "Shows icon indicators for emulation states such as Pausing, Turbo, Fast-Forward, and Slow-Motion.");
 TRANSLATE_NOOP("FullscreenUI", "Shows debug information about the renderer.");
 TRANSLATE_NOOP("FullscreenUI", "Shows GPU vertex shader and pixels shader invocations.");
@@ -6928,6 +6931,7 @@ TRANSLATE_NOOP("FullscreenUI", "Show Hardware Info");
 TRANSLATE_NOOP("FullscreenUI", "Show GS Statistics");
 TRANSLATE_NOOP("FullscreenUI", "Show CPU Usage");
 TRANSLATE_NOOP("FullscreenUI", "Show GPU Usage");
+TRANSLATE_NOOP("FullscreenUI", "Show Shader Compilation");
 TRANSLATE_NOOP("FullscreenUI", "Show Status Indicators");
 TRANSLATE_NOOP("FullscreenUI", "Show GPU Debug Info");
 TRANSLATE_NOOP("FullscreenUI", "Show GPU Pipeline Statistics");
