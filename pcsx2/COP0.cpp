@@ -662,6 +662,7 @@ cpuRegs.PERF.n.pccr, cpuRegs.PERF.n.pcr0, cpuRegs.PERF.n.pcr1, _Imm_ & 0x3F);*/
 		cpuUpdateOperationMode();
 		cpuSetNextEventDelta(4);
 		intSetBranch();
+        VMManager::Internal::TryStartGuestModulesAfterKernel();
 	}
 
 	void DI()

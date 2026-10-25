@@ -652,11 +652,18 @@ static void intExecute()
 				}
 			}
 		}
-		else
-		{
-			while (true)
-				execI();
-		}
+        else
+        {
+            while (true)
+            {
+                execI();
+                if (g_eeloadMain && cpuRegs.pc == g_eeloadMain)
+                {
+                    eeloadHook();
+                    break;
+                }
+            }
+        }
 	}
 }
 

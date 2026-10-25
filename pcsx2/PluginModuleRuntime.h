@@ -10,6 +10,7 @@ namespace VMManager::Internal
 	void ResetGuestModules();
 	bool GuestModulesReserveArena();
 	bool TryStartGuestModules();
+    bool TryStartGuestModulesAfterKernel();
 	bool TryReturnFromGuestModule();
 	bool HandleGuestModuleSyscall();
 	std::uint32_t GuestModuleMemorySize();

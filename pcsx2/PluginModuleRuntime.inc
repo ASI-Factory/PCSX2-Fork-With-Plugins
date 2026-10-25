@@ -24,6 +24,10 @@ namespace
 	bool s_guest_module_running = false;
 	size_t s_guest_module_index = 0;
 	u32 s_guest_resume_pc = 0;
+    u32 s_guest_thread_return_pc = 0;
+    bool s_guest_thread_ready = false;
+    u32 s_guest_heap_return_pc = 0;
+    u32 s_guest_memory_return_pc = 0;
 	GPRregs s_guest_saved_gpr;
 	GPR_reg s_guest_saved_hi, s_guest_saved_lo;
 	fpuRegisters s_guest_saved_fpu;
@@ -122,6 +126,10 @@ void VMManager::Internal::ResetGuestModules()
 	s_guest_modules_committed = false;
 	s_guest_module_running = false;
 	s_guest_module_index = 0;
+    s_guest_thread_return_pc = 0;
+    s_guest_thread_ready = false;
+    s_guest_heap_return_pc = 0;
+    s_guest_memory_return_pc = 0;
 	++s_guest_module_generation;
 }
 bool VMManager::Internal::GuestModulesReserveArena()
@@ -186,25 +194,63 @@ bool VMManager::Internal::HandleGuestModuleSyscall()
         cpuRegs.GPR.n.v0.UD[0] = valid && TransferGuestHookState(eeMem->Main + address, flags, operation != 0);
         return true;
     }
+    const u32 number = ((code & 0x80000000u) ? 0u - code : code) & 0xff;
+    const u32 entry = GetCurrentELFEntryPoint();
+    const u32 pc = cpuRegs.pc & 0x1fffffff;
+    if (s_guest_modules_committed && !s_guest_module_running && !s_guest_module_index &&
+        !cpuRegs.branch && !cpuRegs.IsDelaySlot &&
+        pc > entry && static_cast<u64>(pc) <= static_cast<u64>(entry) + 2000)
+    {
+        if (number == 0x3c)
+        {
+            s_guest_thread_ready = false;
+            s_guest_thread_return_pc = cpuRegs.pc;
+        }
+        else if (number == 0x3d && s_guest_thread_ready)
+        {
+            // Both kernel startup calls must finish before constructors run.
+            s_guest_heap_return_pc = cpuRegs.pc;
+        }
+    }
 	const auto call = static_cast<Syscall>((code & 0x80000000u) ? 0u - code : code);
-	if (s_guest_modules_committed && call == Syscall::GetMemorySize)
-	{
-		cpuRegs.GPR.n.v0.UL[0] = MODULE_ARENA_BEGIN;
-		return true;
-	}
+    if (s_guest_modules_committed && call == Syscall::GetMemorySize &&
+        !cpuRegs.branch && !cpuRegs.IsDelaySlot)
+    {
+        // Keep guest syscall handlers active and limit their result at return.
+        s_guest_memory_return_pc = cpuRegs.pc;
+    }
 	return false;
+}
+bool VMManager::Internal::TryStartGuestModulesAfterKernel()
+{
+    if (s_guest_thread_return_pc && cpuRegs.pc == s_guest_thread_return_pc)
+    {
+        s_guest_thread_return_pc = 0;
+        s_guest_thread_ready = true;
+    }
+    if (s_guest_memory_return_pc && cpuRegs.pc == s_guest_memory_return_pc)
+    {
+        s_guest_memory_return_pc = 0;
+        if (s_guest_modules_committed && cpuRegs.GPR.n.v0.UL[0] > MODULE_ARENA_BEGIN)
+            cpuRegs.GPR.n.v0.UD[0] = MODULE_ARENA_BEGIN;
+    }
+    if (!s_guest_heap_return_pc || cpuRegs.pc != s_guest_heap_return_pc)
+        return false;
+    s_guest_heap_return_pc = 0;
+    return TryStartGuestModules();
 }
 bool VMManager::Internal::TryStartGuestModules()
 {
 	if (!s_guest_modules_committed || s_guest_module_running || s_guest_module_index ||
 		s_guest_modules.empty() || cpuRegs.branch || cpuRegs.IsDelaySlot)
 		return false;
-	// Keep the existing readiness boundary: the executable's startup EI, after
-	// its kernel/heap setup. Needs proper testing with both EE execution modes.
+    // SetUpHeap return precedes constructors; EI remains a fallback for other CRTs.
 	const u32 entry = GetCurrentELFEntryPoint();
 	const u32 pc = cpuRegs.pc & 0x1fffffff;
 	if (pc <= entry || static_cast<u64>(pc) > static_cast<u64>(entry) + 2000)
 		return false;
+    Console.WriteLn("Guest modules starting at 0x%08X (ELF entry 0x%08X, GP 0x%08X, SP 0x%08X, status 0x%08X)",
+        pc, entry, cpuRegs.GPR.n.gp.UL[0], cpuRegs.GPR.n.sp.UL[0], cpuRegs.CP0.n.Status.val);
 	s_guest_resume_pc = cpuRegs.pc;
 	s_guest_saved_gpr = cpuRegs.GPR;
 	s_guest_saved_hi = cpuRegs.HI;

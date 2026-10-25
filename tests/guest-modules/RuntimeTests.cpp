@@ -28,7 +28,20 @@ union GPRregs
         s0, s1, s2, s3, s4, s5, s6, s7, t8, t9, k0, k1, gp, sp, fp, ra; } n;
 };
 struct fpuRegisters { u32 words[66]; };
-struct { GPRregs GPR; GPR_reg HI, LO; u32 sa, pc, branch, IsDelaySlot; u64 cycle; } cpuRegs{};
+struct
+{
+    GPRregs GPR; GPR_reg HI, LO; u32 sa, pc, branch, IsDelaySlot; u64 cycle;
+    struct
+    {
+        struct
+        {
+            struct
+            {
+                u32 val;
+            } Status;
+        } n;
+    } CP0;
+} cpuRegs{};
 fpuRegisters fpuRegs{};
 namespace Ps2MemSize { constexpr u32 ExposedRam = 0x08000000; }
 struct EEMem { uint8_t Main[Ps2MemSize::ExposedRam]; };
@@ -43,6 +56,14 @@ struct TestCpu
 };
 static TestCpu test_cpu;
 static TestCpu* Cpu = &test_cpu;
+struct TestConsole
+{
+    template<class... T>
+    void WriteLn(const char*, T...)
+    {
+    }
+};
+static TestConsole Console;
 namespace Host { void AddKeyedOSDMessage(std::string, std::string, float) {} }
 namespace VMManager::Internal
 {
@@ -103,9 +124,20 @@ int main()
         Check(GuestModuleMemorySize() == 0x02000000, "module arena exposed to the game allocator");
         for (const uint32_t call : {127u, 0u - 127u})
         {
+            cpuRegs.pc = game_entry + 0x400;
             cpuRegs.GPR.n.v1.UL[0] = call;
-            Check(HandleGuestModuleSyscall(), "memory size query not handled");
-            Check(cpuRegs.GPR.n.v0.UL[0] == 0x02000000, "incorrect reserved memory size");
+            Check(!HandleGuestModuleSyscall(), "guest memory-size handler bypassed");
+            cpuRegs.GPR.n.v0.UD[0] = Ps2MemSize::ExposedRam;
+            cpuRegs.pc = 0x80000180;
+            Check(!TryStartGuestModulesAfterKernel() && cpuRegs.GPR.n.v0.UL[0] == Ps2MemSize::ExposedRam,
+                "memory-size result changed inside BIOS");
+            cpuRegs.pc = game_entry + 0x400;
+            Check(!TryStartGuestModulesAfterKernel() && cpuRegs.GPR.n.v0.UL[0] == 0x02000000,
+                "memory-size return exposed module arena");
+            Check(!HandleGuestModuleSyscall(), "guest memory-size handler bypassed on repeat");
+            cpuRegs.GPR.n.v0.UD[0] = 0x01000000;
+            Check(!TryStartGuestModulesAfterKernel() && cpuRegs.GPR.n.v0.UL[0] == 0x01000000,
+                "smaller guest memory-size result enlarged");
         }
         cpuRegs.GPR.n.v1.UL[0] = 60;
         Check(!HandleGuestModuleSyscall(), "allocator syscall swallowed instead of continuing BIOS dispatch");
@@ -278,6 +310,30 @@ int main()
         for (unsigned i = 0; i < 256; ++i) Check(api->queue(0x02001000, 0x02010000, 0, 0x02002000), "queue capacity");
         Check(!api->queue(0x02001000, 0x02010000, 0, 0x02002000), "queue overflow accepted");
         api->abort();
+        ResetGuestModules();
+        s_guest_module_load_window = true;
+        Check(api->queue(0x02001000, 0x02010000, 0, 0x02002000) && api->commit(), "heap-return setup");
+        s_guest_module_load_window = false;
+        cpuRegs.branch = cpuRegs.IsDelaySlot = 0;
+        cpuRegs.pc = game_entry + 0x160;
+        cpuRegs.GPR.n.v1.UL[0] = 0x3d;
+        Check(!HandleGuestModuleSyscall() && !TryStartGuestModulesAfterKernel(), "heap setup without thread setup started modules");
+        cpuRegs.pc = game_entry + 0x140;
+        cpuRegs.GPR.n.v1.UL[0] = 0x3c;
+        Check(!HandleGuestModuleSyscall(), "SetUpThread must run in BIOS");
+        Check(!TryStartGuestModulesAfterKernel(), "thread return started modules before heap setup");
+        cpuRegs.pc = game_entry + 0x160;
+        cpuRegs.GPR.n.v1.UL[0] = 0x3d;
+        Check(!HandleGuestModuleSyscall(), "SetUpHeap must run in BIOS");
+        cpuRegs.pc = 0x80000180;
+        Check(!TryStartGuestModulesAfterKernel(), "kernel entry started modules");
+        cpuRegs.pc = game_entry + 0x160;
+        Check(TryStartGuestModulesAfterKernel(), "heap return did not start modules before constructors");
+        cpuRegs.GPR.n.v1.UL[0] = 0xf1;
+        cpuRegs.pc = 0x02000008;
+        Check(TryReturnFromGuestModule() && cpuRegs.pc == game_entry + 0x160, "heap-return resume");
+        Check(!TryStartGuestModulesAfterKernel(), "heap return started twice");
+        ResetGuestModules();
         std::cout << "PASS: " << checks << " runtime checks\n";
         return 0;
     }
