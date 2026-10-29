@@ -1,5 +1,9 @@
 # Agent Guidelines for PCSX2
 
+> **This fork (PCSX2-Fork-With-Plugins):** work on the fork itself (guest plugin host, injector integration, save
+> states with plugins and the rest of its fork-only code) is not a contribution to upstream PCSX2. The contributor,
+> LLM-usage and comprehension rules below apply only to changes meant for upstream; agents may edit fork code directly.
+
 A file for [guiding AI coding agents](https://agents.md/).
 
 ## Project Overview

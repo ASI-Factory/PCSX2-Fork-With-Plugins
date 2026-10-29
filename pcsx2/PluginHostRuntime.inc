@@ -123,6 +123,7 @@ extern "C"
 
 #include "PluginHookState.inc"
 #include "PluginModuleRuntime.inc"
+#include "PluginModuleState.inc"
 #include "PluginSettingsBridge.h"
 
 namespace VMManager::Internal

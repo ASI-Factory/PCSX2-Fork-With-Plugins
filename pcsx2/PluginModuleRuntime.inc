@@ -142,9 +142,9 @@ u32 VMManager::Internal::GuestModuleMemorySize()
 }
 bool VMManager::Internal::AllowGuestModuleSaveState(Error* error)
 {
-	if (!s_guest_modules_committed)
+	if (!s_guest_module_load_window)
 		return true;
-	Error::SetString(error, "Save/load states are unavailable while relocatable plugins are active. Save to the memory card instead.");
+	Error::SetString(error, "A guest plugin load transaction is in progress. Try saving again after startup.");
 	return false;
 }
 bool VMManager::Internal::HandleGuestModuleSyscall()

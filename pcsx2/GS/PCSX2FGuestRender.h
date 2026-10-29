@@ -80,6 +80,7 @@ namespace PCSX2F
 	// forgets the target it drew last. A frame of a game is not a frame of the GS (a game that
 	// runs at 30 frames has two vsyncs per frame), so the measurement goes on past it.
 	void GuestRenderFrameEnded();
+	void GuestRenderResetState();
 } // namespace PCSX2F
 
 #ifdef PCSX2F_GUEST_RENDER_IMPLEMENTATION
@@ -421,6 +422,22 @@ void PCSX2F::GuestRenderDraw(u32 zte, u32 ztst, u32 zmsk, u32 target_block)
 			PluginDrawFrameNow(s_frame_texture);
 		}
 	}
+}
+
+void PCSX2F::GuestRenderResetState()
+{
+	if (!MTGS::IsOpen())
+		return;
+	MTGS::RunOnGSThread([]() {
+		s_frame_block = 0;
+		s_passes_expected = 0;
+		s_passes = 0;
+		s_draw_was_elsewhere = false;
+		s_frame_texture = nullptr;
+		s_armed = false;
+		s_inserted = false;
+	});
+	MTGS::WaitGS(false);
 }
 
 void PCSX2F::GuestRenderFrameEnded()

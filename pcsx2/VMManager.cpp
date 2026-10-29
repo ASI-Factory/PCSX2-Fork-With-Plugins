@@ -1698,8 +1698,6 @@ void VMManager::Shutdown(bool save_resume_state)
 	// but just in case, so any of the stuff we call here knows we don't have a valid VM.
 	s_state.store(VMState::Stopping, std::memory_order_release);
 
-	Internal::NotifyGuestPluginShutdown();
-
 	SetTimerResolutionIncreased(false);
 
 	// sync everything
@@ -1718,6 +1716,8 @@ void VMManager::Shutdown(bool save_resume_state)
 			});
 		}
 	}
+
+	Internal::NotifyGuestPluginShutdown();
 
 	// end input recording before clearing state
 	if (g_InputRecording.isActive())

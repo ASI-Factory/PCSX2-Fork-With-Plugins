@@ -340,6 +340,7 @@ void memLoadingState::FreezeMem( void* data, int size )
 static const char* EntryFilename_StateVersion = "PCSX2 Savestate Version.id";
 static const char* EntryFilename_Screenshot = "Screenshot.png";
 static const char* EntryFilename_InternalStructures = "PCSX2 Internal Structures.dat";
+static constexpr const char* EntryFilename_GuestModules = "PCSX2F Guest Modules.dat";
 static constexpr u32 STATE_PCSX2_VERSION_SIZE = 32;
 
 struct SysState_Component
@@ -713,7 +714,8 @@ static const std::unique_ptr<BaseSavestateEntry> SavestateEntries[] = {
 
 std::unique_ptr<ArchiveEntryList> SaveState_DownloadState(Error* error)
 {
-	if (!VMManager::Internal::AllowGuestModuleSaveState(error))
+	std::vector<u8> guest_modules;
+	if (!VMManager::Internal::SaveGuestModuleState(guest_modules, error))
 		return nullptr;
 	std::unique_ptr<ArchiveEntryList> destlist = std::make_unique<ArchiveEntryList>();
 	destlist->GetBuffer().resize(1024 * 1024 * 64);
@@ -755,6 +757,12 @@ std::unique_ptr<ArchiveEntryList> SaveState_DownloadState(Error* error)
 				.SetDataSize(saveme.GetCurrentPos() - startpos));
 	}
 
+	if (destlist)
+	{
+		const u32 start = saveme.GetCurrentPos();
+		saveme.FreezeMem(guest_modules.data(), static_cast<int>(guest_modules.size()));
+		destlist->Add(ArchiveEntry(EntryFilename_GuestModules).SetDataIndex(start).SetDataSize(static_cast<u32>(guest_modules.size())));
+	}
 	return destlist;
 }
 
@@ -1167,8 +1175,6 @@ static bool LoadInternalStructuresState(zip_t* zf, s64 index, Error* error)
 
 bool SaveState_UnzipFromDisk(const std::string& filename, Error* error)
 {
-	if (!VMManager::Internal::AllowGuestModuleSaveState(error))
-		return false;
 	zip_error_t ze = {};
 	auto zf = zip_open_managed(filename.c_str(), ZIP_RDONLY, &ze);
 	if (!zf)
@@ -1208,7 +1214,42 @@ bool SaveState_UnzipFromDisk(const std::string& filename, Error* error)
 		return false;
 	}
 
+	std::vector<u8> guest_modules;
+	const s64 guest_index = zip_name_locate(zf.get(), EntryFilename_GuestModules, 0);
+	if (guest_index >= 0)
+	{
+		zip_stat_t stat;
+		zip_stat_init(&stat);
+		if (zip_stat_index(zf.get(), guest_index, 0, &stat) != 0 || !stat.size || stat.size > 129 * 1024 * 1024)
+		{
+			Error::SetString(error, "Invalid guest plugin state section size.");
+			return false;
+		}
+		auto file = zip_fopen_index_managed(zf.get(), guest_index, 0);
+		guest_modules.resize(static_cast<size_t>(stat.size));
+		if (!file || zip_fread(file.get(), guest_modules.data(), stat.size) != static_cast<s64>(stat.size))
+		{
+			Error::SetString(error, "Could not read guest plugin state section.");
+			return false;
+		}
+	}
+	if (!VMManager::Internal::PrepareGuestModuleState(guest_modules, error))
+		return false;
+	ScopedGuard guest_state_cleanup([]() { VMManager::Internal::CancelGuestModuleStateLoad(); });
+	// Plugin states must contain their entire code arena, not a partial RAM entry.
+	if (VMManager::Internal::PendingGuestModuleStateHasModules())
+	{
+		zip_stat_t memory_stat;
+		zip_stat_init(&memory_stat);
+		if (zip_stat(zf.get(), "eeMemory.bin", 0, &memory_stat) != 0 || memory_stat.size != Ps2MemSize::ExposedRam)
+		{
+			Error::SetString(error, "Save state EE memory size does not match configured RAM.");
+			return false;
+		}
+	}
 	PreLoadPrep();
+	if (!VMManager::Internal::BeginGuestModuleStateLoad(error))
+		return false;
 
 	if (!LoadInternalStructuresState(zf.get(), internal_index, error))
 	{
@@ -1236,6 +1277,11 @@ bool SaveState_UnzipFromDisk(const std::string& filename, Error* error)
 		}
 	}
 
+	if (!VMManager::Internal::FinishGuestModuleStateLoad(error))
+	{
+		VMManager::Reset();
+		return false;
+	}
 	PostLoadPrep();
 	return true;
 }

@@ -64,7 +64,11 @@ struct TestConsole
     }
 };
 static TestConsole Console;
-namespace Host { void AddKeyedOSDMessage(std::string, std::string, float) {} }
+namespace Host {
+    static std::string osd_key, osd_message;
+    void AddKeyedOSDMessage(std::string key, std::string message, float) { osd_key = std::move(key); osd_message = std::move(message); }
+    void RemoveKeyedOSDMessage(std::string key) { if (key == osd_key) { osd_key.clear(); osd_message.clear(); } }
+}
 namespace VMManager::Internal
 {
     static u32 game_entry = 0x100000;
@@ -142,11 +146,12 @@ int main()
         cpuRegs.GPR.n.v1.UL[0] = 60;
         Check(!HandleGuestModuleSyscall(), "allocator syscall swallowed instead of continuing BIOS dispatch");
         Error error;
-        Check(!AllowGuestModuleSaveState(&error) && !error.message.empty(), "active module save-state restriction missing");
-        Check(!AllowGuestModuleSaveState(nullptr), "null error destination bypassed restriction");
+        Check(!AllowGuestModuleSaveState(&error) && !error.message.empty(), "in-flight module transaction allowed saving");
+        Check(!AllowGuestModuleSaveState(nullptr), "null error destination bypassed transaction guard");
         Check(!api->commit(), "double commit accepted");
         Check(!api->queue(0x02001000, 0x02010000, 0, 0x02002000), "queue after commit accepted");
         s_guest_module_load_window = false;
+        Check(AllowGuestModuleSaveState(nullptr), "committed plugins still block save states");
         for (unsigned i = 0; i < 32; ++i)
             for (unsigned j = 0; j < 4; ++j) cpuRegs.GPR.r[i].UL[j] = 0x100000 * i + j;
         cpuRegs.HI.UD[0] = 0x1122334455667788; cpuRegs.HI.UD[1] = 123;

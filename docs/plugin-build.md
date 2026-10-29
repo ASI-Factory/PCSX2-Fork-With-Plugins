@@ -60,3 +60,6 @@ fork executable, a real resource and the injector archive passed content and ZIP
 CRC checks; an original PCSX2 executable was rejected. Workflow syntax checks
 passed. Hosted packaging still requires its first run after the changes are
 committed. Local build and smoke logs are under `build/plugin-maintenance/`.
+
+Save-state format, compatibility and settings refresh are described in
+[Guest plugins and save states](plugin-save-states.md).
