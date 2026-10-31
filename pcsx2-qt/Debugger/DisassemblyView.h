@@ -65,6 +65,7 @@ public slots:
 	void contextStubFunction();
 	void contextRestoreFunction();
 	void contextShowInstructionBytes();
+	void contextShowModuleOffset();
 
 	void gotoAddressAndSetFocus(u32 address);
 	void gotoProgramCounterOnPause();
@@ -74,6 +75,14 @@ public slots:
 
 private:
 	Ui::DisassemblyView m_ui;
+
+	struct DisasmLine {
+		u32 address;
+		QString text;
+		u32 size;
+	};
+
+	std::vector<DisasmLine> m_lines;
 
 	u32 m_visibleStart = STARTING_ADDRESS; // The address of the first instruction shown.
 	u32 m_visibleRows;
@@ -85,14 +94,19 @@ private:
 	std::map<u32, std::tuple<u32, u32>> m_stubbedFunctions;
 
 	bool m_showInstructionBytes = true;
+	bool m_showModuleOffset = true;
 	bool m_goToProgramCounterOnPause = true;
 	DisassemblyManager m_disassemblyManager;
 
 	NavigationHistoryStack<u32> m_navigation_history{STARTING_ADDRESS};
 
+	u32 GetAddrFromRow(int row);
+	s32 GetFirstRowFromAddr(u32 addr);
+	s32 GetLastRowFromAddr(u32 addr);
 	QString GetDisassemblyTitleLine();
 	QColor GetDisassemblyTitleLineColor();
-	inline QString DisassemblyStringFromAddress(u32 address, QFont font, u32 pc, bool selected);
+	inline std::pair<QString, int> DisassemblyStringFromAddress(u32 address);
+	std::vector<DisasmLine> GetLines(u32 address, u32 size);
 	QColor GetAddressFunctionColor(u32 address);
 	enum class SelectionInfo
 	{
