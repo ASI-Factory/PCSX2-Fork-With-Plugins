@@ -1194,10 +1194,9 @@ void SYSCALL()
 			break;
 		}
 		case Syscall::GetMemorySize:
-			// Extra memory is always on so plugins can live above 32 MB; games are told the retail size, as some
-			// switch to devkit code paths when they see 128 MB (True Crime: New York City fails to load its main ELF)
-			cpuRegs.GPR.n.v0.UL[0] = Ps2MemSize::MainRam;
-			return;
+			// Extra memory is always on so plugins can live above 32 MB; the BIOS reports the retail size, as some
+			// games switch to devkit code paths when they see 128 MB (True Crime: New York City fails to load its main ELF)
+			break;
 
 
 		default:
