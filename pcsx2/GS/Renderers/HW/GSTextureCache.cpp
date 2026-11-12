@@ -5,6 +5,7 @@
 #include "GSTextureReplacements.h"
 #include "GSRendererHW.h"
 #include "GS/GSState.h"
+#include "GS/PCSX2FGuestRender.h"
 #include "GS/GSGL.h"
 #include "GS/GSPerfMon.h"
 #include "GS/GSUtil.h"
@@ -8014,6 +8015,13 @@ GSTextureCache::Target::~Target()
 {
 	// Targets should never be shared.
 	pxAssert(!m_shared_texture);
+
+	// PCSX2F: the frame the plugins of the plugin injector are handed is a target, and a
+	// target is deleted in the middle of a frame as well: what still points at this one
+	// forgets it, see GS/PCSX2FGuestRender.h.
+	if (GSRendererHW* renderer = GSRendererHW::GetInstance())
+		renderer->ForgetDrawnTarget(this);
+	PCSX2F::GuestRenderTargetDeleted(this);
 
 	if (m_texture)
 	{

@@ -28,16 +28,15 @@
 //
 // What the measurement uses:
 //
-//   - the frame is drawn into one block of the GS memory and its post processing into
-//     others, and the UI of the frame follows the last pass that was drawn into another
-//     block;
-//   - a draw of the world tests depth and writes it, a draw of a UI does neither, so
-//     the pass that is looked for is a flat draw into the block of the frame that
-//     follows a draw of another block;
+//   - a draw of the world tests depth and writes it, a draw of a UI does neither;
+//   - the frame is the block of the GS memory most of the world is drawn into, and its
+//     post processing goes into others;
+//   - the pass that is looked for is a flat draw into the block of the frame right after
+//     a draw of its world, and the UI of the frame follows the last of them (what a post
+//     processing draws into other blocks in between is not the UI);
 //   - how many of those passes a frame has is a property of its scene and not of what
-//     is in it (four or five in the games this was made for), so the count of the frame
-//     that ended is what the frame that is drawn draws the plugins at, which is the last
-//     of them, right before the UI.
+//     is in it, so the count of the frame that ended is what the frame that is drawn
+//     draws the plugins at, which is the last of them, right before the UI.
 //
 // So the frame that follows a report is cut in two: everything the guest sends up to the
 // point of the frame the plugins draw at is submitted, the plugins draw into the target
@@ -81,6 +80,11 @@ namespace PCSX2F
 	// runs at 30 frames has two vsyncs per frame), so the measurement goes on past it.
 	void GuestRenderFrameEnded();
 	void GuestRenderResetState();
+
+	// Called by the texture cache for every target it deletes, from the destructor of
+	// GSTextureCache::Target: a target is deleted in the middle of a frame as well, and the
+	// frame the plugins are handed must not be one that is gone.
+	void GuestRenderTargetDeleted(const void* target);
 } // namespace PCSX2F
 
 #ifdef PCSX2F_GUEST_RENDER_IMPLEMENTATION
@@ -251,6 +255,34 @@ namespace
 		}
 	}
 
+	// The target is handed over as a render target, which is the state the plugins draw it in
+	// and leave it in. Direct3D 12 keeps the state of a resource on the side of the application,
+	// so the renderer is the only one that knows what the target was used as last: a target
+	// that was last read by a shader, or copied, is in another state (or, with enhanced
+	// barriers, another layout), and a plugin that draws into it as a render target corrupts it
+	// and gets the device removed. The transition is recorded and submitted together with the
+	// frame, ahead of what the plugins submit, and the renderer keeps track of it as its own.
+	void HandOverTarget(GSTexture* target)
+	{
+		switch (GSGetCurrentRenderer())
+		{
+#ifdef _WIN32
+			case GSRendererType::DX12:
+			{
+				GSDevice12* device = static_cast<GSDevice12*>(g_gs_device.get());
+				device->EndRenderPass();
+				static_cast<GSTexture12*>(target)->TransitionToState(GSTexture12::ResourceState::RenderTarget);
+			}
+			break;
+#endif
+
+			default:
+				break;
+		}
+
+		FlushRecordedFrame();
+	}
+
 	void FillTargetInfo(const GSTexture* target, PCSX2FRenderTargetInfo& info)
 	{
 		info.width = static_cast<u32>(target->GetWidth());
@@ -319,20 +351,77 @@ namespace
 	// -----------------------------------------------------------------------
 
 	// The block of the GS memory the frame is drawn into, taken from the last report, and
-	// the number of passes into another block the frame that was reported had. Zero until
-	// a plugin reports the phase, which is when the plugins are first drawn into a frame.
+	// the number of passes the frame that was reported had. Zero until a plugin reports the
+	// phase, which is when the plugins are first drawn into a frame.
 	u32 s_frame_block = 0;
 	u32 s_passes_expected = 0;
 
-	// The frame that is being drawn: the passes of it that went into another block so far,
-	// whether the last draw went into one of those, the target the plugins draw into, which
-	// is remembered from the last draw that went into the block of the frame, and whether
-	// they were drawn into it already.
+	// The frame that is being drawn: its passes so far, whether the last draw into the block of
+	// the frame was one of its world, the target the plugins draw into, which is remembered from
+	// the last draw that went into the block of the frame, and whether they were drawn into it
+	// already. The target is kept and not its texture: the texture cache gives a target another
+	// texture when it resizes it and deletes targets in the middle of a frame, and a texture
+	// kept from before is then one that is recycled or gone. The target is forgotten when it is
+	// deleted, see GuestRenderTargetDeleted, and its texture is read when the plugins draw.
 	u32 s_passes = 0;
-	bool s_draw_was_elsewhere = false;
-	GSTexture* s_frame_texture = nullptr;
+	bool s_last_draw_was_world = false;
+	GSTextureCache::Target* s_frame_target = nullptr;
 	bool s_armed = false;
 	bool s_inserted = false;
+
+	// The blocks the world of the frame went into and how many of its draws each one took. The
+	// frame is the block most of them went into: the last draw before a report can be a copy of
+	// the frame into a buffer of the post processing of the next frame instead.
+	constexpr u32 MAX_WORLD_BLOCKS = 4;
+	u32 s_world_blocks[MAX_WORLD_BLOCKS] = {};
+	u32 s_world_draws[MAX_WORLD_BLOCKS] = {};
+	u32 s_world_block_count = 0;
+
+	void CountWorldDraw(u32 block)
+	{
+		for (u32 i = 0; i < s_world_block_count; i++)
+		{
+			if (s_world_blocks[i] == block)
+			{
+				s_world_draws[i]++;
+				return;
+			}
+		}
+
+		if (s_world_block_count < MAX_WORLD_BLOCKS)
+		{
+			s_world_blocks[s_world_block_count] = block;
+			s_world_draws[s_world_block_count] = 1;
+			s_world_block_count++;
+		}
+	}
+
+	// The block most of the world of the frame went into, the block of the last draw when the
+	// frame had no world.
+	u32 WorldBlock(u32 last_block)
+	{
+		u32 best = last_block;
+		u32 draws = 0;
+		for (u32 i = 0; i < s_world_block_count; i++)
+		{
+			if (s_world_draws[i] > draws)
+			{
+				best = s_world_blocks[i];
+				draws = s_world_draws[i];
+			}
+		}
+
+		return best;
+	}
+
+	void ResetMeasurement()
+	{
+		s_passes = 0;
+		s_last_draw_was_world = false;
+		s_armed = false;
+		s_inserted = false;
+		s_world_block_count = 0;
+	}
 
 	// Hands the frame that is being drawn over to the plugins, for them to draw into it. Called
 	// on the thread of the GS, from the middle of the draws of a frame, right after everything
@@ -347,8 +436,9 @@ namespace
 			return;
 
 		// everything the guest sent so far is submitted first, so that the API draws the plugins
-		// into the frame after what is already in it, see FlushRecordedFrame
-		FlushRecordedFrame();
+		// into the frame after what is already in it, see FlushRecordedFrame, and the target is
+		// a render target by then, see HandOverTarget
+		HandOverTarget(target);
 
 		PCSX2FRenderTargetInfo info = {};
 		FillTargetInfo(target, info);
@@ -378,48 +468,45 @@ void PCSX2F::GuestRenderDraw(u32 zte, u32 ztst, u32 zmsk, u32 target_block)
 	const bool flat = (zte == 0 || ztst == ZTST_ALWAYS || zmsk != 0);
 	const bool in_frame_block = (s_frame_block != 0 && target_block == s_frame_block);
 
-	if (s_frame_block != 0)
+	if (!flat)
+		CountWorldDraw(target_block);
+
+	if (s_frame_block != 0 && in_frame_block)
 	{
-		if (!in_frame_block)
+		if (!flat)
 		{
-			// a pass of the frame, its post processing for one, which the UI of the frame
-			// follows: the flat draw into the block of the frame that comes next is where
-			// the UI of the frame starts
-			s_draw_was_elsewhere = true;
+			s_last_draw_was_world = true;
 		}
-		else
+		else if (s_last_draw_was_world)
 		{
-			if (flat && s_draw_was_elsewhere)
-			{
-				s_passes++;
+			// a flat draw into the frame right after its world: the world, or a part of it, is
+			// done, and the last time that happens in a frame is where its UI starts
+			s_last_draw_was_world = false;
+			s_passes++;
 
-				// The plugins are drawn at the pass the frame before the one being drawn had,
-				// which is the last of them and is right before its UI. The count is taken
-				// from the frame that was reported, see GuestRenderPhase.
-				if (s_passes == s_passes_expected)
-					s_armed = true;
-			}
-
-			s_draw_was_elsewhere = false;
+			// The plugins are drawn at the pass the frame before the one being drawn had,
+			// which is the last of them and is right before its UI. The count is taken
+			// from the frame that was reported, see GuestRenderPhase.
+			if (s_passes == s_passes_expected)
+				s_armed = true;
 		}
 
 		// The target the plugins draw into is the one of the frame, which is what the last
 		// draw into it was drawn into. The target of the draw before this one is the one to
-		// ask for: the draw that is being made here is not drawn yet, and a pass of the frame
-		// that went into another block is not part of it. A frame is presented with the target
-		// forgotten, so it is always one of the frame that is being drawn.
+		// ask for: the draw that is being made here is not drawn yet. A frame is presented
+		// with the target forgotten, so it is always one of the frame that is being drawn.
 		GSRendererHW* renderer = GSRendererHW::GetInstance();
-		if (in_frame_block && renderer && renderer->GetLastDrawnRenderTargetBlock() == s_frame_block)
-			s_frame_texture = renderer->GetLastDrawnRenderTargetTexture();
+		if (renderer && renderer->GetLastDrawnRenderTargetBlock() == s_frame_block)
+			s_frame_target = renderer->GetLastDrawnRenderTarget();
 
-		// The plugins are drawn into the frame at the draw the last pass of it before its UI
-		// starts at, which is the draw this was armed at: it happens right before the draw
-		// that starts the UI of the frame, so the UI is sent to the GS after them.
-		if (s_armed && !s_inserted && in_frame_block && s_frame_texture)
+		// The plugins are drawn into the frame at the draw the last pass of it starts at, which
+		// is the draw this was armed at: it happens right before the draw that starts the UI of
+		// the frame, so the UI is sent to the GS after them.
+		if (s_armed && !s_inserted && s_frame_target && s_frame_target->m_texture)
 		{
 			s_armed = false;
 			s_inserted = true;
-			PluginDrawFrameNow(s_frame_texture);
+			PluginDrawFrameNow(s_frame_target->m_texture);
 		}
 	}
 }
@@ -431,11 +518,8 @@ void PCSX2F::GuestRenderResetState()
 	MTGS::RunOnGSThread([]() {
 		s_frame_block = 0;
 		s_passes_expected = 0;
-		s_passes = 0;
-		s_draw_was_elsewhere = false;
-		s_frame_texture = nullptr;
-		s_armed = false;
-		s_inserted = false;
+		s_frame_target = nullptr;
+		ResetMeasurement();
 	});
 	MTGS::WaitGS(false);
 }
@@ -447,7 +531,13 @@ void PCSX2F::GuestRenderFrameEnded()
 	// runs at less than the rate of the vsync has frames whose draws are cut in two by one, and a
 	// count that started over in the middle of a frame has the plugins drawn at the wrong pass of
 	// the next one (where a later pass draws over them) or not at all, see GuestRenderPhase.
-	s_frame_texture = nullptr;
+	s_frame_target = nullptr;
+}
+
+void PCSX2F::GuestRenderTargetDeleted(const void* target)
+{
+	if (s_frame_target == target)
+		s_frame_target = nullptr;
 }
 
 void PCSX2F::GuestRenderPhase(u32 phase, u32 magic)
@@ -489,13 +579,19 @@ void PCSX2F::GuestRenderPhase(u32 phase, u32 magic)
 		// see the head of this file, so this is where that frame ends: what is drawn into the
 		// block it was drawn into from now on is the frame that is being drawn next, and the
 		// passes of the frame that ended are the ones it is drawn with.
-		// A vsync between the UI of the frame and the report leaves the renderer with no target
+		// The frame is the block most of its world went into; the last draw before the report
+		// can be a copy of it into a buffer of post processing (GTA LCS keeps the finished frame
+		// for the blur of the next one). Without a world it is the block of the last draw. A
+		// vsync between the UI of the frame and the report leaves the renderer with no target
 		// drawn, and the block of the frame is then the one of the report before.
-		if (renderer && renderer->GetLastDrawnRenderTargetBlock() != 0)
-			s_frame_block = renderer->GetLastDrawnRenderTargetBlock();
+		const u32 last_block = renderer ? renderer->GetLastDrawnRenderTargetBlock() : 0;
+		const u32 frame_block = WorldBlock(last_block);
+		const bool same_frame_block = (frame_block == s_frame_block);
+		if (frame_block != 0)
+			s_frame_block = frame_block;
 
-		s_passes_expected = s_passes;
-
+		// passes counted against another block say nothing about this one
+		s_passes_expected = same_frame_block ? s_passes : 0;
 		// everything the guest sent up to the report is processed now, but the API may still hold
 		// it in a command buffer it would submit at the end of the frame, which is after the draw
 		// the plugins make next, and they would end up under the part of the frame that is in it.
@@ -505,10 +601,7 @@ void PCSX2F::GuestRenderPhase(u32 phase, u32 magic)
 		// The guest stands still until this is done, so nothing of its next frame has reached the
 		// GS yet: this is where the measurement of that frame starts.
 		const bool inserted = s_inserted;
-		s_passes = 0;
-		s_draw_was_elsewhere = false;
-		s_armed = false;
-		s_inserted = false;
+		ResetMeasurement();
 
 		// The plugins drew into the frame in the middle of it already, which is the point the UI
 		// of it starts at: drawing them again now would put them over that UI. That is the case
@@ -523,6 +616,7 @@ void PCSX2F::GuestRenderPhase(u32 phase, u32 magic)
 		if (!target)
 			return;
 
+		HandOverTarget(target);
 		FillTargetInfo(target, info);
 		drawn = true;
 

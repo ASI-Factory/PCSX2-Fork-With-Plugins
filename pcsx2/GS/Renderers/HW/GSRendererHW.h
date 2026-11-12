@@ -328,8 +328,8 @@ private:
 	// PCSX2F: the target of the last draw of the frame, which is the frame of the game
 	// for the plugins of the plugin injector: what they draw into it ends up under the
 	// UI the game draws into it next, see GS/PCSX2FGuestRender.h. It is forgotten when
-	// the frame is presented, so that it always is a target of the frame that is being
-	// drawn, and never one the texture cache has recycled since.
+	// the frame is presented, and when the texture cache deletes the target, which it
+	// does in the middle of a frame as well, see ForgetDrawnTarget.
 	GSTextureCache::Target* m_last_drawn_rt = nullptr;
 
 	GIFRegFRAME m_split_clear_start = {};
@@ -364,8 +364,17 @@ public:
 	// GS/PCSX2FGuestRender.h: the texture it is being drawn into, null until the frame
 	// has had a draw (there is nothing to draw into before that), and the block of the
 	// GS memory it is in, which is what tells it from the passes of its post processing.
+	__fi GSTextureCache::Target* GetLastDrawnRenderTarget() const { return m_last_drawn_rt; }
 	__fi GSTexture* GetLastDrawnRenderTargetTexture() const { return m_last_drawn_rt ? m_last_drawn_rt->m_texture : nullptr; }
 	__fi u32 GetLastDrawnRenderTargetBlock() const { return m_last_drawn_rt ? m_last_drawn_rt->m_TEX0.TBP0 : 0; }
+
+	// PCSX2F: called by the texture cache for every target it deletes, so that the frame
+	// the plugins are handed is never a target that is gone, see GS/PCSX2FGuestRender.h.
+	__fi void ForgetDrawnTarget(const GSTextureCache::Target* target)
+	{
+		if (m_last_drawn_rt == target)
+			m_last_drawn_rt = nullptr;
+	}
 
 	__fi u32 GetLastChannelShuffleFBP() { return m_last_channel_shuffle_fbp; }
 	void Destroy() override;
