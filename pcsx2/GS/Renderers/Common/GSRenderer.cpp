@@ -5,6 +5,7 @@
 #include "ImGui/ImGuiManager.h"
 #include "GS/Renderers/Common/GSRenderer.h"
 #include "GS/GSCapture.h"
+#include "pcsx2/GS.h"
 #include "GS/GSDump.h"
 #include "GS/GSGL.h"
 #include "GS/GSPerfMon.h"
@@ -26,6 +27,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <deque>
 #include <thread>
 #include <mutex>
@@ -46,6 +48,40 @@ std::unique_ptr<GSRenderer> g_gs_renderer;
 // Since we read this on the EE thread, we can't put it in the renderer, because
 // we might be switching while the other thread reads it.
 static GSVector4 s_last_draw_rect;
+
+static float GetAutomaticDisplayAspect(bool is_progressive)
+{
+	if (EmuConfig.CurrentCustomAspectRatio > 0.f)
+		return EmuConfig.CurrentCustomAspectRatio;
+
+	return is_progressive ? 3.0f / 2.0f : 4.0f / 3.0f;
+}
+
+#ifdef _WIN32
+static std::atomic<u32> s_render_display_aspect{static_cast<u32>(AspectRatioType::MaxCount)};
+
+// The low byte retains the original mode. Auto can additionally encode its
+// effective display aspect in the upper bits, using a fixed-point fraction.
+static u32 PackDisplayAspect(AspectRatioType mode, float effective)
+{
+	const u32 mode_value = static_cast<u32>(mode);
+	if (mode != AspectRatioType::RAuto4_3_3_2 || !(effective >= 0.5f && effective <= 8.0f))
+		return mode_value;
+
+	return mode_value | (static_cast<u32>(effective * 65536.0f + 0.5f) << 8);
+}
+
+extern "C" __declspec(dllexport) u32 PCSX2FGetRenderDisplayAspect()
+{
+	return s_render_display_aspect.load(std::memory_order_relaxed);
+}
+
+extern "C" __declspec(dllexport) u32 PCSX2FGetCurrentDisplayAspect()
+{
+	return PackDisplayAspect(EmuConfig.CurrentAspectRatio,
+		GetAutomaticDisplayAspect(gsVideoMode == GS_VideoMode::SDTV_480P));
+}
+#endif
 
 // Last time we reset the renderer due to a GPU crash, if any.
 static Common::Timer::Value s_last_gpu_reset_time;
@@ -294,12 +330,7 @@ static float GetCurrentAspectRatioFloat(bool is_progressive)
 		// We don't know the AR of the display here, nor we care about it
 		case AspectRatioType::Stretch:
 		case AspectRatioType::RAuto4_3_3_2:
-			if (EmuConfig.CurrentCustomAspectRatio > 0.f)
-				return EmuConfig.CurrentCustomAspectRatio;
-			else if (is_progressive)
-				return 3.0f / 2.0f;
-			else
-				return 4.0f / 3.0f;
+			return GetAutomaticDisplayAspect(is_progressive);
 		case AspectRatioType::R4_3:
 			return 4.0f / 3.0f;
 		case AspectRatioType::R16_9:
@@ -314,30 +345,28 @@ static GSVector4 CalculateDrawDstRect(s32 window_width, s32 window_height, const
 	const float f_width = static_cast<float>(window_width);
 	const float f_height = static_cast<float>(window_height);
 	const float clientAr = f_width / f_height;
-
+	const AspectRatioType aspectMode = EmuConfig.CurrentAspectRatio;
 	float targetAr = clientAr;
-	if (EmuConfig.CurrentAspectRatio == AspectRatioType::RAuto4_3_3_2)
+	if (aspectMode == AspectRatioType::RAuto4_3_3_2)
 	{
-		if (is_progressive)
-			targetAr = 3.0f / 2.0f;
-		else
-			targetAr = 4.0f / 3.0f;
-		// Fall back on the custom aspect ratio set by patches (e.g. 16:9, 21:9)
-		if (EmuConfig.CurrentCustomAspectRatio > 0.f)
-			targetAr = EmuConfig.CurrentCustomAspectRatio;
+		targetAr = GetAutomaticDisplayAspect(is_progressive);
 	}
-	else if (EmuConfig.CurrentAspectRatio == AspectRatioType::R4_3)
+	else if (aspectMode == AspectRatioType::R4_3)
 	{
 		targetAr = 4.0f / 3.0f;
 	}
-	else if (EmuConfig.CurrentAspectRatio == AspectRatioType::R16_9)
+	else if (aspectMode == AspectRatioType::R16_9)
 	{
 		targetAr = 16.0f / 9.0f;
 	}
-	else if (EmuConfig.CurrentAspectRatio == AspectRatioType::R10_7)
+	else if (aspectMode == AspectRatioType::R10_7)
 	{
 		targetAr = 10.0f / 7.0f;
 	}
+
+#ifdef _WIN32
+	s_render_display_aspect.store(PackDisplayAspect(aspectMode, targetAr), std::memory_order_relaxed);
+#endif
 
 	const float crop_adjust = (static_cast<float>(src_rect.width()) / static_cast<float>(src_size.x)) /
 		(static_cast<float>(src_rect.height()) / static_cast<float>(src_size.y));

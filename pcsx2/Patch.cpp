@@ -820,12 +820,14 @@ void Patch::UpdateActivePatches(bool reload_enabled_list, bool verbose, bool ver
 void Patch::ApplyPatchSettingOverrides()
 {
 	// Switch to 16:9 (or any custom aspect ratio) if widescreen patches are enabled, and AR is auto.
-	if (s_override_aspect_ratio.has_value() && EmuConfig.GS.AspectRatio == AspectRatioType::RAuto4_3_3_2)
+	const auto aspect_override = EmuConfig.GS.AspectRatio == AspectRatioType::RAuto4_3_3_2
+		? s_override_aspect_ratio
+		: std::nullopt;
+	EmuConfig.CurrentCustomAspectRatio = aspect_override.value_or(0.0f);
+	if (aspect_override)
 	{
-		EmuConfig.CurrentCustomAspectRatio = s_override_aspect_ratio.value();
-
 		Console.WriteLn(Color_Gray,
-			fmt::format("Patch: Setting aspect ratio to {} by patch request.", s_override_aspect_ratio.value()));
+			fmt::format("Patch: Setting aspect ratio to {} by patch request.", *aspect_override));
 	}
 
 	// Disable interlacing in GS if active.

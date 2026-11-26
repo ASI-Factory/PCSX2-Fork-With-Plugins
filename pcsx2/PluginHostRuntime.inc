@@ -156,7 +156,7 @@ namespace VMManager::Internal
 			s_elf_path.data(), s_disc_crc, s_current_crc, s_elf_entry_point,
 			&eeMem->Main[0], Ps2MemSize::ExposedRam, &g_gs_device->GetWindowInfo().window_handle,
 			g_gs_device->GetWindowInfo().surface_width, g_gs_device->GetWindowInfo().surface_height,
-			Host::IsFullscreen(), static_cast<uint8_t>(GSConfig.AspectRatio));
+			Host::IsFullscreen(), static_cast<uint8_t>(EmuConfig.CurrentAspectRatio));
 	}
 	bool HandlePluginSyscall()
 	{

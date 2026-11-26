@@ -219,7 +219,7 @@ bool VMManager::Internal::FinishGuestModuleStateLoad(Error* error)
 		uintptr_t context[] = {reinterpret_cast<uintptr_t>(eeMem->Main), Ps2MemSize::ExposedRam,
 			reinterpret_cast<uintptr_t>(&g_gs_device->GetWindowInfo().window_handle),
 			g_gs_device->GetWindowInfo().surface_width, g_gs_device->GetWindowInfo().surface_height,
-			Host::IsFullscreen(), static_cast<uintptr_t>(GSConfig.AspectRatio)};
+			Host::IsFullscreen(), static_cast<uintptr_t>(EmuConfig.CurrentAspectRatio)};
 		s32 installed_set_differs = 0;
 		if (!TransferGuestState(3, context, sizeof(context), error, &installed_set_differs))
 			return false;
