@@ -127,7 +127,7 @@ mVUop(mVU_RSQRT)
 				xMOV(ptr32[&mVU.divFlag], divI); // Set invalid flag (0/0)
 				xForwardJump8 cjmp;
 			bjmp.SetTarget();
-				xMOV(ptr32[&mVU.divFlag], divD); // Zero divide flag (only when not 0/0)
+				xOR(ptr32[&mVU.divFlag], divD); // Zero divide flag (only when not 0/0)
 			cjmp.SetTarget();
 
 			xAND.PS(Fs, ptr128[mVUglob.signbit]);
@@ -1857,8 +1857,8 @@ mVUop(mVU_XGKICK)
 			xMOV(ptr32[&VU1.xgkickcyclecount], 0);
 			xMOV(gprT2, ptr32[&mVU.totalCycles]);
 			xSUB(gprT2, ptr32[&mVU.cycles]);
-			xADD(gprT2, ptr64[&VU1.cycle]);
-			xMOV(ptr32[&VU1.xgkicklastcycle], gprT2);
+			xADD(gprT2q, ptr64[&VU1.cycle]);
+			xMOV(ptr64[&VU1.xgkicklastcycle], gprT2q);
 			xMOV(gprT1, regS);
 			xAND(gprT1, 0x3FF);
 			xSHL(gprT1, 4);
